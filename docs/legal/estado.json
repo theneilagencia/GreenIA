@@ -1,0 +1,4 @@
+{
+  "publicado": true,
+  "nota": "Versão 1.0 preparada para o release (páginas indexáveis, sem faixa). Para voltar a uma versão candidata, mude para false e rode node scripts/gerar-legais.js."
+}

@@ -1,0 +1,22 @@
+# Somente o site comercial. Endereços de empresas e áreas internas não são publicados aqui.
+User-agent: *
+Disallow: /
+Allow: /$
+Allow: /faq.html$
+Allow: /termos$
+Allow: /privacidade$
+Allow: /assets/
+Allow: /fontes/
+Allow: /*.css$
+Allow: /*.js$
+Allow: /llms.txt$
+Allow: /sitemap.xml$
+
+# A busca pode consultar as páginas públicas sem liberar coleta para treinamento.
+User-agent: GPTBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+Sitemap: https://www.greenia.com.br/sitemap.xml

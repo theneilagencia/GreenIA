@@ -1,0 +1,1699 @@
+/* Escala da interface privada. Carregado após os estilos dos componentes.
+   Conteúdo de conversas e artefatos conserva sua própria hierarquia de leitura. */
+.app{
+  --ui-texto:14px;--ui-apoio:13px;--ui-titulo:20px;--ui-secao:16px;
+  font-size:var(--ui-texto);line-height:1.55;
+}
+.app .cabeca h1{font:600 var(--ui-titulo)/1.3 var(--sans);letter-spacing:-.015em}
+.app .pagina{padding:24px 28px 48px}
+.app .pagina :is(h2,.pg-titulo h2,.pergunta,.sucesso h2){
+  font:600 var(--ui-titulo)/1.35 var(--sans);letter-spacing:-.015em;overflow-wrap:anywhere;
+}
+.app .pagina h3{font:600 var(--ui-secao)/1.4 var(--sans);letter-spacing:-.005em;overflow-wrap:anywhere}
+.app .pagina :is(.lead,.pg-desc,.secao-conteudo,.resumo-pub>li,.regras-lista .regra-propria){font:400 var(--ui-texto)/1.6 var(--sans)}
+.app :is(.dica,.ajuda,.legenda,.qw-item-meta,.qc-itens){font-size:var(--ui-apoio);line-height:1.5}
+.app .pagina :is(.lead,.pg-desc){margin-bottom:20px}
+.app .pagina :is(.editor,.grupo-form,.conhecimento-envio,.conhecimento-documento){padding:16px;border-radius:var(--raio-painel)}
+.app .pagina :is(.conhecimento-doc-topo h3,.conhecimento-vazio h3,.item-int h3){font:600 15px/1.4 var(--sans);margin:0 0 4px}
+.app .pagina .indicador b{font:600 24px/1.25 var(--sans);font-variant-numeric:tabular-nums}
+.app .boas-vindas h2{font:600 24px/1.3 var(--sans);letter-spacing:-.02em}
+.app .pagina .vazio b{font:600 var(--ui-secao)/1.4 var(--sans)}
+.app :is(.btn,.btn-pequeno,.btn-texto){font-size:var(--ui-texto);line-height:1.4;min-height:40px}
+.app .entrada{font-size:var(--ui-texto);line-height:1.5;min-height:40px}
+.app .pagina :is(.campo,.pg-titulo-texto,.pg-acoes,.filtros-biblioteca,.grade-2>*,.grade-3>*){min-width:0}
+.app .pagina :is(input,select,textarea){min-width:0;max-width:100%}
+.app .pagina .lista-item-linha .lista-item{min-width:0;width:auto}
+.app .pagina .lista-item-linha .link-sutil{flex:none}
+.app .pagina .principal-texto span{overflow-wrap:anywhere}
+.app .pagina .pg-titulo-texto{flex-basis:240px}
+.app .pagina :is(.pg-acoes,.linha-botoes,.filtros){flex-wrap:wrap}
+.app .pagina .btn{max-width:100%;white-space:normal;text-align:center;overflow-wrap:anywhere}
+.app .pagina :is(.secao-titulo,.conhecimento-vistas){margin-top:24px}
+.app .pagina .secao-titulo h3{margin:0}
+.app .pagina :is(.selo,.selo-int,.qw-status){max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.app .pagina :is(.acomp-lista,.acomp-passos)>li{border-color:var(--line);background:var(--paper);border-radius:var(--raio-painel)}
+.app .pagina .acomp-resumo{border-color:var(--line);background:var(--surface);border-radius:var(--raio-painel)}
+.app .pagina .acompanhamento :is(.acomp-lista,.acomp-passos) h2{font:600 15px/1.4 var(--sans)}
+.app .pagina .acompanhamento .btn{min-height:44px}
+/* Integrações herdam a marca e os mesmos estados do restante da aplicação. */
+.app .pagina .item-int{border:1px solid var(--line);border-radius:var(--raio-painel);padding:14px;min-width:0;overflow-wrap:anywhere;background:var(--paper)}
+.app .pagina a.item-int:hover{border-color:var(--line-strong);background:var(--surface)}
+.app .pagina .selo-int{font:500 12px/1.6 var(--sans);background:var(--sand);color:var(--muted)}
+.app .pagina .selo-int.ok,.app .pagina .passos-int li.feito{background:var(--mint);color:var(--forest-text)}
+.app .pagina .selo-int.atencao{background:var(--amber-bg);color:var(--amber-text)}
+.app .pagina .selo-int.erro{background:var(--red-bg);color:var(--red-text)}
+.app .pagina .passos-int li{background:var(--sand);color:var(--muted);font-size:13px}
+.app .pagina .passos-int li.atual{background:var(--forest-strong);color:var(--sobre-forte)}
+.app .pagina .ok-int{color:var(--forest-text)}
+.app .pagina .erro-int{color:var(--red-text)}
+.app .pagina .linha-op{border-color:var(--line)}
+.app .pagina .linha-op small{color:var(--muted)}
+.app .pagina .campo-int :is(input,select,textarea){font:400 var(--ui-texto)/1.5 var(--sans);padding:9px 11px;border:1px solid var(--line-strong);border-radius:var(--raio);background:var(--paper);color:var(--ink);min-height:40px}
+#modal .modal h2{font:600 18px/1.4 var(--sans);letter-spacing:-.01em;overflow-wrap:anywhere}
+#modal .modal p{font:400 14px/1.6 var(--sans)}
+#modal .ajuda-contextual{max-width:540px;padding:24px}
+#modal .ajuda-contextual .modal-topo{gap:16px;align-items:flex-start}
+#modal .ajuda-contextual .modal-topo h2{margin:0 0 16px}
+#modal .ajuda-contextual .icone-btn{min-width:40px;min-height:40px;flex:none}
+#modal .ajuda-contextual .guia-cuidado{padding:14px 16px;margin:16px 0 20px;background:var(--surface);border:1px solid var(--line);border-radius:var(--raio)}
+#modal .ajuda-contextual .guia-cuidado p{margin:6px 0 0}
+#modal .ajuda-contextual .dica{font-size:13px;margin:16px 0 0}
+@media(max-width:760px){
+  #modal .modal .grade-2{grid-template-columns:minmax(0,1fr)}
+  #modal .modal :is(.btn,.btn-texto,.icone-btn){min-height:44px}
+  #modal .modal .entrada{font-size:16px;min-height:44px}
+  #modal .ajuda-contextual{max-width:100%;padding:20px 18px calc(20px + env(safe-area-inset-bottom))}
+  .app .cabeca{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;align-items:start}
+  .app .cabeca-titulo{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;min-width:0;align-items:center}
+  .app .cabeca-titulo>h1{white-space:normal;overflow-wrap:normal;word-break:normal;overflow:visible}
+  .app .cabeca-titulo>.btn{grid-column:1 / -1;justify-self:start}
+  .app .cabeca-acoes{gap:8px;justify-self:end;align-self:start;flex-wrap:wrap;max-width:100%}
+  .app .pagina{padding:20px 16px 40px}
+  .app .cabeca h1{font-size:18px}
+  .app :is(.btn,.btn-pequeno,.btn-texto,.icone-btn,.btn-icone){min-height:44px}
+  .app :is(.icone-btn,.btn-icone){min-width:44px}
+  .app .entrada,.app .pagina .campo-int :is(input,select,textarea){font-size:16px;min-height:44px}
+  .app .pagina .filtros-biblioteca .campo{min-width:0;flex-basis:100%}
+  .app .pagina :is(.grade-2,.grade-3,.duas-col,.qw-limites){grid-template-columns:minmax(0,1fr)}
+  .app .pagina :is(.pg-acoes,.pg-titulo-texto){max-width:100%}
+  .app .pagina :is(.escolhas,.rt-pref,.or-grade){grid-template-columns:minmax(0,1fr)}
+  .app .pagina :is(.btn-texto,.link-sutil){display:inline-flex;align-items:center;min-height:44px;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+}
+
+.app .icone-btn:has(span){gap:6px;width:auto}
+.inicio-ajuda,.uso-detalhes,#modelos-manuais{margin:16px 0}
+.inicio-ajuda>summary,.uso-detalhes>summary,#modelos-manuais>summary{padding:12px 0;cursor:pointer;font-weight:600}
+
+@media(pointer:coarse),(max-width:760px){
+  .app summary{min-height:44px;box-sizing:border-box;padding:10px 0;cursor:pointer}
+  .app .pagina .migalhas a{display:inline-flex;align-items:center;min-height:44px}
+}
+@media(pointer:coarse),(max-width:760px){
+  .app summary{display:list-item}
+  .app .pg-trilha a,.app .qw-contexto{display:inline-flex;align-items:center;min-height:44px}
+  .app .segmento-sutil button{min-height:44px}
+  .app .btn-execucao{min-width:44px;min-height:44px}
+  .app .faixa-aviso a{display:inline-flex;align-items:center;min-height:44px}
+}
+
+/* Celular: cabeçalho em uma linha só e conversa com área útil para ler a resposta (QA de UX de out/2026).
+   Os rótulos de texto dos botões de ícone somem; o nome acessível continua no aria-label. */
+@media(max-width:760px){
+  .app .cabeca{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;padding-inline:8px}
+  .app .cabeca-titulo{display:flex;flex-wrap:wrap;align-items:center;flex:1 1 auto;min-width:0;gap:2px 4px}
+  .app .cabeca-titulo>h1{flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:17px}
+  .app .cabeca-titulo>.btn{flex-basis:100%}
+  .app .cabeca-acoes{flex:none;flex-wrap:nowrap;gap:4px;align-self:center;max-width:none}
+  .app .cabeca :is(.menu-btn,.cabeca-titulo>.icone-btn)>span{display:none}
+  .app .cabeca .menu-btn{width:44px;padding:0}
+  .barra-conversa{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;gap:8px 12px;padding:6px 12px}
+  .barra-conversa>*{flex:none}
+  .barra-conversa::after{content:'';position:sticky;right:-12px;flex:0 0 28px;align-self:stretch;margin:-6px -12px -6px -28px;background:linear-gradient(90deg,transparent,var(--surface));pointer-events:none}   /* indica que a faixa continua */
+  .barra-conversa .qw-contexto{max-width:62vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .compositor .nota-compositor{font-size:11px;margin-top:4px}
+}
+/* Altura curta (teclado aberto no celular): a nota de rodapé do envio sai, sem mexer no layout durante o toque. */
+@media(max-width:760px) and (max-height:600px){.compositor .nota-compositor{display:none}}
+/* === Console (QA UX) === */
+/* Seções do console em h2 (logo abaixo do h1), com o mesmo visual dos antigos h3. */
+body.plataforma .pagina h2.h-secao{font:600 15px/1.3 var(--sans);letter-spacing:-.005em;color:var(--ink);margin:28px 0 10px}
+body.plataforma .pagina .secao-titulo h2.h-secao{margin:0}
+/* Selos de status não quebram no meio da palavra ("Ativ/o"). */
+body.plataforma .pagina :is(td,.indicador,.or-sub) .selo{white-space:nowrap;overflow-wrap:normal;max-width:none}
+body.plataforma .pagina .indicador small .selo{display:inline-flex;width:auto}
+/* Valores técnicos (caminho do banco) quebram dentro do cartão; blocos de valor ficam juntos. */
+body.plataforma .valor-tecnico{font-size:12.5px;overflow-wrap:anywhere;word-break:break-all}
+body.plataforma .valor-bloco{display:block}
+/* Login do console: saídas para quem não é operador. */
+.entrar-console .login-saidas{text-align:center;margin:14px 0 0}
+/* Auditoria: o resumo indica que o detalhe abre. */
+body.plataforma .aud-detalhe summary{cursor:pointer;list-style:none}
+body.plataforma :is(span.aud-detalhe,.aud-detalhe summary){font-size:13px;color:var(--ink)}
+body.plataforma .aud-detalhe summary::-webkit-details-marker{display:none}
+body.plataforma .aud-abrir{color:var(--forest-text);font-weight:500;white-space:nowrap}
+body.plataforma .aud-detalhe[open] .aud-abrir{display:none}
+body.plataforma .aud-lista{margin:8px 0 0;padding-left:18px;font-size:13px;line-height:1.5}
+@media(max-width:760px){
+  /* Abas da empresa em várias linhas: nenhuma fica escondida fora da tela. */
+  body.plataforma .subnav{flex-wrap:wrap;-webkit-mask-image:none;mask-image:none;overflow:visible}
+  body.plataforma .pagina .filtros>.campo{flex:1 1 100%}
+}
+@media(max-width:640px){
+  /* Tabela empilhada: rótulo à esquerda e o valor inteiro (texto + complemento) num bloco só, à direita. */
+  body.plataforma .tabela:not(.tabela-fixa) td{display:block;text-align:right;overflow-wrap:anywhere}
+  body.plataforma .tabela:not(.tabela-fixa) td::before{float:left;margin-right:12px}
+  body.plataforma .tabela:not(.tabela-fixa) td:first-child{text-align:left}
+  body.plataforma .tabela:not(.tabela-fixa) td:first-child::before{display:block;float:none;margin:0 0 2px}
+  body.plataforma .tabela:not(.tabela-fixa) td .entrada{max-width:60%;display:inline-block}
+}
+
+/* === Uso e chat (QA UX) === */
+/* Lateral: no celular, o menu tem "Fechar". */
+.fechar-lateral{display:none}
+@media(max-width:860px){
+  .lateral .fechar-lateral{display:inline-grid;place-items:center;position:absolute;top:calc(8px + env(safe-area-inset-top));right:6px;width:44px;height:44px;min-width:44px;padding:0;z-index:1}
+  .lateral .marca{margin-right:44px}
+}
+.app .cabeca .acoes-conversa{width:40px;min-width:40px;height:40px;min-height:40px;color:var(--muted)}
+@media(max-width:760px){.app .cabeca .acoes-conversa{width:44px;min-width:44px;height:44px;min-height:44px}}
+/* Anexos da caixa de mensagem: papel do material e remover com alvo de 44 px no celular. */
+@media(pointer:coarse),(max-width:760px){
+  .app .papel-anexo{min-height:44px}
+  .app .anexo-chip>button{min-width:44px;min-height:44px}
+}
+
+/* Primeiros passos: passos com nome, "Voltar" desabilitado com cara de desabilitado e saída com o caminho de volta. */
+.guia-num{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:999px;background:var(--surface);font:600 12px var(--sans)}
+.guia-rodape .btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+.guia-saida{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:0}
+
+/* Pendências: filtros escondidos de verdade quando não há o que filtrar. */
+.filtros-biblioteca[hidden],#pend-visoes[hidden]{display:none}
+
+/* === Quick Wins (QA UX) === */
+/* Uma trilha só: com a trilha da página, a do cabeçalho some (o h1 já é o nome da página). */
+/* Seções da página em h2 com a mesma aparência discreta de antes. */
+.app .pagina .qw-lista-cabeca h2{font:600 13px var(--sans)!important;letter-spacing:.02em;color:var(--muted)!important;margin:0!important;text-transform:none}
+.app .pagina .plano h2{font:600 14px/1.4 var(--sans);margin:0 0 10px;color:var(--ink)}
+.app .pagina .entregas h2{font:600 14px/1.4 var(--sans);margin:0 0 4px;color:var(--ink)}
+.rascunho-barra[hidden]{display:none}
+/* Página do Quick Win: o que ele faz, depois detalhes e resultados recolhidos. */
+.app .pagina :is(.qw-detalhes,.qw-uso-decisao)>summary{min-height:44px;display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;list-style:none}
+.app .pagina :is(.qw-detalhes,.qw-uso-decisao)>summary::-webkit-details-marker{display:none}
+.app .pagina :is(.qw-detalhes,.qw-uso-decisao,.qw-cfg-secao)>summary::before{content:'';flex:none;width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+.app .pagina :is(.qw-detalhes,.qw-uso-decisao,.qw-cfg-secao)[open]>summary::before{transform:rotate(45deg)}
+.app .pagina .qw-detalhes>.secoes{margin-top:8px}
+.app .pagina .qw-resultados-processo{margin:4px 0 16px}
+.app .pagina .qw-nome-inicial{margin-top:20px}
+/* Sugestões: quebram em linhas (nada cortado na lateral no celular). */
+.app .pagina :is(.qw-detalhe,.qw-usar) .sugestoes{flex-wrap:wrap;overflow:visible;margin:0 0 12px;padding:0}
+.app .pagina :is(.qw-detalhe,.qw-usar) .sugestoes button{flex:0 1 auto;white-space:normal;min-height:44px}
+.app .pagina .qw-instrucoes{white-space:pre-wrap}
+/* Biblioteca no celular: "Agendados" e "Criar Quick Win" em largura total, um embaixo do outro. */
+@media(max-width:480px){.app .pagina .qw-biblioteca .pg-acoes{flex-direction:column;align-items:stretch}.app .pagina .qw-biblioteca .pg-acoes .btn{white-space:nowrap}}
+/* Modelos: prévia antes de criar. Agendados: opções diretas. */
+.app .pagina .qw-previa{margin-top:16px;padding:16px;border:1px solid var(--line);border-radius:var(--raio-painel);background:var(--paper)}
+.app .pagina .qw-previa h3{margin:0 0 4px}
+.app .pagina .qw-agendar-opcoes{list-style:none;padding:0;margin:12px 0 0;display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+/* Configurar: seções recolhíveis, barra fixa só com Salvar e Salvar e testar, exclusão no fim da página. */
+.app .pagina .qw-cfg-secao>summary{display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer;list-style:none}
+.app .pagina .qw-cfg-secao>summary::-webkit-details-marker{display:none}
+.app .pagina .qw-cfg-secao>summary h2,.app .pagina .qw-config .grupo-form>h2,.app .pagina .qw-zona-perigo h2{font:600 var(--ui-secao)/1.4 var(--sans);margin:0}
+.app .pagina .qw-cfg-corpo{margin-top:12px}
+.app .pagina .qw-config .grupo-form{margin-bottom:12px}
+.app .pagina .qw-config fieldset{border:0;padding:0;margin:0 0 14px;min-width:0}
+.app .pagina .qw-config-barra{position:sticky;bottom:0;z-index:3;background:var(--paper);padding:12px 0;border-top:1px solid var(--line);flex-wrap:nowrap;gap:8px;margin:0}
+.app .pagina .qw-zona-perigo{margin-top:40px;padding-top:20px;border-top:1px solid var(--line)}
+.app .pagina .qw-zona-perigo .btn{margin-top:8px}
+@media(max-width:760px){.app .pagina .qw-config-barra .btn{flex:1 1 0;min-width:0}}
+/* Cor: a amostra é o controle (44 px), com o nome da cor para leitores de tela e a seleção na própria amostra. */
+.qw-cores{display:flex;flex-wrap:wrap;gap:4px}
+.qw-cor{position:relative;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:10px;cursor:pointer}
+.qw-cor input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.qw-cor-amostra{width:30px;height:30px;border-radius:8px;background:var(--qw-cor);box-shadow:inset 0 0 0 1px rgba(0,0,0,.1)}
+.qw-cor:has(input:checked) .qw-cor-amostra{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--ink)}
+.qw-cor:has(input:checked)::after{content:'';position:absolute;width:10px;height:5px;border-left:2px solid var(--sobre-forte);border-bottom:2px solid var(--sobre-forte);transform:translateY(-2px) rotate(-45deg)}
+.qw-cor:has(input:focus-visible){outline:2px solid var(--forest);outline-offset:1px}
+/* Alvos de toque: rótulo inteiro clicável com 44 px no celular. */
+@media(pointer:coarse),(max-width:760px){
+  .app .pagina .qw-opcoes-toque>label,.app .pagina .qw-opcao-toque{min-height:44px;align-items:center}
+  .app .pagina .qw-tabela-dados .segmento span{min-height:38px;display:inline-flex;align-items:center}
+}
+/* Uso e decisão: variação com sentido (texto e cor) e gráfico de conversas por mês. */
+.qw-variacao{display:block;font-weight:600}
+.qw-variacao-boa{color:var(--forest)}
+.qw-variacao-ruim{color:var(--red-text)}
+.qw-grafico{margin:8px 0 14px}
+.qw-grafico ul{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:6px}
+.qw-grafico li{display:grid;grid-template-columns:minmax(72px,auto) 1fr auto;align-items:center;gap:10px;font-size:13px}
+.qw-grafico-barra{height:10px;border-radius:5px;background:var(--sand)}
+.qw-grafico-barra::before{content:'';display:block;height:100%;width:var(--valor);min-width:2px;border-radius:inherit;background:var(--forest)}
+
+/* === Administração (QA UX) === */
+/* Títulos de seção das telas de gestão: <h2> no lugar de <h3> (hierarquia), com o mesmo visual de antes. */
+:is(#conteudo>h2,#conteudo>form>h2,#cfg-modelos>h2,#f-role>h2,.adm-painel>h2,.adm-lote>h2,.adm-escopo h2,.secao-titulo h2,.cfg-topo h2,.url-topo h2,.lx-titulo h2,.adm-resumo-titulo){font:600 15px/1.3 var(--sans);letter-spacing:-.005em;color:var(--ink)}
+:is(#conteudo>h2,#conteudo>form>h2,#cfg-modelos>h2,#f-role>h2){margin:28px 0 10px}
+:is(.secao-titulo h2,.lx-titulo h2,.adm-resumo-titulo){margin:0}
+.cfg-topo h2{margin:0 0 2px}
+.url-topo h2{margin:0 0 2px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.url-topo h2 small{font-weight:400;color:var(--muted)}
+#conteudo>h2 .dica{font-weight:400;margin-left:6px}
+.adm-resumo-titulo{display:inline}
+.px-secao h3{margin:0;font:600 14px var(--sans)}
+.px-perigo h3{color:var(--red-text)}
+
+/* Barra de salvar fixa no rodapé, com "Alterações não salvas" (formulários de gestão). */
+.adm-salvar{position:sticky;bottom:0;z-index:2;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px 12px;margin-top:12px;padding:12px 0 calc(12px + env(safe-area-inset-bottom));background:var(--paper);border-top:1px solid var(--line)}
+.adm-sujo{margin:0 auto 0 0;color:var(--amber-text);font-weight:500}
+.adm-sujo:empty{display:none}
+.cfg-salvar .adm-sujo{margin:0}
+
+/* Configurações: cada bloco mostra que abre (seta e "Editar"); no celular o título não vira item de lista. */
+.cfg-caixa>summary{list-style:none;cursor:pointer;margin-bottom:0}
+.cfg-caixa>summary::-webkit-details-marker{display:none}
+.cfg-caixa[open]>summary{margin-bottom:14px}
+.cfg-topo>div{flex:1;min-width:0}
+.cfg-abrir{flex:none;display:inline-flex;align-items:center;gap:8px;align-self:center;font:500 13px var(--sans);color:var(--forest-text)}
+.cfg-abrir::after{content:'';width:7px;height:7px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg);transition:transform .2s;margin-top:-3px}
+.cfg-caixa[open] .cfg-abrir::after{transform:rotate(-135deg);margin-top:3px}
+.cfg-abrir-aberto,.cfg-caixa[open] .cfg-abrir-fechado{display:none}
+.cfg-caixa[open] .cfg-abrir-aberto{display:inline}
+.app .cfg-caixa>summary.cfg-topo{display:flex}
+
+/* Envio de arquivo com botão próprio em português. */
+.arquivo-campo{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px 10px;position:relative}
+.arquivo-campo label.btn,label.btn:has(input[type=file]){cursor:pointer}
+.arquivo-campo label.desabilitado{opacity:.6;pointer-events:none}
+.arquivo-campo:has(input:focus-visible) label,label.btn:has(input[type=file]:focus-visible){box-shadow:var(--foco)}
+
+/* Texto da política: editor e prévia lado a lado. */
+.adm-pol-editor{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+.adm-pol-previa{min-height:200px;max-height:460px;overflow-y:auto;margin:0}
+@media(max-width:900px){.adm-pol-editor{grid-template-columns:minmax(0,1fr)}}
+
+/* Quem cria Quick Wins: dois escopos com título e busca de pessoas. */
+.adm-escopo{border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin:0 0 16px;min-width:0}
+.adm-escopo h2{margin:0 0 4px}
+.adm-busca-caixas{max-width:320px;margin:4px 0 2px}
+
+/* Usuários: convite num painel; Revisar acessos: filtro e marcação em lote. */
+.adm-painel{border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin:12px 0 20px;background:var(--surface)}
+.adm-painel>h2{margin:0 0 6px}
+.adm-revisao-filtros{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 20px;margin-top:20px}
+.adm-lote{display:grid;gap:10px;margin:16px 0;padding:16px 18px;border:1px solid var(--forest);border-radius:12px;background:var(--surface)}
+.adm-lote[hidden]{display:none}
+.adm-lote>h2{margin:0}
+.acesso-marcar{flex:none}
+.adm-marca{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+
+/* Áreas e grupos: atalhos de teclado num "?" em vez de sempre à vista. */
+
+/* Celular: tabelas empilhadas com o rótulo acima do valor (nada sai da tela), seletor de três opções empilhado,
+   abas que quebram linha e alvos de toque de 44 px com o rótulo inteiro clicável. */
+@media(max-width:760px){
+  body[data-contexto="admin"] .tabela-empilha td{display:block;padding:6px 12px;overflow-wrap:anywhere}
+  body[data-contexto="admin"] .tabela-empilha td::before{display:block;margin-bottom:2px}
+  body[data-contexto="admin"] .tabela-empilha td,body[data-contexto="admin"] .tabela-empilha td.num{text-align:left}
+  body[data-contexto="admin"] .tabela-empilha .chip{white-space:normal;max-width:100%}
+  body[data-contexto="admin"] .segmento{display:flex;flex-direction:column;width:100%}
+  body[data-contexto="admin"] .segmento label{width:100%}
+  body[data-contexto="admin"] .segmento span{width:100%;min-height:44px;display:flex;align-items:center;white-space:normal}
+  body[data-contexto="admin"] .subnav{flex-wrap:wrap;overflow-x:visible}
+  body[data-contexto="admin"] :is(.opcoes label,.caixas label,.adm-marca,.chip-opcao,.cfg-liga,.checagens label){min-height:44px;align-items:center}
+  .adm-salvar .btn{flex:1}
+}
+/* === Transversal (QA UX) === Celular: caixa de seleção e opção com o rótulo inteiro clicável em 44 px, em todas as
+   telas (app e console). Segmentos, interruptores e chips têm regra própria. */
+@media(max-width:760px){
+  :is(.app,.plataforma) label:has(>input:is([type=checkbox],[type=radio])):not(.segmento label):not(.chip-opcao):not(.escolha):not(.switch){display:inline-flex;align-items:center;gap:8px;min-height:44px}
+}
+
+/* === Conversa e conhecimento (QA UX 2) === */
+/* Conhecimento: "Abrir" no cartão e painel de leitura do texto extraído. */
+.conhecimento-documento .conhecimento-abrir{margin:4px 0}
+#modal .conhecimento-leitura{max-width:760px}
+.conhecimento-leitura [hidden]{display:none!important}
+.conhecimento-ler-texto{max-height:min(56vh,560px);overflow-y:auto;padding:12px 14px;margin:8px 0;border:1px solid var(--line);border-radius:var(--raio);background:var(--paper);overflow-wrap:anywhere}
+#modal .conhecimento-ler-texto p{margin:0 0 10px;color:var(--ink)}
+@media(max-width:760px){
+  .app .conhecimento-documento .conhecimento-abrir{min-height:44px}
+  .conhecimento-ler-texto{max-height:60vh}
+}
+/* === Gestão (QA UX 2) === Largura única do conteúdo nas telas de gestão (administração no app e console da
+   plataforma). A página vai até --gestao-largura: tabelas, painéis e listas usam a largura toda. Formulários e
+   textos ficam na largura de leitura (--gestao-leitura), a mesma em todas as telas (antes variava entre 820, 860,
+   900 px e a largura toda). */
+:root{--gestao-largura:1080px;--gestao-leitura:860px}
+:is(body[data-contexto="admin"],body.plataforma) .pagina-dentro{max-width:var(--gestao-largura)}
+:is(body[data-contexto="admin"],body.plataforma) :is(.pagina-dentro.estreita,.cfg,.ld-editor,.url-passos,#form-marca,#f-dados,#f-nova,#f-cfg,#f-role,form#f-plano:not(.linha-botoes)){max-width:var(--gestao-leitura)}
+:is(body[data-contexto="admin"],body.plataforma) .pagina .lead{max-width:min(72ch,var(--gestao-leitura))}
+/* Campo de data em dd/mm/aaaa com o botão do calendário dentro do campo (data-br.js). */
+.data-br{position:relative;display:block;max-width:220px}
+.data-br>.entrada{width:100%;padding-right:44px}
+.data-br-cal{position:absolute;top:0;right:0;bottom:0;width:40px;display:grid;place-items:center;border:0;background:transparent;color:var(--muted);cursor:pointer;border-radius:0 var(--raio,6px) var(--raio,6px) 0}
+.data-br-cal:hover{color:var(--ink)}
+.data-br-cal:focus-visible{outline:2px solid var(--forest);outline-offset:-2px}
+.data-br-nativo{position:absolute;left:0;bottom:0;width:100%;height:1px;padding:0;border:0;opacity:0;pointer-events:none}
+@media(pointer:coarse),(max-width:760px){.data-br-cal{width:44px}.data-br>.entrada{padding-right:48px}}
+
+/* === Layout: uso e chat === Telas de quem usa (nova conversa, conversa, histórico, lateral, primeiros passos,
+   pendências, conhecimento, ajuda). Cartões no padrão .grade-cartoes/.cartao; títulos longos quebram em até duas
+   linhas (o título inteiro fica no title) em vez de cortar numa linha; telas da área com a mesma coluna. */
+/* Cabeçalho: título da tela em até 2 linhas, em todas as larguras. */
+.app .cabeca-titulo>h1{white-space:normal;text-overflow:clip;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:break-word;text-wrap:balance}
+@media(max-width:760px){.app .cabeca-titulo>h1{white-space:normal;text-overflow:clip}}
+@media(min-width:761px){.app .cabeca-titulo{align-items:baseline}}
+/* Faixa do Quick Win na conversa: no celular quebra em linhas em vez de rolar para o lado e cortar.
+   Com o teclado aberto (altura curta) continua numa linha que rola, para não roubar a área de leitura. */
+@media(max-width:760px) and (min-height:601px){
+  .barra-conversa{flex-wrap:wrap;overflow-x:visible;row-gap:0}
+  .barra-conversa::after{content:none}
+  .barra-conversa .qw-contexto{max-width:100%;white-space:normal}
+  .barra-conversa>*{flex:0 1 auto;min-width:0}
+}
+/* Primeiros passos: mesma coluna das outras telas; saída alinhada ao texto. */
+.pagina-dentro>.guia-pagina{margin:0}
+.guia-saida{align-items:baseline}
+.guia-saida>.btn-texto{margin-left:-8px}
+/* Conhecimento: documentos no padrão de cartão (ações no pé); ações do topo separadas do resumo no celular. */
+.conhecimento-documentos.grade-cartoes{--cartao-min:300px}
+.app .pagina .conhecimento-documento.cartao{padding:var(--cartao-pad);border-radius:var(--cartao-raio);gap:6px}
+.app .pagina .conhecimento-documento.cartao>p{margin:0}
+.conhecimento-documento .cartao-acoes .conhecimento-abrir{margin:0}
+.visoes-salvas{align-items:baseline}
+.visoes-salvas>.btn-texto:first-child{margin-left:-8px}
+/* Ajuda da tela: título e "×" na mesma linha. */
+#modal .ajuda-contextual .modal-topo{align-items:center;margin-bottom:16px}
+#modal .ajuda-contextual .modal-topo h2{margin:0}
+#modal .ajuda-contextual #ajuda-fechar{font-size:22px;line-height:1;flex:none}
+/* === Layout: administração === Formatação das telas de administração da empresa (rodada de alinhamento):
+   cabeçalhos de seção com a ação alinhada à borda, indicadores com rótulo, valor e nota na mesma altura em cada
+   linha, cartões no padrão comum (.grade-cartoes/.cartao), barras de filtro com a mesma altura, tabelas com a
+   primeira linha de texto alinhada e textos que quebram linha em vez de cortar com reticências. */
+
+/* Cabeçalho de seção: título (com a contagem ao lado) à esquerda, ação alinhada à borda direita do conteúdo. */
+body[data-contexto="admin"]{--adm-alvo:40px}
+@media(max-width:760px){body[data-contexto="admin"]{--adm-alvo:44px}}
+body[data-contexto="admin"] .pagina .secao-titulo{align-items:center;margin:28px 0 10px;min-height:40px}
+body[data-contexto="admin"] .pagina .secao-titulo h2{margin:0}
+body[data-contexto="admin"] .pagina .secao-titulo h2 .dica{font:400 13px var(--sans);margin-left:8px;white-space:nowrap}
+body[data-contexto="admin"] .pagina .secao-titulo>.btn-texto{margin-right:-8px;margin-left:auto;display:inline-flex;align-items:center}
+body[data-contexto="admin"] .pagina .secao-titulo>span.dica{margin-left:auto}
+body[data-contexto="admin"] .pagina .secao-titulo+:is(.indicadores,.lista,.tabela-rolagem,.grade-2,.faixa-aviso,p.dica){margin-top:0}
+
+/* Listas (Visão geral): título e explicação em linhas que quebram, sem cortar; a ação fica centralizada. */
+body[data-contexto="admin"] .lista-item .principal-texto b{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.4}
+body[data-contexto="admin"] .lista-item .principal-texto>span.dica{display:block;margin-top:2px;line-height:1.45}
+body[data-contexto="admin"] .lista-item{min-height:56px;padding:12px 16px}
+
+/* Indicadores: o número de colunas segue a quantidade (sem um indicador sozinho numa linha), e rótulo, valor e nota
+   de cada linha ficam na mesma altura (subgrid), mesmo quando um rótulo quebra em duas linhas. */
+body[data-contexto="admin"] .pagina .indicadores{--n:4;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:1px;margin:0 0 12px}
+body[data-contexto="admin"] .pagina .indicadores:has(>.indicador:nth-child(3):last-child){--n:3}
+body[data-contexto="admin"] .pagina .indicadores:has(>.indicador:nth-child(2):last-child){--n:2}
+body[data-contexto="admin"] .pagina .indicadores:has(>.indicador:nth-child(5):last-child){--n:5}
+body[data-contexto="admin"] .pagina .indicadores:has(>.indicador:nth-child(6):last-child){--n:3}
+body[data-contexto="admin"] .pagina .indicadores:has(>.indicador:nth-child(9):last-child){--n:3}
+body[data-contexto="admin"] .pagina .indicador{display:grid;grid-row:span 3;grid-template-rows:subgrid;row-gap:4px;align-content:start;margin:0;border:0;box-shadow:0 0 0 1px var(--line);padding:14px 16px}
+body[data-contexto="admin"] .pagina .indicador>*{margin:0;min-width:0;overflow-wrap:anywhere}
+body[data-contexto="admin"] .pagina .indicador>span{align-self:start;line-height:1.35}
+body[data-contexto="admin"] .pagina .indicador>small{line-height:1.45}
+@media(max-width:1000px){
+  body[data-contexto="admin"] .pagina .indicadores:has(>.indicador:nth-child(4):last-child){--n:2}
+  body[data-contexto="admin"] .pagina .indicadores:has(>.indicador:nth-child(5):last-child){--n:3}
+}
+@media(max-width:640px){
+  body[data-contexto="admin"] .pagina .indicadores{--n:2!important}
+  body[data-contexto="admin"] .pagina .indicadores:has(>.indicador:nth-child(3):last-child){--n:1!important}
+}
+
+/* Barras de filtro: campos, botões e "Salvar filtros" alinhados pela base, com a mesma altura. */
+body[data-contexto="admin"] .pagina .filtros{align-items:flex-end;gap:12px}
+body[data-contexto="admin"] .pagina .filtros>.btn{min-height:var(--adm-alvo)}
+body[data-contexto="admin"] .pagina .filtros>.visoes-salvas{margin:0;min-height:var(--adm-alvo);align-items:center;gap:4px 8px}
+body[data-contexto="admin"] .pagina .filtros>.visoes-salvas .btn-texto{min-height:var(--adm-alvo);display:inline-flex;align-items:center}
+body[data-contexto="admin"] #filtro-ev .campo{flex:1 1 170px;min-width:0}
+body[data-contexto="admin"] #filtro-ev .data-br{max-width:none}
+body[data-contexto="admin"] #filtro-ev .entrada{width:100%}
+body[data-contexto="admin"] #filtro-ev>.visoes-salvas{flex-basis:100%}
+body[data-contexto="admin"] .filtros>.visoes-salvas>.btn-texto:first-child{margin-left:-8px}
+body[data-contexto="admin"] :is(#form-marca,#form-landing) textarea{field-sizing:content;min-height:4.6em;max-height:24em}
+
+/* Configurações e avisos no celular: "Editar" numa linha própria abaixo do texto (a explicação não fica espremida)
+   e links dentro do texto do aviso sem abrir espaço entre as linhas (o alvo de toque cresce com o espaçamento). */
+@media(max-width:640px){
+  body[data-contexto="admin"] .cfg-caixa>summary.cfg-topo{flex-wrap:wrap}
+  body[data-contexto="admin"] .cfg-topo>.cfg-abrir{order:3;flex-basis:calc(100% - 38px);margin-left:38px;min-height:44px}
+  body[data-contexto="admin"] .faixa-aviso a:not(.btn,.btn-texto){display:inline;min-height:0;padding:12px 0}
+  /* Tabela virada lista: célula com mais de um bloco (resumo + "Ver todos os detalhes", nome + email) fica com o
+     rótulo em cima e o conteúdo inteiro embaixo, alinhado à esquerda, em vez de espremido entre rótulo e borda. */
+  body[data-contexto="admin"] .tabela:not(.tabela-fixa) td:has(>*+*){display:block;text-align:left}
+  body[data-contexto="admin"] .tabela:not(.tabela-fixa) td:has(>*+*)::before{display:block;max-width:none;margin-bottom:4px}
+  /* Escolha automática: o botão de opção fica na linha do título da preferência. */
+  body[data-contexto="admin"] .rt-pref label{align-items:flex-start!important}
+}
+
+/* Tabelas: a primeira linha de texto de cada célula na mesma altura (linhas com várias linhas de texto, controles
+   e selos ficavam centralizados, cada um numa altura). Emails ficam inteiros no desktop. */
+body[data-contexto="admin"] .pagina .tabela td{vertical-align:baseline}
+body[data-contexto="admin"] .pagina .tabela td .selo{white-space:normal;border-radius:6px;line-height:1.4;text-align:left}
+@media(min-width:761px){body[data-contexto="admin"] .pagina .tabela td.adm-email{white-space:nowrap}}
+body[data-contexto="admin"] .pagina .tabela td.adm-email{overflow-wrap:anywhere}
+
+/* Pessoas e abas: conceitos no padrão de cartão; barra com busca, filtros e ação na mesma altura (40 px); emails,
+   nomes e etiquetas quebram linha em vez de cortar. */
+body[data-contexto="admin"] .lx-barra{align-items:center;margin:4px 0 12px}
+body[data-contexto="admin"] .lx-ferramentas :is(.lx-seletor select,.lx-busca input){height:var(--adm-alvo);min-height:var(--adm-alvo)}
+body[data-contexto="admin"] .lx-ferramentas .pilulas{height:var(--adm-alvo);align-items:stretch}
+body[data-contexto="admin"] .lx-ferramentas .pilula{height:auto}
+body[data-contexto="admin"] .lx-ferramentas{flex:1 1 auto;justify-content:flex-end}
+body[data-contexto="admin"] .lx-ferramentas #lx-novo{min-height:var(--adm-alvo)}
+@media(max-width:640px){
+  body[data-contexto="admin"] .lx-ferramentas>:is(.lx-seletor,.pilulas){flex:1 1 140px}
+  body[data-contexto="admin"] .lx-ferramentas .lx-seletor select{width:100%}
+  body[data-contexto="admin"] .lx-ferramentas #lx-novo{flex:1 1 100%;justify-content:center;min-height:44px}
+}
+body[data-contexto="admin"] .lx-nome :is(b,small){white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+body[data-contexto="admin"] .lx-texto{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+body[data-contexto="admin"] :is(.lx-tags,.lx-c) .tag{white-space:normal;height:auto;min-height:22px;line-height:1.35;padding-top:2px;padding-bottom:2px;max-width:100%;overflow:visible;text-overflow:clip}
+body[data-contexto="admin"] .lx-linha{padding-top:8px;padding-bottom:8px}
+
+/* Perfis: nome e descrição numa coluna com largura de leitura, contagem sem quebra. */
+body[data-contexto="admin"] .adm-perfis .tabela td:first-child{min-width:200px;max-width:260px}
+body[data-contexto="admin"] .adm-perfis .tabela td:nth-child(3){white-space:nowrap}
+body[data-contexto="admin"] .adm-perfis .tabela td:first-child .dica{display:block;margin-top:4px}
+
+/* Quem cria Quick Wins: um nível de caixa só (o formulário não desenha outra caixa em volta dos escopos). */
+body[data-contexto="admin"] #perm-qw.grupo-form{border:0;padding:0;background:none;box-shadow:none}
+body[data-contexto="admin"] .adm-escopo{padding:16px 18px;margin:0 0 16px}
+body[data-contexto="admin"] .adm-escopo .opcoes{margin:4px 0 12px}
+body[data-contexto="admin"] .adm-escopo .duas-col{align-items:start}
+
+/* Modelos: o catálogo técnico vira cartões (antes uma tabela de dez colunas cortada à direita). */
+body[data-contexto="admin"] .adm-modelo-id{font:400 12.5px var(--mono,ui-monospace,monospace);overflow-wrap:anywhere}
+body[data-contexto="admin"] .adm-modelo-dados{display:grid;grid-auto-flow:column;grid-template-rows:auto auto;grid-auto-columns:minmax(0,1fr);gap:2px 12px;margin:0}
+body[data-contexto="admin"] .adm-modelo-dados>div{display:contents}
+body[data-contexto="admin"] .adm-modelo-dados dt{font:500 12px/1.35 var(--sans);color:var(--muted);align-self:end;min-width:0}
+body[data-contexto="admin"] .adm-modelo-dados dd{margin:0;min-width:0;font:500 14px/1.4 var(--sans);font-variant-numeric:tabular-nums}
+body[data-contexto="admin"] .adm-modelo-campos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;align-items:end}
+body[data-contexto="admin"] .adm-modelo-campo{display:grid;gap:4px;min-width:0;font:500 12.5px var(--sans);color:var(--ink)}
+body[data-contexto="admin"] .adm-modelo-campo select{width:100%}
+body[data-contexto="admin"] .adm-modelo-liberado{grid-column:1/-1;min-height:32px}
+body[data-contexto="admin"] .adm-modelo-sigilo{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding-top:10px;border-top:1px solid var(--line);min-width:0}
+body[data-contexto="admin"] .adm-modelo-sigilo>.dica{display:block;overflow-wrap:anywhere;line-height:1.45}
+body[data-contexto="admin"] .adm-atributos{display:grid;gap:8px;margin-top:8px}
+body[data-contexto="admin"] .adm-atributos label{display:grid;gap:4px}
+body[data-contexto="admin"] .adm-atributos .btn{justify-self:start}
+body[data-contexto="admin"] #cfg-modelos .editor>b{display:block;margin-bottom:6px}
+body[data-contexto="admin"] #cfg-modelos .editor .opcoes{margin-bottom:8px}
+body[data-contexto="admin"] #cfg-modelos .editor .duas-col{align-items:start}
+
+/* Escolha automática: os cinco números numa linha só, no padrão de cartão. */
+body[data-contexto="admin"] .adm-resumo-rota{--cartao-min:180px;margin:4px 0 12px}
+body[data-contexto="admin"] .adm-numeros>.or-card{display:grid;grid-row:span 3;grid-template-rows:subgrid;row-gap:8px;align-content:start}
+body[data-contexto="admin"] .adm-numeros .or-rotulo{align-self:start}
+body[data-contexto="admin"] .adm-numeros .or-numero{font-size:28px;line-height:1.1}
+body[data-contexto="admin"] .pagina .tabela td:has(>.selo){min-width:170px}
+body[data-contexto="admin"] #modelos-manuais>h2{font:600 15px/1.3 var(--sans);letter-spacing:-.005em;color:var(--ink);margin:28px 0 10px}
+
+/* Políticas: opções abaixo da tabela espaçadas e perfil público em duas colunas na largura de leitura. */
+body[data-contexto="admin"] #form-dados>label.opcoes{margin-top:16px!important}
+body[data-contexto="admin"] .perfil-publico{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr));gap:0 16px;max-width:var(--gestao-leitura);margin-top:20px!important}
+body[data-contexto="admin"] .perfil-publico>legend{padding:0;margin-bottom:4px;font:600 15px/1.3 var(--sans)}
+body[data-contexto="admin"] .perfil-publico>p{grid-column:1/-1;margin:0 0 12px}
+
+
+/* URL e domínio: título e explicação de cada passo em linhas próprias, com o mesmo espaçamento. */
+body[data-contexto="admin"] .url-lista li>b{display:block;margin-bottom:4px}
+body[data-contexto="admin"] .url-lista li>b+.dica{display:block;margin-bottom:6px}
+/* === Layout: Quick Wins === Telas de Quick Win (biblioteca, página, usar, testar, editar, modelos, versões, publicar,
+   agendamentos, resultados do processo e processos prontos) no padrão comum: cartões lado a lado com .grade-cartoes e
+   .cartao (estilo.css), a mesma coluna, o mesmo cabeçalho, o mesmo marcador nos itens recolhíveis e ações alinhadas. */
+/* Criar um Quick Win e exemplos do estado vazio: grade e cartão padrão (substitui o antigo bloco "Cartões de caminho"). */
+/* Processos prontos: as opções são cartões da grade, com o botão de opção alinhado à primeira linha do título. */
+.app .pagina .painel-modelos{border:0;padding:0;margin:8px 0 24px;min-width:0}
+.app .pagina .painel-modelos>legend{font:600 var(--ui-secao)/1.4 var(--sans);color:var(--ink);padding:0;margin:0 0 12px}
+.app .pagina .painel-modelos .grade-cartoes{grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))}
+.app .pagina label.painel-escolha.cartao{display:flex!important;flex-direction:row;align-items:flex-start!important;gap:12px;margin:0;min-height:0}
+.app .pagina .painel-escolha>input{flex:none;margin:2px 0 0;width:18px;height:18px}
+.app .pagina .painel-escolha-texto{display:flex;flex-direction:column;gap:6px;min-width:0}
+.app .pagina .painel-escolha:has(input:checked){border-color:var(--forest);background:var(--surface)}
+.app .pagina .painel-escolha:has(input:focus-visible){outline:2px solid var(--forest);outline-offset:2px}
+/* Resultados do processo: mesma coluna e cabeçalho das outras telas; indicadores alinhados em colunas iguais. */
+.app .pagina .painel-negocio .pg-cabeca .pg-desc b{color:var(--ink)}
+.app .pagina .painel-negocio .indicadores{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.app .pagina .painel-negocio .faixa-aviso>h3:first-child{margin-top:0}
+.app .pagina .painel-negocio>details{margin:4px 0}
+/* Itens recolhíveis: o mesmo marcador (seta que gira) em todas as telas de Quick Win, no lugar do triângulo do navegador. */
+.app .pagina .pg details:not(.menu-acoes,.qw-acompanhamento,.qw-detalhes,.qw-uso-decisao,.qw-cfg-secao,.canais-detalhe)>summary{list-style:none;display:flex;align-items:center;gap:10px;min-height:44px;width:fit-content;max-width:100%;cursor:pointer}
+.app .pagina .pg details:not(.menu-acoes,.qw-acompanhamento,.qw-detalhes,.qw-uso-decisao,.qw-cfg-secao,.canais-detalhe)>summary::-webkit-details-marker{display:none}
+.app .pagina .pg details:not(.menu-acoes,.qw-acompanhamento,.qw-detalhes,.qw-uso-decisao,.qw-cfg-secao,.canais-detalhe)>summary::before{content:'';flex:none;width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+.app .pagina .pg details[open]:not(.menu-acoes,.qw-acompanhamento,.qw-detalhes,.qw-uso-decisao,.qw-cfg-secao,.canais-detalhe)>summary::before{transform:rotate(45deg)}
+.app .pagina .qw-usar details{margin:4px 0 12px}
+/* Seta de "Uso e decisão de todos os Quick Wins" e "Arquivados": tamanho fixo (no celular ela encolhia até virar um traço). */
+.app .pagina .qw-acompanhamento>summary{display:flex;align-items:center}
+.app .pagina .qw-acompanhamento>summary::before{flex:none}
+/* Menu "Mais ações": os três pontos alinhados ao texto, também no celular. */
+.app .pagina .menu-acoes>summary{display:inline-flex;align-items:center;gap:6px}
+/* Biblioteca: nomes e descrições quebram em até duas linhas (nada cortado em uma linha só); no celular as ações
+   começam na coluna do texto, alinhadas ao nome. */
+.app .pagina .qw-item-nome{white-space:normal;overflow:hidden;text-overflow:clip;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.app .pagina .qw-lista-cabeca{flex-wrap:wrap;row-gap:2px}
+.app .pagina .qw-lista-cabeca h2{white-space:nowrap}
+/* Execuções, versões e modelos: o título da linha quebra em duas linhas em vez de cortar. */
+.app .pagina .execucoes a.execucao b,.app .pagina .qw-modelos .lista-item .principal-texto b{white-space:normal;overflow:hidden;text-overflow:clip;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.app .pagina .qw-modelos .lista-item{align-items:flex-start}
+.app .pagina .qw-modelos .lista-item .principal-texto span{display:block;margin-top:2px}
+.app .pagina .qw-modelos fieldset.campo{border:0;padding:0;margin:0 0 12px;min-width:0}
+/* Rótulos de grupo (legend) alinhados aos rótulos dos campos, sem o recuo do navegador. */
+.app .pagina :is(.qw-config,.qw-modelos) legend,.app .pagina .pg fieldset.campo>legend{padding:0}
+/* Configurar: oito cores em duas linhas de quatro (sem uma amostra sozinha na linha) e a seção fixa com o mesmo
+   espaçamento das recolhíveis. */
+.app .pagina .qw-cores{display:grid;grid-template-columns:repeat(4,44px);gap:4px}
+.app .pagina .qw-config .grupo-form:not(details)>h2{margin:0 0 6px}
+.app .pagina .qw-config .grupo-form:not(details)>.lead{margin:0}
+/* Agendamentos: cartão padrão, conteúdo sem margens soltas, ações no pé alinhadas ao centro dos botões. */
+.app .pagina .qw-rotina-card.cartao{padding:20px;gap:8px}
+.app .pagina .qw-rotina-card>*{margin:0}
+.app .pagina .qw-rotina-topo h3{margin:0 0 2px}
+.app .pagina .qw-rotina-topo p{margin:0}
+.app .pagina .qw-rotina-card .cartao-acoes{padding-top:4px}
+.app .pagina .qw-rotina-card .qw-rotina-historico{margin:0}
+.app .pagina .qw-rotinas>.link-sutil{margin-bottom:-10px;width:fit-content}
+/* Avisos em linha: um link de texto no começo das ações fica alinhado ao texto do aviso. */
+.app .pagina .aviso-acoes>.btn-texto:first-child{padding-left:0;padding-right:8px}
+/* Editor (assistente): a situação do rascunho alinhada ao botão "Salvar rascunho". */
+.app .pagina .rascunho-barra{align-items:center}
+/* Teste: as três formas de enviar o material ficam lado a lado em colunas iguais (nenhuma sozinha na linha). */
+.app .pagina .qw-wizard .segmento-sutil{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+.app .pagina .qw-wizard .segmento-sutil button{white-space:normal;line-height:1.25}
+/* Opções em cartão do preparo seguem o cartão padrão (raio, borda e espaçamento). */
+.app .pagina .qw-escolhas label{border-color:var(--line);border-radius:var(--cartao-raio);padding:var(--cartao-pad)}
+/* Título do cabeçalho nas telas de Quick Win (nome do Quick Win, às vezes longo): no celular quebra em até duas linhas. */
+@media(max-width:760px){.app #principal:has(.pg)>.cabeca .cabeca-titulo>h1{white-space:normal;text-overflow:clip;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}}
+@media(max-width:640px){
+  .app .pagina .qw-item-acoes{grid-column:2 / -1}
+  .app .pagina .qw-item-lado{grid-column:2 / -1}
+  .app .pagina .pg .pg-acoes{flex-wrap:wrap}
+  .app .pagina .pg .pg-acoes>.btn:not(.btn-texto){flex:1 1 auto;white-space:nowrap}
+  .app .pagina .qw-rotina-card.cartao{padding:16px}
+  .app .pagina .qw-rotina-topo{flex-direction:row;flex-wrap:wrap;gap:8px}
+}
+
+/* === Layout: console e públicas === Console da plataforma (/plataforma), operador (/operador) e login do console.
+   Cada regra corrige um defeito de formatação visto nas capturas em 1920, 1366 e 390 px. */
+/* Cabeçalho na mesma coluna do conteúdo: em tela larga o título começava 270 px à esquerda do conteúdo e a ação
+   ("Nova empresa", "Entrar no ambiente") ficava colada na borda direita da janela. Mesma altura com ou sem ação. */
+@media (min-width:861px){
+  body.plataforma .cabeca{--margem-cabeca:max(32px,calc((100% - var(--gestao-largura)) / 2));padding-left:var(--margem-cabeca);padding-right:var(--margem-cabeca);min-height:61px}
+  body.console .console-topo{padding-left:max(32px,calc((100% - 1080px) / 2));padding-right:max(32px,calc((100% - 1080px) / 2))}
+}
+body.console .console-topo>.btn-texto{margin-left:auto}
+/* Formulários em duas colunas: o espaço entre linhas era 40 px (gap da grade + margem do campo) e 16 px entre
+   campos de uma coluna; agora é sempre o do campo. */
+body:is(.plataforma,.console) .pagina .grade-2{row-gap:0}
+/* Configurações e Planos: todos os formulários da tela na largura de leitura (antes metade a 860 e metade a 1080). */
+body.plataforma :is(#f-hm,#f-veto,#f-premissas){max-width:var(--gestao-leitura)}
+/* Caixas de confirmação (Configurações): uma por linha, alvo de 44 px, caixa alinhada ao texto e espaço antes do
+   campo seguinte (antes encostavam uma na outra e no rótulo "Justificativa"). */
+body.plataforma .pagina label.opcoes{display:flex;align-items:center;min-height:44px;margin:0;cursor:pointer}
+body.plataforma .pagina label.opcoes>span{display:inline-flex;align-items:center;gap:10px;font:400 14px/1.45 var(--sans)}
+body.plataforma .pagina label.opcoes input{flex:none;width:18px;height:18px;margin:0}
+body.plataforma .pagina label.opcoes+.campo{margin-top:8px}
+/* Indicadores lado a lado: o rótulo pode ter 1 a 3 linhas; os valores e as notas ficam na mesma altura na linha
+   (antes "Receita de tabela do mês (planos + Capacity Packs)" empurrava o valor para baixo dos vizinhos). */
+body:is(.plataforma,.console) .indicadores{grid-auto-rows:auto}
+body:is(.plataforma,.console) .indicador:not(:has(>:nth-child(4))){display:grid;grid-row:span 3;grid-template-rows:subgrid;align-content:start;row-gap:0}
+body:is(.plataforma,.console) .indicador>span{align-self:start}
+/* Tabelas: selo ao lado de um número centrado na linha do texto (Margem total em Planos). */
+body:is(.plataforma,.console) .tabela td .selo{vertical-align:middle}
+/* Ambientes: o caminho do banco não alarga a coluna a ponto de quebrar o nome da empresa e "Sem chave (simulada)";
+   o tamanho vai em linha própria. */
+body.plataforma .valor-bloco{display:grid;gap:2px;max-width:24ch}
+body.plataforma .valor-bloco>.dica{display:block}
+/* URL e domínio: os quatro passos com o título em linha própria (os passos 3 e 4 tinham título e texto na mesma
+   linha, com entrelinha maior). */
+body.plataforma .url-lista li>b{display:block}
+/* Marca: rótulo do campo e "bloquear para a empresa" na mesma linha de base. */
+body.plataforma #form-marca .campo>label{display:flex;align-items:center;flex-wrap:wrap;column-gap:0}
+/* Login do console: mesma largura e o mesmo alinhamento à esquerda das outras telas de entrada. */
+.entrar-console .login-cartao{max-width:400px}
+.entrar-console .login-saidas{text-align:left}
+/* Operador: o título "Clientes" é o título da tela (não há cabeçalho de página); fica maior que os títulos de seção. */
+body.console .pagina-dentro>h2:first-child{font:600 22px/1.3 var(--sans);letter-spacing:-.01em;margin:0 0 8px}
+/* Operador no celular: tabela empilhada com o rótulo acima do valor (antes nome, plano e percentual se espalhavam
+   pela linha, cada um num canto), como nas tabelas da administração. */
+@media(max-width:760px){
+  body.console .tabela-empilha td,body.console .tabela-empilha td.num{display:block;padding:6px 12px;overflow-wrap:anywhere;text-align:left}
+  body.console .tabela-empilha td::before{display:block;margin-bottom:2px}
+}
+
+/* === Decisões recentes (escolha automática) === Em tela média e no celular a tabela de 6 colunas vira um bloco por
+   decisão, com o rótulo acima de cada valor, em vez de rolar de lado dentro da caixa. */
+.tabela-decisoes .decisao-porque{min-width:260px}
+@media(max-width:1000px){
+  .tabela-rolagem:has(.tabela-decisoes){overflow:visible}
+  .tabela.tabela-decisoes thead{display:none}
+  .tabela.tabela-decisoes,.tabela.tabela-decisoes tbody{display:block;width:100%}
+  .tabela:not(.tabela-fixa).tabela-decisoes tr{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr));gap:10px 16px;padding:14px 0;border-bottom:1px solid var(--line)}
+  .tabela:not(.tabela-fixa).tabela-decisoes tr:last-child{border-bottom:0}
+  .tabela:not(.tabela-fixa).tabela-decisoes td{display:block;border:0;padding:0 14px;text-align:left;min-width:0;min-height:0;white-space:normal!important}
+  .tabela:not(.tabela-fixa).tabela-decisoes td::before{content:attr(data-r);display:block;max-width:none;margin-bottom:2px;color:var(--muted);font:500 12px var(--sans)}
+  .tabela:not(.tabela-fixa).tabela-decisoes td.decisao-porque{grid-column:1/-1;min-width:0}
+  .tabela:not(.tabela-fixa).tabela-decisoes td[colspan]{grid-column:1/-1}
+  .tabela:not(.tabela-fixa).tabela-decisoes td[colspan]::before{content:none}
+}
+
+/* === Caixa de mensagem (padrão dos assistentes de chat) === Uma caixa só: anexos e link no topo, texto no meio e,
+   numa barra interna, o "+" (anexar arquivo ou link) à esquerda e o enviar redondo à direita. Arquivos também
+   entram arrastando para a caixa ou colando no campo. */
+.app .caixa.caixa-chat{position:relative;display:flex;flex-direction:column;align-items:stretch;gap:0;padding:10px 10px 8px 14px;border-radius:24px;background:var(--campo,var(--paper));box-shadow:var(--sombra-2)}
+.app .caixa-chat .anexos-pendentes:empty{display:none}
+.app .caixa-chat .anexos-pendentes{margin:2px 0 6px}
+.app .caixa-chat .link-novo{margin:2px 0 8px;padding:8px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.app .caixa-chat textarea{padding:6px 4px 4px;min-height:28px}
+.app .caixa-barra{display:flex;align-items:center;gap:6px;margin-top:4px}
+.app .caixa-barra .enviar{margin-left:auto}
+.app .caixa-icone{flex:none;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line-strong);border-radius:999px;background:transparent;color:var(--ink);cursor:pointer}
+.app .caixa-icone:hover,.app .caixa-icone[aria-expanded="true"]{background:var(--sand)}
+.app .caixa-icone svg{width:18px;height:18px}
+.app .caixa-chat .enviar{width:36px;height:36px;min-width:0;min-height:0;padding:0;border-radius:999px}
+.app .caixa-chat .enviar svg{width:18px;height:18px}
+.app .caixa-chat .btn-execucao{border-radius:999px}
+.menu-anexos{position:relative}
+.menu-anexos-lista{position:absolute;left:0;bottom:calc(100% + 8px);z-index:30;min-width:280px;max-width:min(340px,calc(100vw - 32px));padding:6px;border:1px solid var(--line);border-radius:14px;background:var(--paper);box-shadow:var(--sombra-2,0 8px 24px rgba(0,0,0,.12))}
+.menu-anexos-lista[hidden]{display:none}
+.menu-anexos-lista [role=menuitem]{display:flex;align-items:flex-start;gap:10px;width:100%;padding:9px 10px;border:0;border-radius:10px;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.menu-anexos-lista [role=menuitem]:is(:hover,:focus-visible){background:var(--sand);outline:none}
+.menu-anexos-lista [role=menuitem] svg{flex:none;width:18px;height:18px;margin-top:2px;color:var(--muted)}
+.menu-anexos-lista b{display:block;font:500 14px/1.35 var(--sans)}
+.menu-anexos-lista small{display:block;font:400 12.5px/1.35 var(--sans);color:var(--muted)}
+.caixa-soltar{display:none}
+.app .caixa-chat.soltando{border-color:var(--forest);border-style:dashed}
+.app .caixa-chat.soltando .caixa-soltar{display:flex;position:absolute;inset:0;align-items:center;justify-content:center;border-radius:inherit;background:color-mix(in srgb,var(--paper) 88%,transparent);font:500 14px var(--sans);color:var(--forest-text,var(--forest))}
+@media(pointer:coarse),(max-width:760px){
+  .app .caixa.caixa-chat{padding:8px 8px 6px 12px;border-radius:22px}
+  .app .caixa-icone,.app .caixa-chat .enviar{width:44px;height:44px}
+  .menu-anexos-lista [role=menuitem]{min-height:44px}
+}
+
+/* === Primeira tela da conversa (padrão dos assistentes de chat) === Conversa vazia: saudação e caixa de mensagem no
+   centro da página, sugestões em chips e uma linha com até 3 Quick Wins logo abaixo. Com mensagens, a caixa volta
+   para o pé. Nível e "Dados sigilosos" ficam dentro da barra da caixa, ao lado do "+". */
+.compositor-dentro{max-width:760px;margin:0 auto}
+.principal:has(.inicio-conversa) .mensagens{flex:0 1 auto;margin-top:auto;padding-bottom:20px}
+.principal:has(.inicio-conversa) .compositor{margin-bottom:auto;padding-bottom:calc(28px + env(safe-area-inset-bottom))}
+.app .boas-vindas.inicio-conversa{padding:0;text-align:center}
+.app .inicio-conversa h2{font:500 32px/1.2 var(--serif);letter-spacing:-.015em;color:var(--ink);margin:0;text-wrap:balance}
+.app .inicio-conversa .passo+h2{margin-top:12px}
+.app .inicio-conversa p{margin:8px auto 0;max-width:60ch}
+.app .inicio-conversa .inicio-dica{font-size:14px}
+.inicio-dica a{color:var(--forest-text);text-underline-offset:3px}
+.inicio-atalhos:empty{display:none}
+.inicio-atalhos{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:14px}
+.inicio-sugestoes,.inicio-tarefas{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px}
+.chip-inicio{display:inline-flex;align-items:center;gap:8px;min-height:36px;max-width:100%;padding:6px 14px;border:1px solid var(--line-strong);border-radius:20px;background:var(--campo,var(--paper));color:var(--ink);font:500 13.5px/1.3 var(--sans);text-align:left;text-decoration:none;cursor:pointer;transition:background var(--rapido,.15s),border-color var(--rapido,.15s)}
+.chip-inicio:hover{background:var(--sand);border-color:var(--stone)}
+.chip-inicio:focus-visible,.inicio-ver-todos:focus-visible,.app .caixa-nivel:focus-visible,.caixa-chave:focus-visible{outline:none;box-shadow:var(--foco)}
+.chip-tarefa .qw-marca{width:20px;height:20px;border-radius:6px;font-size:9.5px}
+.chip-tarefa>span{min-width:0;overflow-wrap:anywhere}
+.inicio-tarefas-rotulo{font:400 13.5px var(--sans);color:var(--muted)}
+.inicio-ver-todos{display:inline-flex;align-items:center;min-height:36px;padding:0 6px;border-radius:8px;font:500 13.5px var(--sans);color:var(--forest-text);text-underline-offset:3px}
+/* Nível e "Dados sigilosos" dentro da caixa: discretos, do mesmo tamanho do "+". */
+.app .caixa-barra .caixa-nivel{flex:0 1 auto;min-width:0;max-width:200px;field-sizing:content;height:36px;min-height:36px;padding:0 28px 0 12px!important;border:1px solid transparent;border-radius:999px;background-color:transparent;background-position:right 9px center;color:var(--muted);font:500 13px var(--sans);text-overflow:ellipsis}
+.app .caixa-barra .caixa-nivel:hover:not(:disabled){background-color:var(--sand);color:var(--ink)}
+.app .caixa-barra .caixa-nivel:disabled{opacity:.6;cursor:not-allowed}
+.caixa-chave{flex:none;display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px 0 10px;border:1px solid transparent;border-radius:999px;background:transparent;color:var(--muted);font:500 13px var(--sans);cursor:pointer;white-space:nowrap}
+.caixa-chave svg{width:16px;height:16px;flex:none}
+.caixa-chave:hover{background:var(--sand);color:var(--ink)}
+.caixa-chave[aria-checked="true"]{background:var(--deep);border-color:var(--deep);color:var(--sobre-deep)}
+.caixa-chave[aria-checked="true"]:hover{background:var(--deep);color:var(--sobre-deep)}
+@media(pointer:coarse),(max-width:760px){
+  .chip-inicio,.inicio-ver-todos{min-height:44px}
+  .app .caixa-barra .caixa-nivel,.caixa-chave{height:44px;min-height:44px}
+}
+@media(max-width:760px){
+  .app .inicio-conversa h2{font-size:26px}
+  .caixa-chave{width:44px;padding:0;justify-content:center}
+  .caixa-chave-rotulo{position:absolute!important;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+  .app .caixa-barra{gap:4px}
+  .app .caixa-barra .caixa-nivel{padding:0 26px 0 10px!important}
+  .principal:has(.inicio-conversa) .compositor{padding-bottom:calc(16px + env(safe-area-inset-bottom))}
+}
+/* Teclado aberto (altura curta): na conversa vazia, os atalhos saem e a caixa fica à vista. */
+@media(max-height:560px){
+  .principal:has(.inicio-conversa) .inicio-atalhos,.principal:has(.inicio-conversa) .inicio-dica{display:none}
+  .app .inicio-conversa h2{font-size:22px}
+}
+
+/* === Caminho claro: telas de uso === Conversas, conversa aberta, Pendências, Conhecimento ("Disponível para mim" e
+   "Gerenciar bases"), Primeiros passos, Ajuda da tela e lateral de quem usa. Uma linha de propósito com a ação
+   principal à direita, troca de visão discreta, busca à vista e filtros atrás de "Filtrar"; explicações na Ajuda. */
+.caminho-topo{display:flex;align-items:center;justify-content:space-between;gap:12px 24px;flex-wrap:wrap;margin:0 0 20px}
+.caminho-proposito{margin:0;font:400 15px/1.5 var(--sans);color:var(--muted);flex:1 1 280px;max-width:72ch}
+.caminho-topo>.btn,.caminho-topo>.hc-intro-acoes{flex:none}
+.caminho-topo .btn svg{width:16px;height:16px}
+.caminho-topo>.btn[hidden]{display:none!important}
+.hc-pagina .hc-intro.caminho-topo{margin-bottom:20px}
+/* Grupos por data no histórico: <h2> (sem saltar de h1 para h3), com o desenho discreto de rótulo. */
+.app .pagina .hc-grupo h2{font:500 12px/1.4 var(--sans);color:var(--muted);margin:25px 0 10px;text-transform:capitalize;letter-spacing:0}
+/* Troca de visão: controle segmentado discreto (não é ação principal). */
+.app .pagina .segmentos.conhecimento-vistas{display:inline-flex;flex-wrap:nowrap;gap:2px;padding:3px;margin:0 0 20px;max-width:100%;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.segmento{appearance:none;display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 14px;border:0;border-radius:7px;background:transparent;color:var(--muted);font:500 14px/1.3 var(--sans);text-decoration:none;white-space:nowrap;cursor:pointer}
+.segmento:hover{color:var(--ink)}
+.segmento:is([aria-pressed="true"],[aria-current="page"]){background:var(--paper);color:var(--ink);box-shadow:0 0 0 1px var(--line),0 1px 2px rgb(0 0 0 / .06)}
+.segmento:focus-visible{outline:2px solid var(--forest);outline-offset:2px}
+/* Busca à vista e "Filtrar" ao lado; o painel de filtros abre sob a busca. */
+.caminho-busca{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+.caminho-busca-campo{display:flex;align-items:center;gap:8px;flex:1;min-width:0;max-width:560px;padding:0 12px;border:1px solid var(--line-strong);border-radius:var(--raio);background:var(--paper)}
+.caminho-busca-campo svg{width:16px;height:16px;flex:none;color:var(--muted)}
+.app .pagina .caminho-busca-campo .entrada{flex:1;min-width:0;min-height:42px;padding:0;border:0;background:transparent;box-shadow:none;outline:0}
+.caminho-busca-campo:focus-within{outline:2px solid var(--forest);outline-offset:2px}
+.caminho-busca>.btn{flex:none}
+.caminho-contador{font-variant-numeric:tabular-nums}
+.app .pagina .caminho-filtros{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:flex-end;margin:0 0 12px;padding:16px;border:1px solid var(--line);border-radius:var(--raio-painel,12px);background:var(--surface)}
+.app .pagina .caminho-filtros[hidden]{display:none}
+.app .pagina .caminho-filtros .campo{flex:1 1 170px;margin:0;min-width:0}
+.caminho-filtros>.visoes-salvas,.caminho-filtros>#pend-visoes{flex:1 1 100%;margin:0}
+.conhecimento-resultados .linha-botoes{gap:4px;margin:0;flex-wrap:nowrap}
+.conhecimento-resultados [hidden],.hc-barra[hidden],.hc-retencao[hidden]{display:none!important}
+.caminho-aviso{margin:0 0 16px}
+.caminho-vazio{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px}
+.app .pagina .caminho-vazio p{margin:0;color:var(--ink)}
+/* Conhecimento: envio num painel aberto pela ação principal; uma linha sobre a base escolhida; "Usado em" no cartão. */
+.caminho-painel-topo{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 8px}
+.app .pagina .caminho-painel-topo h2{margin:0;font:600 var(--ui-secao,18px)/1.3 var(--sans)}
+.caminho-painel-topo h2:focus{outline:none}
+.conhecimento-envio[hidden]{display:none}
+.app .pagina .conhecimento-envio .campo .ajuda{margin:6px 0 0}
+.app .pagina .conhecimento-envio .grade-2{align-items:start;row-gap:16px}
+.app .pagina .conhecimento-audiencia-linha{margin:0 0 12px}
+.conhecimento-usado-em a{color:var(--forest-text)}
+/* Pendências: a primeira pendência é a ação principal; a troca de visão é a mesma do Conhecimento. */
+.pend-ferramentas[hidden]{display:none}
+.acompanhamento .caminho-topo{margin-bottom:16px}
+/* Primeiros passos: passos como indicador discreto; só "Próximo passo" é ação principal. */
+.app .pagina .guia-proposito{margin:0 0 16px}
+.guia-etapas{gap:4px;margin:0 0 20px}
+.guia-etapa{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 12px 0 6px;border:0;border-radius:999px;background:transparent;color:var(--muted);font:500 14px var(--sans);cursor:pointer}
+.guia-etapa:hover{background:var(--sand);color:var(--ink)}
+.guia-etapa:focus-visible{outline:2px solid var(--forest);outline-offset:2px}
+.guia-etapa .guia-num{border:1px solid var(--line-strong)}
+.guia-etapa[aria-current="step"]{color:var(--ink);font-weight:600}
+.guia-etapa[aria-current="step"] .guia-num{background:var(--forest-strong);border-color:var(--forest-strong);color:var(--sobre-forte)}
+.guia-concluido{color:var(--forest-text);font-weight:600}
+.guia-cartao .guia-ir{padding-left:0;margin-left:0}
+.guia-cartao .guia-cuidado{padding:12px 0 8px}
+/* Ajuda da tela: as explicações que saíram das telas, em perguntas curtas. */
+#modal .ajuda-contextual{max-height:calc(100dvh - 32px);overflow-y:auto}
+#modal .ajuda-contextual .ajuda-perguntas{margin:0 0 20px}
+#modal .ajuda-contextual .ajuda-perguntas h3{margin:16px 0 4px;font:600 14px/1.4 var(--sans);color:var(--ink)}
+#modal .ajuda-contextual .ajuda-perguntas p{margin:0;font-size:14px;line-height:1.6;color:var(--ink-2,var(--ink))}
+@media(max-width:760px){
+  .app .pagina .segmentos.conhecimento-vistas{display:flex;width:100%}
+  .segmento{flex:1 1 0;min-height:44px;padding:0 8px;white-space:normal;text-align:center}
+  .app .pagina .caminho-busca-campo .entrada{min-height:44px;font-size:16px}
+  .caminho-busca{align-items:stretch}
+  .caminho-topo,.hc-pagina .hc-intro.caminho-topo{flex-direction:column;align-items:stretch;gap:12px}
+  .caminho-proposito{flex:none;text-align:left}
+  .caminho-topo>.btn,.caminho-topo>.hc-intro-acoes{width:100%}
+  .caminho-topo>.btn,.caminho-topo>.hc-intro-acoes .btn{justify-content:center;width:100%;min-height:44px}
+  .conhecimento-resultados .btn-texto,.guia-saida .btn-texto{min-height:44px}
+  .guia-etapa{min-height:44px}
+  .app .pagina .caminho-filtros{padding:12px}
+  .app .pagina .caminho-filtros .campo{flex-basis:100%}
+  /* Navegação do guia sempre à vista no celular, presa ao pé da tela. */
+  .guia-rodape{position:sticky;bottom:0;z-index:2;margin:16px -16px 0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:var(--paper);border-top:1px solid var(--line)}
+}
+
+/* === Caminho claro: Quick Wins === Biblioteca, página do Quick Win, usar e testar, criar, modelos, configurar, publicar,
+   versões, resultados do processo e agendamentos: título + uma linha + UMA ação principal à direita; o resto em
+   "Mais ações", recolhido ou na Ajuda da tela. Bloco autocontido (só seletores de Quick Win). */
+/* Conteúdo de um <details> fechado não ocupa lugar (menus "…", Detalhes, Em preparo, Opções adicionais): nas telas de
+   Quick Win (trilha "Quick Wins /" ou a biblioteca) e em todo menu "Mais ações". */
+.menu-acoes:not([open])>.menu-lista,
+.app .pagina:is(:has(.qw-biblioteca),:has(.pg-trilha>a[href="#/quick-wins"])) details:not([open])>:not(summary){display:none}
+/* Biblioteca: "Em preparo" é um grupo recolhível com o mesmo título discreto das outras listas. */
+.app .pagina .qw-grupo>summary{display:flex;align-items:center;gap:10px;min-height:44px;margin:0 0 10px;cursor:pointer;list-style:none}
+.app .pagina .qw-grupo>summary::-webkit-details-marker{display:none}
+.app .pagina .qw-grupo>summary::before{content:'';flex:none;width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);transition:transform .15s}
+.app .pagina .qw-grupo[open]>summary::before{transform:rotate(45deg)}
+.app .pagina .qw-grupo>summary h2{font:600 13px var(--sans)!important;letter-spacing:.02em;color:var(--muted)!important;margin:0!important}
+/* Assistente (criar, editar, testar, publicar): a ação da etapa fica sempre à vista, presa ao pé da tela. */
+.app .pagina .qw-wizard .etapa-rodape{position:sticky;bottom:0;z-index:3;background:var(--paper);padding:12px 0}
+@media(max-width:600px){
+  .app .pagina .qw-wizard .etapa-rodape{flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px;margin-top:24px}
+  .app .pagina .qw-wizard .etapa-rodape .direita{flex-direction:row;flex-wrap:wrap;flex:1 1 auto;justify-content:flex-end;gap:8px}
+  .app .pagina .qw-wizard .etapa-rodape .direita .btn{width:auto;flex:1 1 auto}
+  .app .pagina .qw-wizard .etapa-rodape>.btn-texto{width:auto;flex:none;padding-left:4px;padding-right:4px}
+}
+/* Página do Quick Win: ações à direita do nome, como nas outras telas; no celular, abaixo e em linha inteira. */
+.app .pagina .qw-detalhe .pg-titulo{display:flex;align-items:flex-start;flex-wrap:wrap;gap:12px 24px}
+.app .pagina .qw-detalhe .pg-titulo-texto{flex:1 1 300px}
+.app .pagina .qw-detalhe .pg-acoes{width:auto;margin-top:0;flex:0 1 auto;flex-wrap:wrap;justify-content:flex-end;gap:8px}
+.app .pagina .qw-detalhe .pg-acoes>.menu-acoes{margin-left:0}
+.app .pagina .qw-detalhe .pg-desc{margin-top:8px}
+.app .pagina .qw-detalhe .qw-resultados-processo{margin:0 0 4px}
+.app .pagina .qw-detalhe .qw-resultados-processo .qw-acao-secundaria{padding-left:0;padding-right:0}
+/* Execuções: a linha abre a execução; renomear e excluir ficam no "…" da linha. */
+.app .pagina .qw-detalhe .execucoes li{flex-wrap:nowrap;padding-bottom:0}
+.app .pagina .qw-detalhe .execucoes a.execucao{flex:1 1 auto;min-height:44px}
+.app .pagina .qw-detalhe .execucoes .menu-acoes summary{min-height:44px;min-width:44px;justify-content:center}
+/* Linha do cabeçalho com o contexto da edição (versão, modelo): mesma linha de propósito, sem aviso. */
+.app .pagina .pg-desc .pg-desc-extra{color:var(--muted)}
+/* "Mais exemplos" e "Saiba mais": discretos, com alvo de toque de 44 px no celular. */
+.app .pagina .qw-wizard #mais-exemplos{margin-left:12px;font-weight:500}
+.app .pagina .qw-saiba-mais{display:inline;padding:0;min-height:0;font:inherit;vertical-align:baseline}
+/* Criar Quick Win: os caminhos num modal, um cartão por caminho. */
+.qw-criar-modal .modal.qw-criar{max-width:760px}
+.qw-criar-modal .qw-criar .modal-topo h2{margin-top:0}
+.qw-criar-modal .qw-criar .icone-btn{min-width:44px;min-height:44px;font-size:22px;line-height:1}
+.qw-criar-modal .qw-caminhos{--cartao-min:200px;margin:4px 0 0}
+.qw-criar-modal .qw-caminhos>.cartao{text-align:left}
+.qw-criar-modal .qw-criar>.dica{margin:16px 0 0}
+/* Agendados vazio: a escolha do Quick Win é uma lista simples de links. */
+.app .pagina .qw-agendar-opcoes .link-sutil{display:inline-flex;align-items:center;min-height:44px}
+/* Agendar: o que será executado é uma linha (com o detalhe recolhido) e "Conferir agendamento" fica sempre à vista. */
+.app .pagina .qw-tarefa-resumo{margin:0 0 16px}
+.app .pagina .qw-rotina-form .qw-rotina-barra{position:sticky;bottom:0;z-index:3;background:var(--paper);padding:12px 0;margin-bottom:0;border-top:1px solid var(--line)}
+/* Teste do formato anterior: as instruções que a IA segue (e Ajustar) ficam depois do envio, recolhidas. */
+.app .pagina .qw-instrucoes-teste{margin-top:24px}
+.app .pagina .qw-instrucoes-teste .btn{margin-top:8px}
+/* Revisar e publicar: links do teste separados e a confirmação das ressalvas com espaço e alvo de toque próprios. */
+.app .pagina .resumo-pub [data-abrir-refinamento]{margin-left:16px}
+.app .pagina .qw-wizard .faixa-aviso label.opcoes{display:flex;align-items:center;gap:10px;min-height:44px;margin-top:12px}
+/* Biblioteca no celular: a ação principal vem primeiro na pilha de botões do cabeçalho. */
+@media(max-width:480px){.app .pagina .qw-biblioteca .pg-acoes{flex-direction:column-reverse}}
+/* Ajuda: os detalhes extras de cada tela de Quick Win. */
+.ajuda-contextual .ajuda-mais{font-size:14px;color:var(--muted);margin:8px 0 0}
+@media(max-width:720px){
+  .app .pagina .qw-detalhe .pg-acoes{width:100%;justify-content:flex-start}
+  .app .pagina .qw-detalhe .execucoes .menu-acoes summary>span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .app .pagina .qw-saiba-mais{display:inline-flex;align-items:center;min-height:44px}
+  .app .pagina .qw-wizard .exemplos button{min-height:44px}
+  .app .pagina .qw-wizard #mais-exemplos{margin-left:0}
+  .app .pagina .qw-config .lead a{display:inline-flex;align-items:center;min-height:44px}
+}
+
+/* ==================================================================== Caminho claro: Administração da empresa
+   Bloco da Administração (body[data-contexto="admin"]): linha de propósito com a ação principal à direita, próximo
+   passo da Visão geral, "Filtrar" e "Mais opções" fechados, registros que abrem no painel lateral e a Ajuda com
+   "Saiba mais". Outras frentes acrescentam os blocos delas depois deste. */
+/* O que está recolhido não ocupa a tela: [hidden] vence o display dos componentes (.btn, .filtros, listas) e o
+   conteúdo de um bloco fechado (details) não é desenhado nem conta como alvo na primeira vista. */
+body[data-contexto="admin"] [hidden]{display:none!important}
+body[data-contexto="admin"] details:not([open])>:not(summary){display:none!important}
+.adm-topo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;margin:0 0 18px}
+.adm-proposito{flex:1 1 320px;min-width:0;margin:0;max-width:72ch;font:400 var(--ui-texto,14px)/1.55 var(--sans);color:var(--muted)}
+.adm-topo-acao{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-left:auto}
+.lx-proposito{margin:0 0 6px}
+.adm-revelar[aria-expanded]::after{content:"";width:7px;height:7px;margin-left:8px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-2px) rotate(45deg);transition:transform var(--rapido,.15s)}
+.adm-revelar[aria-expanded="true"]::after{transform:translateY(2px) rotate(-135deg)}
+.adm-mais{margin:14px 0 4px}
+body[data-contexto="admin"] .secao-titulo .adm-revelar{flex:none}
+/* Visão geral: um próximo passo em destaque; o resto mais calmo. */
+.adm-proximo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 24px;margin:0 0 28px;padding:20px 22px;border:1px solid color-mix(in srgb,var(--forest-text) 35%,var(--line));border-radius:var(--raio-painel,14px);background:color-mix(in srgb,var(--mint) 55%,var(--paper))}
+.adm-proximo-texto{flex:1 1 360px;min-width:0}
+.adm-proximo-rotulo{display:block;margin-bottom:4px;font:600 12px/1.4 var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--forest-text)}
+.app .pagina .adm-proximo h2{margin:0;font:600 18px/1.35 var(--sans)}
+.adm-proximo p{margin:6px 0 0;max-width:68ch;color:var(--muted)}
+.adm-proximo>.btn{flex:none}
+.app .pagina :is(.adm-passos,.adm-proximo) .btn{min-height:44px}
+.adm-tudo-certo{margin:0 0 24px;padding:14px 16px;border:1px solid var(--line);border-radius:var(--raio-painel,14px);background:var(--surface);color:var(--muted)}
+.adm-visao .indicadores{margin-bottom:6px}
+.app .pagina .adm-passos{margin:8px 0 20px}
+.app .pagina .adm-passos h3{margin:0 0 2px;font:600 15px/1.4 var(--sans)}
+.app .pagina .adm-passos p{margin:0 0 6px;font-size:13px;color:var(--muted)}
+/* Registros (Atividade, Histórico de modelos, Catálogo técnico, Decisões): a linha inteira abre o detalhe. */
+.adm-registros tbody tr[data-registro]{cursor:pointer}
+.adm-registros tbody tr[data-registro]:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--forest-text);background:var(--surface)}
+.adm-registro-nome{font-weight:600;color:var(--ink)}
+.adm-registro-resumo{max-width:52ch;overflow-wrap:anywhere}
+.auditoria-detalhe dl{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:6px 14px;margin:12px 0}
+.auditoria-detalhe dt{font:500 13px/1.45 var(--sans);color:var(--muted)}
+.auditoria-detalhe dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.auditoria-detalhe dd :is(ul,dl){margin:0;padding-left:16px}
+.px-corpo>.px-titulo{margin:0 0 6px;padding:0;border:0}
+/* Filtros de Atividade e de Pessoas: fechados até a pessoa pedir. */
+.lx-filtros{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px;padding:12px;border:1px solid var(--line);border-radius:var(--raio-painel,14px);background:var(--surface)}
+.lx-filtros .lx-busca{flex:1 1 220px}
+.adm-add-modelo{margin:0 0 18px}
+.adm-guardar{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:4px 16px;margin:6px 0 14px}
+.adm-vazio h2{margin:0 0 6px;font:600 var(--ui-secao,16px)/1.4 var(--sans)}
+/* Ajuda da tela com "Saiba mais": as explicações que saíram das telas. */
+.ajuda-detalhes{margin:14px 0 4px}
+.ajuda-detalhes h3{margin:0 0 6px;font:600 14px/1.4 var(--sans)}
+.ajuda-detalhes ul{margin:0;padding-left:18px;display:grid;gap:6px;font-size:13.5px;line-height:1.55;color:var(--ink-soft,var(--ink))}
+.modal.ajuda-contextual{max-height:min(86vh,760px);overflow-y:auto}
+@media (max-width:760px){
+  .adm-topo{margin-bottom:14px}
+  .adm-topo-acao{width:100%;margin-left:0}
+  .adm-topo-acao>.btn{flex:1 1 auto;justify-content:center}
+  .adm-proximo{padding:16px}
+  .adm-proximo>.btn{width:100%;justify-content:center}
+  .auditoria-detalhe dl{grid-template-columns:1fr;gap:2px}
+  .auditoria-detalhe dd{margin-bottom:8px}
+  .lx-filtros>*{flex:1 1 100%}
+}
+@media (pointer:coarse),(max-width:760px){
+  body[data-contexto="admin"] .adm-revelar,.adm-proximo>.btn{min-height:44px}
+  .adm-guardar label{min-height:44px;display:flex;align-items:center}
+}
+
+/* === Caminho claro: console da plataforma e operador === Cada tela: título, uma linha de propósito (com "Saiba
+   mais" quando a explicação longa foi para a ajuda), uma ação principal à direita do cabeçalho e o resto em
+   "Mais ações". Formulários raros abrem em modal; opções avançadas ficam fechadas até a pessoa pedir. */
+body.plataforma .cabeca{position:relative;z-index:5}   /* o "Mais ações" do cabeçalho abre por cima do conteúdo */
+body:is(.plataforma,.console) [hidden]{display:none!important}   /* áreas fechadas ficam fechadas mesmo em grade */
+body.plataforma .cabeca-acoes .acoes-aba{display:inline-flex;align-items:center;gap:12px}
+body.plataforma .cabeca-acoes .acoes-aba:empty{display:none}
+body.plataforma .pagina .plat-proposito{margin:0 0 20px;max-width:none}
+body.plataforma .subnav+.plat-proposito,body.plataforma .subnav+#aba>.plat-proposito:first-child{margin-top:-4px}
+body.plataforma .plat-saiba{display:inline;height:auto;min-height:0;padding:0 2px;font:inherit;font-weight:500;vertical-align:baseline;text-decoration:underline;text-underline-offset:3px}
+.plat-ajuda p{margin:0 0 12px;line-height:1.55}
+.plat-ajuda p:last-child{margin-bottom:0}
+/* "Mais ações": lista que abre abaixo do botão, alinhada à direita. */
+.plat-menu{position:relative;display:inline-flex}
+.plat-menu .menu-lista[hidden]{display:none}
+.plat-menu .menu-lista{min-width:240px;z-index:40}
+.plat-menu .menu-lista :is(a,button){display:flex;align-items:center;min-height:40px;white-space:nowrap}
+.plat-menu .menu-lista a{color:var(--ink)}
+/* Botões que abrem e fecham uma área (opções avançadas, conta completa, ver em tabela). */
+body.plataforma .plat-revelar{display:inline-flex;align-items:center;gap:8px;padding-left:0}
+body.plataforma .plat-revelar::before{content:'';flex:none;width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+body.plataforma .plat-revelar[aria-expanded="true"]::before{transform:rotate(45deg)}
+body.plataforma .secao-titulo>.plat-revelar,body.plataforma .secao-titulo>.btn{margin-left:auto}
+body.plataforma #f-premissas:not([hidden]),body.plataforma #pl-conta:not([hidden]){margin-top:8px}
+/* Resumo da empresa: o nome do plano no lugar de um número; dados cadastrais em lista; perigo no fim. */
+body.plataforma .pagina .indicador b.valor-texto{font-size:18px;line-height:1.35;overflow-wrap:anywhere}
+body.plataforma .plat-dados{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 24px;margin:0}
+body.plataforma .plat-dados dt{font:500 12px/1.4 var(--sans);color:var(--muted)}
+body.plataforma .plat-dados dd{margin:2px 0 0;font:400 14px/1.45 var(--sans);color:var(--ink);overflow-wrap:anywhere}
+body.plataforma .plat-dados-largo{grid-column:1/-1}
+body.plataforma .plat-perigo{margin-top:40px;padding-top:20px;border-top:1px solid var(--line)}
+body.plataforma .plat-perigo h2.h-secao{margin:0 0 6px;color:var(--red-text)}
+body.plataforma .plat-perigo .dica{margin:0 0 12px}
+body.plataforma .plat-linha-acoes{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+/* Marca: "bloquear para a empresa" só aparece ao escolher os itens bloqueados. */
+body.plataforma #form-marca:not(.com-travas) .trava-marca{display:none!important}
+body.plataforma .plat-bloqueios{margin:8px 0 16px}
+@media(max-width:760px){
+  .plat-menu .menu-lista :is(a,button){min-height:44px}
+  body.plataforma .cabeca-acoes .acoes-aba{gap:6px}
+  body.plataforma .pagina .plat-saiba{display:inline;min-height:0}
+  body.plataforma .pagina .plat-revelar{min-height:44px}
+}
+@media(max-width:480px){
+  /* No celular, o status da empresa sai do cabeçalho (está no Resumo) para a ação principal caber ao lado do menu. */
+  body.plataforma .cabeca-acoes>.selo{display:none}
+}
+
+/* ==== Área de mensagens no padrão assistente (Claude + ChatGPT) — INÍCIO =============================
+   Resposta da IA em texto corrido, sem ícone nem moldura, na largura de leitura; pedido da pessoa num balão à
+   direita; ações da resposta numa linha só de ícones; downloads como cartões de anexo; resultados do Quick Win em
+   cartões calmos. Bloco autocontido (só seletores da área #msgs/#coluna e do diálogo de avaliação). */
+.mensagens{padding:28px 28px 20px}
+.coluna{max-width:740px;gap:28px}
+/* Pedido da pessoa */
+.msg-eu{align-self:flex-end;max-width:80%;min-width:0;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.msg-eu>.bolha-eu{align-self:auto;max-width:100%;border-radius:18px 18px 6px 18px;padding:10px 16px;font:400 15px/1.6 var(--sans);color:var(--ink)}
+.msg-eu-anexos{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;max-width:100%}
+.msg-eu-anexos .anexo-chip{margin:0;padding:5px 10px;border:1px solid var(--line);border-radius:10px;background:var(--paper);font:500 12.5px/1.3 var(--sans);color:var(--ink)}
+.msg-eu-anexos .anexo-chip svg{width:14px;height:14px;color:var(--muted)}
+/* Resposta da IA: sem ícone, sem moldura */
+.resposta{display:block;max-width:100%}
+.resposta-corpo{display:flex;flex-direction:column;gap:12px;min-width:0}
+.bolha-ia{font:400 16px/1.7 var(--sans);color:var(--ink);padding:0}
+.bolha-ia>:first-child{margin-top:0}
+.bolha-ia p{margin:0 0 14px}
+.bolha-ia h3{font:600 18px/1.4 var(--sans);margin:24px 0 8px;letter-spacing:-.01em}
+.bolha-ia h4{font:600 16px/1.45 var(--sans);margin:20px 0 6px}
+.bolha-ia ul,.bolha-ia ol{margin:0 0 14px;padding-left:24px}
+.bolha-ia li{margin:4px 0;padding-left:2px}
+.bolha-ia li::marker{color:var(--muted)}
+.bolha-ia strong{font-weight:600}
+.bolha-ia :not(pre)>code{font:400 .88em/1.4 var(--mono);background:var(--sand);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+.bolha-ia>:last-child{margin-bottom:0}
+/* Tabelas: bordas sutis, rolagem dentro do bloco quando são largas */
+.bolha-ia .tabela-wrap{margin:4px 0 10px;border:1px solid var(--line);border-radius:12px;overflow-x:auto;background:var(--paper)}
+.bolha-ia table{width:100%;border-collapse:collapse;font:400 14px/1.5 var(--sans)}
+.bolha-ia th,.bolha-ia td{border:0;border-bottom:1px solid var(--line);padding:9px 14px;text-align:left;vertical-align:top}
+.bolha-ia tbody tr:last-child td{border-bottom:0}
+.bolha-ia th{background:var(--surface);font-weight:600;color:var(--ink)}
+/* Blocos de código */
+.bloco-codigo{margin:4px 0 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
+.bloco-codigo-topo{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 4px 2px 14px;border-bottom:1px solid var(--line);font:500 12px/1 var(--sans);color:var(--muted)}
+.bloco-codigo pre{margin:0;padding:12px 14px;overflow-x:auto;font:400 13.5px/1.6 var(--mono);color:var(--ink);white-space:pre;tab-size:2}
+.bloco-codigo pre:focus-visible{outline:2px solid var(--forest);outline-offset:-2px}
+.bloco-codigo code{font:inherit;background:none;border:0;padding:0}
+/* Ícones das ações (resposta e código): pequenos, com dica; alvo de 44 px no toque */
+.acao-resposta,.bloco-codigo-copiar{position:relative;display:inline-grid;place-items:center;flex:none;width:32px;height:32px;min-height:0;padding:0;border:0;border-radius:8px;background:none;color:var(--muted);cursor:pointer;transition:background .12s,color .12s}
+.acao-resposta:hover,.bloco-codigo-copiar:hover,.acao-resposta[aria-expanded="true"]{background:var(--sand);color:var(--ink)}
+.acao-resposta:focus-visible,.bloco-codigo-copiar:focus-visible{outline:2px solid var(--forest);outline-offset:1px}
+.acao-resposta:disabled{opacity:.45;cursor:not-allowed;background:none}
+.acao-resposta.copiado,.bloco-codigo-copiar.copiado{color:var(--forest-text)}
+.acao-resposta[aria-pressed="true"]{color:var(--forest-text)}
+.acao-resposta[aria-pressed="true"] svg path{fill:currentColor;fill-opacity:.22}
+.acao-resposta svg,.bloco-codigo-copiar svg{width:16px;height:16px}
+/* Linha de ações: uma só, discreta, logo abaixo do texto */
+.app .acoes-resposta,.acoes-resposta{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:2px;margin:-2px 0 0 -7px;min-height:32px;font:400 12.5px/1.4 var(--sans);color:var(--muted)}
+.acoes-resposta .selo-simulada{display:inline-flex;align-items:center;gap:5px;margin:0 6px 0 8px;padding:0;border:0;background:none;font:500 12.5px/1.4 var(--sans);color:var(--amber-text);white-space:nowrap}
+.acoes-resposta .selo-simulada svg{width:14px;height:14px}
+.acoes-resposta .revise{margin-left:8px;font:400 12.5px/1.4 var(--sans);color:var(--muted)}
+/* Respostas anteriores: as ações aparecem ao passar o mouse ou com o foco (no toque, sempre à vista) */
+@media (hover:hover) and (pointer:fine){
+  .resposta:not(.resposta-ultima) .acoes-resposta{opacity:0;transition:opacity .15s}
+  .resposta:not(.resposta-ultima):hover .acoes-resposta,.resposta:not(.resposta-ultima) .acoes-resposta:focus-within{opacity:1}
+}
+/* "Detalhes": painel sobre a conversa, acima da linha de ações (ou abaixo, quando falta espaço) */
+.detalhes-resposta{display:inline-flex}
+.detalhes-resposta-painel{position:absolute;left:0;bottom:calc(100% + 6px);z-index:25;box-sizing:border-box;width:min(380px,100%);max-height:min(60vh,440px);overflow:auto;margin:0;padding:12px 14px;background:var(--campo);border:1px solid var(--line);border-radius:12px;box-shadow:var(--sombra-2);font:400 13.5px/1.55 var(--sans);color:var(--ink);text-align:left}
+.detalhes-resposta-painel.para-baixo{bottom:auto;top:calc(100% + 6px)}
+.detalhes-resposta-painel[hidden]{display:none}
+.detalhes-resposta-painel p{margin:0 0 6px}
+.detalhes-resposta-painel>p:last-child{margin-bottom:0}
+.detalhes-resposta-painel .execucao-detalhe{margin:10px 0 0;padding-top:10px;border-top:1px solid var(--line);font-size:13.5px}
+.detalhes-resposta-painel .execucao-detalhe summary{cursor:pointer;color:var(--forest-text);font-weight:500}
+.detalhes-resposta-painel .execucao-linha{margin:12px 0;gap:10px}
+/* Fontes usadas e próximos passos do Quick Win: texto discreto */
+.resposta-corpo>.fontes{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0;padding:0;border:0}
+.resposta-corpo>.fontes b{font:500 12.5px var(--sans);letter-spacing:0;text-transform:none;color:var(--muted);margin-right:2px}
+.resposta-corpo>.fontes .selo{background:var(--surface);border:1px solid var(--line);color:var(--ink);font:500 12.5px/1.6 var(--sans);max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.resposta-corpo>.fontes .selo svg{width:13px;height:13px;color:var(--muted)}
+.resposta-corpo>.fontes .selo::before{content:none}
+.resposta-corpo>.fontes a.selo:hover{border-color:var(--line-strong)}
+.resposta-proximos{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:-4px}
+.resposta-proximos .link-sutil{font:500 13.5px var(--sans)}
+/* Downloads como cartões de anexo (ícone + nome + tipo; clicar baixa) */
+.anexo-resposta{display:flex;align-items:center;gap:12px;box-sizing:border-box;width:min(100%,340px);margin:0 0 14px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--paper);color:var(--ink);font:inherit;text-align:left;text-decoration:none;cursor:pointer;transition:background .12s,border-color .12s}
+.anexo-resposta:hover{background:var(--surface);border-color:var(--line-strong)}
+.anexo-resposta:focus-visible{outline:2px solid var(--forest);outline-offset:2px}
+.anexo-resposta-icone{flex:none;display:grid;place-items:center;width:38px;height:38px;border-radius:9px;background:var(--mint);color:var(--forest-text)}
+.anexo-resposta-icone svg{width:18px;height:18px}
+.anexo-resposta-texto{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;line-height:1.3}
+.anexo-resposta-texto b{font:600 14px/1.3 var(--sans)}
+.anexo-resposta-texto small{font:400 12.5px/1.3 var(--sans);color:var(--muted)}
+.anexo-resposta-acao{flex:none;color:var(--muted)}
+.anexo-resposta-linha{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 14px}.anexo-resposta-linha .anexo-resposta{margin:0}
+.anexo-resposta-csv{font-size:13px;min-height:44px;display:inline-flex;align-items:center;padding:0 6px}
+.arquivos-resposta{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0 14px}.arquivos-resposta .anexo-resposta{margin:0}
+.baixar-como{position:relative;display:inline-block}.baixar-como-menu[hidden]{display:none}
+.baixar-como-menu{position:absolute;z-index:20;bottom:calc(100% + 6px);left:0;min-width:220px;display:grid;padding:6px;border:1px solid var(--line);border-radius:12px;background:var(--paper);box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.baixar-como-menu a{display:flex;align-items:center;min-height:44px;padding:0 12px;border-radius:8px;color:var(--ink);text-decoration:none;font:500 14px/1.3 var(--sans)}
+.baixar-como-menu a:hover,.baixar-como-menu a:focus-visible{background:var(--surface)}
+/* Pensando: três pontos discretos, com a altura de uma linha (sem salto quando o texto chega) */
+.resposta-pensando{min-height:32px;display:flex;align-items:center}
+.resposta-pensando .pensando{padding:0}
+.resposta-pensando .pensando span{width:7px;height:7px;background:var(--muted)}
+.bolha-ia .cursor{width:8px;height:8px;border-radius:999px;background:var(--muted);vertical-align:1px;margin-left:4px;animation:ponto 1.2s infinite}
+/* Quick Win: rótulo, progresso e conferência como cartões calmos, no mesmo raio e espaçamento */
+.resposta-corpo .rotulo-execucao{font:500 12.5px var(--sans);color:var(--muted)}
+.resposta-corpo .qc,.resposta-corpo .painel-integracoes{margin:0!important;border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:14px 16px!important;box-shadow:none}
+.resposta-corpo .qc-ok{background:var(--paper)}
+.resposta-corpo .qc-revisar{border-color:var(--line-strong);background:var(--paper)}
+.resposta-pensando .exec-progresso{padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface)}
+.resposta-corpo .artefatos{margin:0;gap:10px}
+.resposta-corpo .artefatos-cabeca b,.artefatos-cabeca b{font:600 14px var(--sans);letter-spacing:0;text-transform:none}
+.artefato{border-radius:12px;box-shadow:none;padding:12px;gap:14px}
+.artefato-miniatura{width:132px;border-radius:8px}
+.artefato-nome{display:block;padding:0;border:0;background:none;font:400 14px/1.4 var(--sans);color:var(--ink);text-align:left;cursor:pointer;overflow-wrap:anywhere}
+.artefato-nome:hover{text-decoration:underline}
+.artefato-nome:focus-visible{outline:2px solid var(--forest);outline-offset:2px;border-radius:4px}
+.artefato-acoes{align-items:center}
+.artefato-mais .menu-lista{left:0;right:auto}
+/* Diálogo de avaliação (👎) */
+.fb-opcoes{display:grid;gap:8px;margin:18px 0 0;padding:0;border:0;min-width:0}
+.fb-opcao{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;cursor:pointer;background:var(--paper)}
+.fb-opcao:hover{background:var(--surface)}
+.fb-opcao:has(input:checked){border-color:var(--forest);background:var(--mint)}
+.fb-opcao:has(input:focus-visible){outline:2px solid var(--forest);outline-offset:2px}
+.fb-opcao input{margin:3px 0 0;accent-color:var(--forest);flex:none}
+.fb-opcao span{display:flex;flex-direction:column;gap:2px}
+.fb-opcao b{font:600 14px/1.4 var(--sans);color:var(--ink)}
+.fb-opcao small{font:400 13px/1.45 var(--sans);color:var(--muted)}
+.fb-motivo[hidden]{display:none}
+.fb-motivo textarea{width:100%;box-sizing:border-box;resize:vertical}
+/* Toque e celular: alvo de 44 px (os ícones continuam pequenos) */
+@media (pointer:coarse),(max-width:760px){
+  .acao-resposta,.bloco-codigo-copiar{width:44px;height:44px}
+  .app .acoes-resposta,.acoes-resposta{margin-left:-12px}
+  .anexo-resposta{min-height:56px}
+  .acoes-resposta .selo-simulada{margin-left:4px}
+  .artefato-nome{min-height:44px}
+}
+@media (max-width:760px){
+  .mensagens{padding:20px 16px 16px}
+  .coluna{gap:24px}
+  .msg-eu{max-width:88%}
+  .bolha-ia{font-size:15.5px}
+  .acoes-resposta .revise{flex-basis:100%;margin:0 0 0 12px}
+  .resposta-proximos .link-sutil{display:inline-flex;align-items:center;min-height:44px}
+  .anexo-resposta{width:100%}
+  .artefato-miniatura{width:100%}
+}
+/* ==== Área de mensagens no padrão assistente — FIM ==== */
+=======
+/* === Casca do assistente: lateral, topo e conta (padrão assistente: Claude + ChatGPT) ===
+   Lateral calma (Nova conversa, Buscar, atalhos e o histórico completo por data), recolhível no computador, com a
+   conta no pé; topo mínimo com o título da tela. Vale para o app (uso e Administração) e o console da plataforma.
+   Bloco autocontido: só seletores da casca (.lateral, .cabeca, .conta, .menu-conta). */
+.app .lateral{width:264px;padding:8px 10px;transition:width .2s var(--suave)}
+.lat-topo{display:flex;align-items:center;gap:4px;min-height:44px;margin:0 0 6px}
+.lat-topo .marca{flex:1;min-width:0;padding:0 6px;margin:0}
+.lateral-plataforma .lat-topo .marca{padding-top:4px}   /* o nome alinha com o título (e a trilha) do topo */
+.lat-topo .icone-btn{flex:none;width:36px;height:36px;min-width:36px;min-height:36px;padding:0;justify-content:center;border-radius:8px}
+.lat-topo .icone-btn svg{width:18px;height:18px}
+.app .lateral .logo-empresa{margin:4px 8px 6px}
+/* Nova conversa e Buscar: itens como os da lista, com o ícone em destaque. */
+.lat-acoes{display:flex;flex-direction:column;gap:1px;margin:4px 0 10px}
+.lateral .lat-acoes .item-lat{min-height:38px;padding:6px 8px;border:0;box-shadow:none;font:500 14px/1.3 var(--sans);color:var(--ink);background:none;height:auto;margin:0;cursor:pointer}
+.lateral .lat-acoes .item-lat:hover{background:var(--sand)}
+.lateral .lat-acoes .item-lat[aria-current="page"]{background:var(--sand-hover)}
+.lateral .lat-acoes .nova svg{width:22px;height:22px;padding:3px;border-radius:999px;background:var(--forest);color:#fff;stroke-width:2.4}
+.lateral .lat-acoes .busca-lat svg{width:18px;height:18px;margin:0 2px;color:var(--tinta-2)}
+.lateral .lat-acoes .busca-lat .kbd{margin-left:auto;opacity:0;transition:opacity var(--rapido)}
+.lateral .lat-acoes .busca-lat:is(:hover,:focus-visible) .kbd{opacity:1}
+/* Atalhos (Quick Wins, Conhecimento, Pendências quando há o que resolver) e os itens da Administração. */
+.lat-grupo{display:flex;flex-direction:column;gap:1px}
+.app .lateral .item-lat{border-radius:8px;min-height:36px;font-size:14px}
+.app .lateral:not(.lateral-plataforma) .item-lat.ativo{background:var(--sand-hover);box-shadow:none;color:var(--ink)}
+.app .lateral:not(.lateral-plataforma) .item-lat.item-principal{font-weight:400;color:var(--tinta-2)}
+.app .lateral:not(.lateral-plataforma) .item-lat.item-principal.ativo{font-weight:500;color:var(--ink)}
+.app .lateral .lateral-rolagem>h2{font:500 12px/1.3 var(--sans);letter-spacing:0;text-transform:none;color:var(--muted);margin:16px 8px 4px;padding:0}
+.lateral .lat-contexto{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:6px 10px;border-radius:8px;background:none;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line-strong);font:600 13px/1.3 var(--sans);letter-spacing:0;text-transform:none}
+.lateral .lat-contexto svg{width:15px;height:15px;flex:none;color:var(--forest-text)}
+/* Histórico completo, por data. */
+.historico-lat{margin-top:18px}
+.hist-cab{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:0 8px;margin:0 0 2px}
+.app .lateral .hist-cab h2{font:500 12px/1.3 var(--sans);letter-spacing:0;text-transform:none;color:var(--muted);margin:0;padding:0}
+.hist-cab .ver-todas{font:500 12px/1.3 var(--sans);color:var(--forest-text);text-decoration:none;padding:4px 0}
+.hist-cab .ver-todas:hover{text-decoration:underline}
+.hist-cab .ver-todas[aria-current="page"]{color:var(--ink)}
+.hist-grupo h3{font:400 12px/1.3 var(--sans);color:var(--muted);margin:12px 8px 2px;padding:0}
+.hist-vazio{font:400 13px/1.45 var(--sans);color:var(--muted);margin:4px 8px}
+.historico-lat .hc-recente{position:relative;display:flex;align-items:center;border-radius:8px}
+.historico-lat .hc-recente:hover{background:var(--sand)}
+.app .lateral .historico-lat .item-lat.sub{flex:1;min-width:0;min-height:34px;padding:6px 8px;font:400 14px/1.35 var(--sans);color:var(--tinta-2);background:none}
+.app .lateral .historico-lat .item-lat.sub.ativo{background:var(--sand-hover);color:var(--ink);font-weight:500}
+/* Títulos longos quebram em até 2 linhas (regra da plataforma: nada some com reticências se cabe em duas); o título
+   completo fica no tooltip. */
+.historico-lat .item-lat.sub .nome{white-space:normal;overflow:hidden;text-overflow:clip;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow-wrap:anywhere}
+.historico-lat .hist-sigilo{display:inline-flex;flex:none;color:var(--muted)}
+.historico-lat .hist-sigilo svg{width:13px;height:13px}
+/* "⋯" de cada conversa: aparece ao passar o mouse, no foco e na conversa aberta (sempre visível no toque). */
+.historico-lat .hc-recente>.hc-acoes{position:absolute;right:2px;top:50%;transform:translateY(-50%);width:30px;height:30px;min-width:30px;min-height:30px;padding:0;margin:0;justify-content:center;border-radius:6px;opacity:0;background:var(--sand)}
+.historico-lat .hc-recente:is(:hover,:focus-within)>.hc-acoes,.historico-lat .hc-recente:has(.ativo)>.hc-acoes,.historico-lat .hc-acoes[aria-expanded="true"]{opacity:1}
+.historico-lat .hc-recente:has(.ativo)>.hc-acoes{background:var(--sand-hover)}
+.app .lateral .historico-lat .hc-recente .item-lat.sub{padding-right:32px}
+.hist-mais{display:block;width:100%;margin:8px 0 4px;padding:8px;border:0;border-radius:8px;background:none;color:var(--muted);font:500 13px var(--sans);text-align:left;cursor:pointer}
+.hist-mais:hover{background:var(--sand);color:var(--ink)}
+.app .lateral-rolagem{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;padding-bottom:8px}
+/* Pé: conta (avatar e nome) e a assinatura da plataforma, pequena. */
+.lateral .lateral-pe{border-top:1px solid var(--line);margin-top:6px;padding-top:6px;gap:0}
+.conta{position:relative}
+.conta-btn{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:6px 8px;border:0;border-radius:10px;background:none;color:var(--ink);text-align:left;cursor:pointer;font:inherit}
+.conta-btn:hover,.conta-btn[aria-expanded="true"]{background:var(--sand)}
+.conta-btn:focus-visible{outline:2px solid var(--forest);outline-offset:-2px}
+.conta-btn .avatar{width:32px;height:32px;background:var(--deep);color:var(--sobre-deep);border:0;font:600 12px/1 var(--sans)}
+.conta-nome{display:flex;flex-direction:column;min-width:0;flex:1}
+.conta-nome b{font:500 14px/1.3 var(--sans);overflow-wrap:anywhere}
+.conta-nome small{font:400 12px/1.3 var(--sans);color:var(--muted);overflow-wrap:anywhere}
+.conta-seta{display:inline-flex;color:var(--muted);flex:none}
+.conta-seta svg{width:16px;height:16px}
+.lateral .lateral-pe .rodape-plataforma{border-top:0;margin:2px 0 0;padding:4px 8px 0;min-height:18px}
+/* Menu da conta: abre acima do botão, preso à janela. */
+.menu-conta{position:fixed;z-index:70;max-height:calc(100dvh - 16px);overflow-y:auto;padding:6px;background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:var(--sombra-3);color:var(--ink)}
+.menu-conta[hidden]{display:none}
+.menu-conta-quem{display:flex;flex-direction:column;gap:1px;padding:8px 10px 10px;margin-bottom:4px;border-bottom:1px solid var(--line)}
+.menu-conta-quem b{font:500 14px/1.3 var(--sans);overflow-wrap:anywhere}
+.menu-conta-quem span{font:400 13px/1.3 var(--sans);color:var(--muted);overflow-wrap:anywhere}
+.menu-conta [role="menuitem"]{display:flex;align-items:center;gap:10px;width:100%;min-height:38px;padding:7px 10px;border:0;border-radius:8px;background:none;color:var(--ink);font:400 14px/1.3 var(--sans);text-align:left;text-decoration:none;cursor:pointer}
+.menu-conta [role="menuitem"] svg,.menu-conta-rotulo svg{width:17px;height:17px;flex:none;color:var(--tinta-2)}
+.menu-conta :is([role="menuitem"],[role="menuitemradio"]):hover{background:var(--sand)}
+.menu-conta [role="menuitem"]:focus-visible{background:var(--sand);outline:2px solid var(--forest);outline-offset:-2px}
+.menu-conta [role="menuitemradio"]:focus-visible{outline:2px solid var(--forest);outline-offset:0}
+.menu-conta-tema{display:grid;gap:6px;padding:6px 6px 6px 10px}
+.menu-conta-rotulo{display:inline-flex;align-items:center;gap:10px;font:400 14px/1.3 var(--sans)}
+.menu-conta-opcoes{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:2px;border-radius:8px;background:var(--surface);border:1px solid var(--line)}
+.menu-conta [role="menuitemradio"]{min-height:30px;padding:4px 8px;border:0;border-radius:6px;background:none;color:var(--muted);font:500 12.5px/1.2 var(--sans);cursor:pointer}
+.menu-conta [role="menuitemradio"][aria-checked="true"]{background:var(--paper);color:var(--ink);box-shadow:var(--sombra-1),0 0 0 1px var(--line)}
+.menu-conta-sep{height:1px;margin:5px 4px;background:var(--line)}
+/* Topo mínimo: o título da tela (ou o da conversa, com o "⋯" dela). */
+body:not(.plataforma) .app .cabeca{min-height:56px;padding:calc(8px + env(safe-area-inset-top)) 24px 8px;border-bottom-color:color-mix(in srgb,var(--line) 70%,transparent);flex-wrap:nowrap}
+body:not(.plataforma) .app .cabeca-titulo{gap:2px;align-items:center}
+body:not(.plataforma) .app .cabeca-titulo>h1{font:600 17px/1.3 var(--sans);letter-spacing:-.01em;white-space:normal;text-overflow:clip;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2}
+body:not(.plataforma) .app #principal:has(#msgs) .cabeca-titulo>h1{font-weight:500;font-size:15px}
+body:not(.plataforma) .app #principal:has(#msgs)>.cabeca{border-bottom-color:transparent;background:var(--paper);backdrop-filter:none}
+body:not(.plataforma) .app .cabeca .acoes-conversa{color:var(--muted);border-radius:8px}
+body:not(.plataforma) .app .cabeca-acoes{flex:none;gap:4px}
+body:not(.plataforma) .app .cabeca-acoes:empty{display:none}
+.nova-topo{display:none}
+@media(max-width:860px){
+  body:not(.plataforma) .app .cabeca{display:flex;flex-wrap:nowrap;padding:calc(6px + env(safe-area-inset-top)) 4px 6px;min-height:52px;gap:0}
+  body:not(.plataforma) .app .cabeca-titulo{display:flex;flex-wrap:nowrap;flex:1 1 auto;min-width:0;gap:2px}
+  body:not(.plataforma) .app .cabeca-titulo>h1{order:0;flex:1 1 0;min-width:0;font-size:16px;line-height:1.25;padding:0 2px;white-space:normal;text-overflow:clip;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2}
+  body:not(.plataforma) .app .cabeca-titulo>.menu-btn{margin:0}
+  body:not(.plataforma) .app .cabeca-titulo>.menu-btn+h1{margin-left:8px}   /* o título não encosta no botão do menu */
+  body:not(.plataforma) .app .cabeca .nova-topo{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;min-width:44px;padding:0;color:var(--ink)}
+  body:not(.plataforma) .app .cabeca-acoes{display:flex;order:0;align-self:center}
+  body:not(.plataforma) .app .cabeca .menu-btn>span{display:none}
+  .app .lateral{width:min(300px,86vw);padding-top:calc(10px + env(safe-area-inset-top))}
+  .lat-topo .lat-recolher{display:none}
+  .lateral .lat-topo .fechar-lateral{position:static;width:44px;height:44px;min-width:44px;min-height:44px}
+  .lateral .lat-topo .marca{margin-right:0}
+  .app .lateral .item-lat,.lateral .lat-acoes .item-lat,.app .lateral .historico-lat .item-lat.sub,.conta-btn{min-height:44px}
+  .historico-lat .hc-recente>.hc-acoes{opacity:1;width:40px;height:40px;min-width:40px;min-height:40px;background:none}
+  .app .lateral .historico-lat .hc-recente .item-lat.sub{padding-right:44px}
+}
+@media(pointer:coarse){
+  .historico-lat .hc-recente>.hc-acoes{opacity:1}
+  .menu-conta [role="menuitem"],.menu-conta [role="menuitemradio"]{min-height:44px}
+}
+@media(max-width:860px){.menu-conta [role="menuitem"],.menu-conta [role="menuitemradio"]{min-height:44px}}
+/* Lateral recolhida (só no computador): um trilho de ícones; o nome continua para leitores de tela. */
+@media(min-width:861px){
+  body.lateral-recolhida .lateral{width:64px;padding-inline:10px}
+  body.lateral-recolhida .lat-topo{justify-content:center}
+  body.lateral-recolhida .lateral :is(.lat-topo .marca,.logo-empresa,.selo-escopo,.historico-lat,.kbd,.conta-seta,.rodape-plataforma),body.lateral-recolhida .lateral .lateral-rolagem>h2{display:none}
+  body.lateral-recolhida .lateral :is(.nome,.conta-nome){position:absolute!important;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+  body.lateral-recolhida .lateral :is(.item-lat,.lat-contexto){justify-content:center;width:44px;min-height:40px;padding:0;margin-inline:auto}
+  body.lateral-recolhida .lateral .lat-contexto{padding:8px 0}
+  /* Pendências no trilho: só um ponto de aviso (a contagem continua para leitores de tela). */
+  body.lateral-recolhida .lateral .item-lat{position:relative}
+  body.lateral-recolhida .lateral .selo-lat{position:absolute;top:6px;right:6px;width:8px;height:8px;min-width:0;padding:0;border-radius:999px;font-size:0;overflow:hidden}
+  body.lateral-recolhida .lateral .selo-lat:not(.alerta){display:none}
+  body.lateral-recolhida .conta-btn{justify-content:center;padding:6px 0}
+  body.lateral-recolhida .lateral .lateral-pe{border-top-color:transparent}
+}
+@media(prefers-reduced-motion:reduce){.app .lateral{transition:none}}
+/* Console no celular estreito: ícones e ações numa linha, o título inteiro na linha de baixo. */
+@media(max-width:480px){
+  body.plataforma .app .cabeca{flex-wrap:wrap;row-gap:2px}
+  body.plataforma .app .cabeca-titulo{display:contents}
+  body.plataforma .app .cabeca-titulo>.menu-btn{margin-right:auto}
+  body.plataforma .app .cabeca-acoes{order:2}
+  body.plataforma .app .cabeca-titulo>h1{order:3;flex:1 1 100%;padding-inline:4px}
+}
+/* Console da plataforma: o mesmo esqueleto, sobre a lateral escura. */
+.lateral-plataforma .conta-btn{color:#E4E0D6}
+.lateral-plataforma .conta-btn:is(:hover,[aria-expanded="true"]){background:rgba(255,255,255,.07)}
+.lateral-plataforma .conta-btn .avatar{background:#B9E85A;color:#1F2A1A}
+.lateral-plataforma .conta-nome small,.lateral-plataforma .conta-seta{color:#A9A396}
+.lateral-plataforma .lat-acoes .item-lat{color:#E4E0D6}
+.lateral-plataforma .lat-acoes .item-lat:hover{background:rgba(255,255,255,.06)}
+.lateral-plataforma .lat-acoes .busca-lat svg{color:#A9A396}
+.lateral-plataforma.lateral .lateral-pe{border-top-color:rgba(255,255,255,.1)}
+.lateral-plataforma .lat-topo .icone-btn{color:#A9A396}
+.lateral-plataforma .lat-topo .icone-btn:hover{background:rgba(255,255,255,.07);color:#fff}
+.lateral-plataforma .item-lat{border-radius:8px}
+
+/* Sugestão da GreenIA para os modelos (Políticas de IA e Modelos): cartão calmo, um botão só, sem cara de alerta. */
+.adm-sugestao{margin:0 0 28px;padding:20px 22px;border:1px solid color-mix(in srgb,var(--forest-text) 30%,var(--line));border-radius:var(--raio-painel,14px);background:color-mix(in srgb,var(--mint) 40%,var(--paper))}
+.adm-sugestao-rotulo{display:block;margin-bottom:4px;font:600 12px/1.4 var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--forest-text)}
+.app .pagina .adm-sugestao h2{margin:0;font:600 18px/1.35 var(--sans);text-wrap:balance}
+.adm-sugestao-porque{margin:6px 0 14px;max-width:72ch;color:var(--muted)}
+.adm-sugestao-modelos{--cartao-min:240px;margin-bottom:14px}
+.app .pagina .adm-sug-modelo .cartao-titulo{margin:0;font:600 16px/1.35 var(--sans)}
+.adm-sug-modelo .cartao-meta{margin-top:auto}
+.adm-sug-motivos{margin:2px 0 0;padding:0;list-style:none;display:grid;gap:4px;font:400 14px/1.45 var(--sans);color:var(--ink)}
+.adm-sug-motivos li{position:relative;padding-left:16px}
+.adm-sug-motivos li::before{content:'';position:absolute;left:3px;top:.62em;width:6px;height:6px;border-radius:50%;background:var(--forest-text)}
+.adm-sug-motivos .adm-sug-garantia{display:flex;gap:6px;align-items:flex-start;padding-left:0;color:var(--forest-text);font-weight:500}
+.adm-sug-motivos .adm-sug-garantia::before{content:none}
+.adm-sug-garantia svg{flex:none;width:16px;height:16px;margin-top:2px}
+.adm-sugestao-fazer{margin:0 0 14px;max-width:72ch;font-weight:500}
+.adm-sugestao-acoes{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.app .pagina .adm-sugestao-acoes .btn{min-height:44px}
+.adm-sugestao-pronto{display:flex;align-items:center;gap:8px;margin:0 0 24px;padding:12px 16px;border-radius:var(--raio-painel,14px);background:var(--mint);color:var(--forest-text);font:500 15px/1.45 var(--sans)}
+.adm-sugestao-pronto svg{flex:none;width:20px;height:20px}
+.adm-sug-dados{display:grid;grid-template-columns:minmax(130px,max-content) 1fr;gap:6px 14px;margin:6px 0 10px;font-size:14px}
+.adm-sug-dados>div{display:contents}
+.adm-sug-dados dt{color:var(--muted)}
+.adm-sug-dados dd{margin:0;color:var(--ink);overflow-wrap:anywhere}
+.adm-sug-niveis-topo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px}
+.adm-sug-niveis-topo .selo svg{width:14px;height:14px}
+.app .pagina .adm-sug-niveis h2.editor-titulo{margin:0;font:600 15px/1.35 var(--sans)}
+.adm-sug-niveis .dica{margin:6px 0 10px}
+.adm-sug-niveis-lista{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+.adm-sug-niveis-lista li{display:grid;grid-template-columns:110px 1fr auto;gap:4px 12px;align-items:baseline}
+.adm-sug-niveis-lista .tag{justify-self:start}
+@media (max-width:760px){
+  .adm-sugestao{padding:16px}
+  .adm-sugestao-acoes>.btn-verde{width:100%;justify-content:center}
+  .adm-sug-niveis-lista li{grid-template-columns:1fr auto}
+  .adm-sug-niveis-lista li>span:not(.tag){grid-column:1/-1}
+}
+
+/* ==== Editor da página de apresentação e permissões concedidas (padrão assistente) — INÍCIO ==================
+   Console (Marca e endereço › Página de apresentação) e administração da empresa usam o mesmo editor
+   (editores.js): seções em sanfona, uma aberta por vez, com resumo de uma linha; prévia ao vivo ao lado em tela
+   larga; "Ver como fica" abre a mesma prévia na tela inteira em telas estreitas. Permissões concedidas do console:
+   interruptores que gravam na hora, como nas configurações do ChatGPT. */
+:root:has(.ld-split){--gestao-largura:1480px}
+.ld-split{display:block}
+.ld-split.dividido{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:24px;align-items:start}
+.ld-split .ld-editor{gap:8px;grid-template-columns:minmax(0,1fr);container-type:inline-size}
+.ld-split.dividido .ld-editor{max-width:none}
+/* Seções */
+.ld-bloco{border:1px solid var(--line);border-radius:12px;background:var(--paper);transition:border-color .15s}
+.ld-bloco.aberto{border-color:var(--line-strong)}
+.ld-bloco-cab{margin:0;font:inherit;letter-spacing:0}
+.ld-bloco-botao{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px;width:100%;min-height:56px;padding:10px 44px 10px 16px;border:0;border-radius:11px;background:none;color:var(--ink);text-align:left;cursor:pointer;font:inherit}
+.ld-bloco-botao:hover{background:var(--surface)}
+.ld-bloco-botao:focus-visible{outline:2px solid var(--forest);outline-offset:-2px}
+.ld-bloco.aberto .ld-bloco-botao{border-radius:11px 11px 0 0;border-bottom:1px solid var(--line)}
+.ld-bloco-botao::after{content:'';position:absolute;right:20px;top:50%;width:8px;height:8px;margin-top:-6px;border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:rotate(45deg);transition:transform .2s}
+.ld-bloco-botao[aria-expanded="true"]::after{transform:rotate(-135deg);margin-top:-2px}
+.ld-bloco-nome{font:600 14.5px/1.35 var(--sans)}
+.ld-bloco.oculta .ld-bloco-nome{color:var(--muted)}
+.ld-selo-oculta{font-size:11.5px;padding:0 8px}
+.ld-selo-oculta[hidden]{display:none}
+.ld-resumo{flex-basis:100%;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font:400 13px/1.45 var(--sans);color:var(--muted)}
+.ld-bloco.aberto .ld-resumo{display:none}
+.ld-corpo{padding:16px;display:grid;gap:12px}
+.ld-corpo[hidden]{display:none}
+.ld-corpo .campo{margin:0}
+.ld-vis{display:flex;align-items:center;gap:10px;min-height:44px;margin:-4px 0 0;cursor:pointer}
+.ld-vis-txt{font:500 13.5px var(--sans);color:var(--forest-text)}
+.ld-bloco.oculta .ld-vis-txt{color:var(--muted)}
+.ld-oculta-aviso{display:none;margin:0;padding:10px 12px;border-radius:8px;background:var(--amber-bg);color:var(--amber-text);font:400 13px/1.5 var(--sans)}
+.ld-bloco.oculta .ld-oculta-aviso{display:block}
+.ld-botoes-resumo{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+.ld-botoes-resumo .legenda{margin:0}
+.ld-botoes-lista{font:400 14px/1.5 var(--sans);color:var(--ink);min-width:0;overflow-wrap:anywhere}
+.ld-botoes-resumo .btn-texto{margin-left:auto}
+.ld-botoes-editar{margin:0}
+.ld-botoes-editar[hidden]{display:none}
+@container (max-width:620px){
+  .ld-corpo .repetidor .linha{grid-template-columns:1fr!important}
+  .ld-corpo .grade-2,.ld-corpo .grade-3{grid-template-columns:1fr}
+}
+.ld-seo[hidden]{display:none}
+.ld-seo .modal{width:min(100%,520px)}
+.ld-seo .modal h2{margin:0 0 6px}
+/* Ações do cabeçalho */
+.ld-acoes{display:inline-flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px}
+.ld-acoes [hidden]{display:none!important}
+.ld-menu{position:relative;display:inline-flex}
+.ld-menu .menu-lista[hidden]{display:none}
+.ld-menu .menu-lista{min-width:250px;z-index:40}
+.ld-menu .menu-lista :is(a,button){display:flex;align-items:center;min-height:40px;white-space:nowrap;cursor:pointer}
+.ld-estado{margin-left:6px;vertical-align:1px}
+/* "Ver como fica": só em tela estreita, preso ao pé da tela enquanto o editor está à vista */
+/* Barra fixa no pé do editor: fundo sólido e linha em cima, para não ficar por cima do texto dos campos. */
+.ld-ver-barra{position:sticky;bottom:0;z-index:5;display:flex;justify-content:center;gap:8px;margin-top:16px;padding:10px 0 calc(10px + env(safe-area-inset-bottom));background:var(--paper);border-top:1px solid var(--line);box-shadow:0 64px 0 0 var(--paper)}
+.ld-ver-barra .btn{min-height:44px;padding:0 22px;border-radius:999px;background:var(--paper)}
+.ld-ver-barra[hidden],.ld-ver-barra .btn[hidden]{display:none}
+.ld-ver-barra .btn-verde{background:var(--forest-strong)}
+/* Prévia */
+.ld-previa{display:none;flex-direction:column;min-width:0;border:1px solid var(--line);border-radius:14px;background:var(--surface);overflow:hidden}
+.ld-split.dividido .ld-previa{display:flex;position:sticky;top:12px;height:calc(100dvh - 140px);min-height:440px}
+.ld-previa-topo{display:flex;align-items:center;gap:8px;min-height:48px;padding:6px 8px 6px 14px;border-bottom:1px solid var(--line);background:var(--paper)}
+.ld-previa-titulo{margin:0;font:600 13px/1.3 var(--sans)!important;color:var(--muted)!important;letter-spacing:.01em}
+.ld-previa-titulo:focus{outline:none}
+.ld-previa-estado{flex:1;min-width:0;font:400 12.5px/1.4 var(--sans);color:var(--amber-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ld-previa.atualizando .ld-previa-titulo::after{content:'';display:inline-block;width:6px;height:6px;margin-left:8px;border-radius:50%;background:var(--forest-text);vertical-align:middle;animation:ld-pulso 1s ease-in-out infinite}
+@keyframes ld-pulso{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.ld-previa.atualizando .ld-previa-titulo::after{animation:none}}
+.ld-nova-aba{flex:none;color:var(--muted)}
+.ld-nova-aba:hover{color:var(--ink)}
+.ld-previa-fechar{display:none!important}
+.ld-previa-moldura{flex:1;min-height:0;background:var(--paper)}
+.ld-previa-quadro{display:block;width:100%;height:100%;border:0;background:var(--paper)}
+/* Tela estreita: "Ver como fica" abre a prévia na tela inteira (diálogo) */
+.ld-previa.tela-cheia{display:flex;position:fixed;inset:0;z-index:60;border:0;border-radius:0;padding-top:env(safe-area-inset-top)}
+.ld-previa.tela-cheia .ld-previa-fechar{display:inline-flex!important;flex:none}
+html.ld-previa-aberta,html.ld-previa-aberta body{overflow:hidden}
+/* Permissões concedidas: lista de interruptores */
+.conc-lista{list-style:none;margin:0 0 28px;padding:0;max-width:var(--gestao-leitura);border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+.conc-item{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:60px;padding:10px 16px;cursor:pointer}
+.conc-item+.conc-item{border-top:1px solid var(--line)}
+.conc-texto{display:grid;gap:2px;min-width:0}
+.conc-nome{font:500 14.5px/1.4 var(--sans);color:var(--ink)}
+.conc-plano{font:400 13px/1.4 var(--sans);color:var(--muted)}
+.conc-item.salvando .conc-plano{color:var(--forest-text)}
+.conc-switch{flex:none}
+/* Console: Marca e endereço tem subabas, um nível abaixo das abas da empresa */
+body.plataforma .subnav-2{border-bottom:0;gap:6px;margin:-8px 0 18px}
+body.plataforma .subnav-2 a{padding:6px 12px;border:1px solid transparent;border-radius:999px;font-size:13px}
+body.plataforma .subnav-2 a[aria-current="page"]{border-color:var(--line);background:var(--sand);color:var(--ink)}
+@media (max-width:760px){
+  .ld-menu .menu-lista :is(a,button){min-height:44px}
+  .ld-acoes .btn,.ld-nova-aba,.ld-previa-fechar{min-height:44px}
+  .ld-nova-aba{min-width:44px}
+  body.plataforma .subnav-2 a{min-height:44px;display:inline-flex;align-items:center}
+}
+@media (max-width:640px){
+  .adm-topo-acao .ld-acoes{width:100%;flex-wrap:nowrap}
+  .adm-topo-acao .ld-acoes>.btn,.adm-topo-acao .ld-menu{flex:1 1 0;min-width:0}
+  .adm-topo-acao .ld-acoes .btn{justify-content:center;width:100%}
+  .ld-bloco-botao{padding-left:14px}
+  .ld-corpo{padding:14px}
+}
+/* ==== Editor da página de apresentação e permissões concedidas — FIM ==== */
+
+/* Prévia do PowerPoint (cartão e painel) */
+.arquivo-previa{display:flex;flex-direction:column;gap:8px;width:min(100%,340px)}.arquivo-previa .anexo-resposta{width:100%}
+.pv-mini{display:block;width:100%;padding:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--paper);cursor:zoom-in;text-align:left;font:inherit;color:var(--ink)}
+.pv-mini:focus-visible{outline:2px solid var(--forest);outline-offset:2px}.pv-mini-slide{display:block}.pv-mini-slide[hidden]{display:none}
+.pv-mini-ver{display:block;padding:8px 12px;font:500 13px/1.3 var(--sans);color:var(--muted);border-top:1px solid var(--line)}
+.pv-slide{position:relative;container-type:inline-size;width:100%;overflow:hidden;background:#fff}
+.pv-img,.pv-ret,.pv-txt,.pv-tab,.pv-svg{position:absolute}.pv-svg{overflow:visible}.pv-img{object-fit:fill;width:100%;height:100%}
+.pv-txt{display:flex;flex-direction:column;overflow:visible}.pv-txt p{margin:0;line-height:1.18;white-space:pre-wrap;overflow-wrap:break-word}.pv-sem-quebra p{white-space:pre}
+.pv-marca{display:inline-block;width:1.2em}.pv-tab{border-collapse:collapse;table-layout:fixed}.pv-tab td{border:1px solid #B7C4BC;padding:.5cqw .8cqw;color:#1F2A24;vertical-align:top}
+.pv-painel-fundo{position:fixed;inset:0;z-index:100;background:var(--sobreposicao);display:flex;align-items:stretch;justify-content:center;padding:24px}
+.pv-painel{display:flex;flex-direction:column;width:min(1100px,100%);background:var(--surface);border-radius:14px;box-shadow:var(--sombra-3);overflow:hidden}
+.pv-topo{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--paper)}.pv-topo b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pv-conta{color:var(--muted);font-size:13px}.pv-lista{flex:1;overflow:auto;padding:20px;display:grid;gap:20px}
+.pv-item{margin:0}.pv-item .pv-slide{border-radius:8px;box-shadow:var(--sombra-2)}.pv-item figcaption{text-align:center;color:var(--muted);font-size:12px;margin-top:6px}
+@media (max-width:600px){.pv-painel-fundo{padding:0}.pv-painel{border-radius:0}.pv-lista{padding:12px;gap:12px}}
+.texto-recolhido{margin:4px 0 12px}.texto-recolhido>summary{cursor:pointer;color:var(--forest-text);font:500 14px/1.4 var(--sans);min-height:44px;display:flex;align-items:center}.texto-recolhido[open]>summary{margin-bottom:8px}
+/* Créditos da empresa (menu da conta e aviso) */
+.faixa-plano-acao{margin-left:6px;padding:2px 6px;font-size:13px;text-decoration:underline}
+.creditos-barra{height:8px;border-radius:999px;background:var(--surface-hover);overflow:hidden;margin:4px 0 16px}
+.creditos-barra span{display:block;height:100%;background:var(--forest-text)}
+.creditos-lista{margin:0 0 16px;padding-left:18px;display:grid;gap:6px}
+.creditos-acoes{display:flex;flex-wrap:wrap;gap:8px}
+.imagem-gerada{display:flex;flex-direction:column;gap:8px;margin:0;width:min(100%,560px)}.imagem-gerada img{display:block;width:100%;height:auto;border-radius:12px;border:1px solid var(--line)}.imagem-gerada .anexo-resposta{width:100%}
+/* Código e sites: publicar, executar (saída da área isolada) e o histórico da execução. */
+.acoes-codigo{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px;width:100%}
+.selo-publicado{font-size:var(--ui-apoio);font-weight:600;color:var(--forest-text);border:1px solid var(--line);border-radius:999px;padding:2px 10px}
+.saida-execucao{flex-basis:100%;font-size:var(--ui-apoio);color:var(--muted)}.saida-execucao:empty{display:none}
+.linha-aviso.execucao-saida{text-align:left}.linha-aviso.execucao-saida pre{margin:6px 0 0;max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-word;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px}
+/* Caixa de mensagem (referência: ChatGPT): anexos como cartões numa fileira que rola para o lado, sem empurrar o
+   texto; o texto nunca encolhe, cresce até ~40% da tela e rola por dentro; "Expandir" dá mais espaço ao texto longo. */
+.app .caixa-chat textarea{flex:0 0 auto;padding-right:36px}
+.app .caixa-chat .anexos-pendentes{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;overflow-y:hidden;padding:2px 2px 6px 0;scrollbar-width:thin}
+.app .caixa-chat .anexo-chip{position:relative;flex:0 0 auto;width:236px;min-width:0;max-width:none;display:flex;align-items:center;gap:9px;margin:0;padding:7px 30px 7px 7px;border-radius:12px;white-space:nowrap;background:var(--surface);border:1px solid var(--line);box-sizing:border-box}
+.app .caixa-chat .anexo-icone{flex:none;display:grid;place-items:center;width:38px;height:38px;border-radius:9px;background:var(--line);color:var(--paper)}
+.app .caixa-chat .anexo-icone svg{width:18px;height:18px}
+.app .caixa-chat .anexo-chip[data-tipo=pdf] .anexo-icone{background:#C2410C}
+.app .caixa-chat .anexo-chip[data-tipo=pptx] .anexo-icone,.app .caixa-chat .anexo-chip[data-tipo=ppt] .anexo-icone{background:#B45309}
+.app .caixa-chat .anexo-chip[data-tipo=docx] .anexo-icone,.app .caixa-chat .anexo-chip[data-tipo=doc] .anexo-icone{background:#1D4ED8}
+.app .caixa-chat .anexo-chip[data-tipo=xlsx] .anexo-icone,.app .caixa-chat .anexo-chip[data-tipo=xls] .anexo-icone,.app .caixa-chat .anexo-chip[data-tipo=csv] .anexo-icone{background:#15803D}
+.app .caixa-chat .anexo-chip[data-tipo=link] .anexo-icone{background:var(--forest-strong)}
+.app .caixa-chat .anexo-info{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.app .caixa-chat .anexo-nome{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 13px/1.3 var(--sans);color:var(--ink)}
+.app .caixa-chat .anexo-meta{display:flex;align-items:center;gap:4px;min-width:0;color:var(--muted);font:500 11.5px/1.2 var(--sans)}
+.app .caixa-chat .anexo-tipo{flex:none;letter-spacing:.03em}
+.app .caixa-chat .anexo-tipo::after{content:"·";margin-left:4px}
+.app .caixa-chat .papel-anexo{min-width:0;max-width:100%;margin:0;padding:0 2px;border:none;border-radius:6px;background:transparent;color:var(--muted);font:500 11.5px/1.2 var(--sans);cursor:pointer}
+.app .caixa-chat .papel-anexo:hover,.app .caixa-chat .papel-anexo:focus-visible{background:var(--paper);color:var(--ink)}
+.app .caixa-chat .anexo-chip>button{position:absolute;top:50%;right:4px;transform:translateY(-50%);border:none;background:none;color:var(--muted);font-size:16px;line-height:1;width:26px;height:26px;border-radius:999px;cursor:pointer}
+.app .caixa-chat .anexo-chip>button:hover{background:var(--paper);color:var(--ink)}
+.app .caixa-chat .caixa-texto{position:relative}
+.app .caixa-chat .caixa-texto textarea{width:100%;box-sizing:border-box}
+.app .caixa-chat .caixa-expandir{position:absolute;top:2px;right:0;z-index:1;width:28px;height:28px;border:none;border-radius:8px;background:none;color:var(--muted);font-size:16px;cursor:pointer}
+.app .caixa-chat .caixa-expandir:hover{background:var(--surface);color:var(--ink)}
+/* Toque: alvos de 40px sem aumentar a ficha (o × ocupa a ponta direita inteira). */
+@media (pointer:coarse){.app .caixa-chat .anexo-chip{padding-right:40px}.app .caixa-chat .anexo-chip>button{right:0;width:40px;height:100%;border-radius:0 12px 12px 0}.app .caixa-chat .caixa-expandir{width:40px;height:40px}.app .caixa-chat .papel-anexo{min-height:24px}}
+@media (max-width:760px){.app .caixa-chat .anexo-chip{width:208px;padding-top:6px;padding-bottom:6px}.app .caixa-chat .anexo-icone{width:34px;height:34px}.app .caixa-chat .anexos-pendentes{margin:0 0 4px}}
+@media (max-width:760px){#inicio-atalhos.compondo{display:none}}
+/* Toque: o seletor do material mantém o alvo de 44 px, mas avança sobre a margem da ficha em vez de esticá-la. */
+@media (pointer:coarse),(max-width:760px){.app .caixa-chat .papel-anexo{min-height:44px;margin:-15px 0 -15px;position:relative}}
+/* Celular (referência: app do ChatGPT): na conversa vazia, a saudação fica no meio e a caixa de mensagem presa ao pé
+   da tela, perto do polegar e do teclado; as sugestões ficam logo acima da caixa, numa fileira que rola para o lado. */
+@media (max-width:760px){
+  .principal:has(.inicio-conversa) .mensagens{margin-top:auto;margin-bottom:auto}
+  .principal:has(.inicio-conversa) .compositor{margin-bottom:0}
+  .principal:has(.inicio-conversa) .compositor-dentro{display:flex;flex-direction:column}
+  .principal:has(.inicio-conversa) .inicio-atalhos{order:-1;align-items:stretch;gap:8px;margin:0 0 10px}
+  .principal:has(.inicio-conversa) .inicio-sugestoes,.principal:has(.inicio-conversa) .inicio-tarefas{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;scrollbar-width:none;max-width:100%;padding:2px 0}
+  .principal:has(.inicio-conversa) .inicio-sugestoes::-webkit-scrollbar,.principal:has(.inicio-conversa) .inicio-tarefas::-webkit-scrollbar{display:none}
+  .principal:has(.inicio-conversa) .chip-inicio{flex:none;white-space:nowrap}
+  .principal:has(.inicio-conversa) .inicio-tarefas-rotulo{flex:none}
+}
+/* Arquivo sendo montado depois da resposta: cartão com andamento no lugar do arquivo (referência: ChatGPT). */
+.arquivo-montando{display:flex;align-items:center;gap:12px;box-sizing:border-box;width:min(100%,420px);margin:14px 0 4px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--paper);font-family:var(--sans)}
+.arquivo-montando b{display:block;font:600 14px/1.3 var(--sans);color:var(--ink)}
+.arquivo-montando small{display:block;margin-top:2px;font:400 12.5px/1.4 var(--sans);color:var(--muted)}
+.arquivo-montando .girando{flex:none;width:22px;height:22px;border-radius:50%;border:2.5px solid var(--line);border-top-color:var(--forest);animation:girar 0.9s linear infinite}
+@keyframes girar{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.arquivo-montando .girando{animation-duration:2.5s}}
+
+.editor-pedido{width:min(680px,75vw);padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--paper)}
+.editor-pedido label{display:block;font-weight:600;margin-bottom:8px}
+.editor-pedido textarea{width:100%;box-sizing:border-box;resize:vertical;min-height:140px;font:400 15px/1.6 var(--sans)}
+.editor-pedido p{font-size:12px;color:var(--muted);margin:10px 0}
+@media(max-width:760px){.editor-pedido{width:75vw;padding:12px}}
+
+/* Preferências opcionais: o pedido comum não exige escolher capacidade. */
+.preferencias-resposta{position:relative;color:var(--muted);font:500 13px var(--sans)}
+.preferencias-resposta>summary{cursor:pointer;border-radius:999px;padding:10px 12px;list-style:none}
+.preferencias-resposta>summary:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.preferencias-resposta-painel{position:absolute;z-index:30;bottom:100%;left:0;width:min(320px,75vw);padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--paper);box-shadow:0 8px 30px #0002}
+.app .preferencias-resposta-painel .caixa-nivel{width:100%;max-width:100%;margin-top:8px;white-space:normal}
+.preferencias-resposta-painel p{font-weight:400;line-height:1.5;margin:0 0 12px}
+
+/* Decisões por trabalho: mesma tipografia, superfícies e cor da empresa. */
+.app .trabalho-config{max-width:1040px;margin:24px 0 32px}
+.app .trabalho-principal{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:28px 32px;box-shadow:var(--sombra-1)}
+.app .trabalho-config-topo{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.app .trabalho-icone{display:inline-flex;align-items:center;justify-content:center;flex:none;width:36px;height:36px;color:var(--muted);background:var(--surface);border-radius:10px}
+.app .trabalho-icone svg{width:19px;height:19px}
+.app .trabalho-icone-destaque{color:var(--forest-text);background:var(--mint);width:42px;height:42px}
+.app .trabalho-recomendado{display:inline-flex;align-items:center;font:600 11px/1.4 var(--sans);letter-spacing:.03em;color:var(--forest-text);background:var(--mint);border-radius:99px;padding:5px 10px}
+.app .trabalho-principal h2{font:600 24px/1.3 var(--sans);letter-spacing:-.03em;max-width:31ch;margin:0 0 10px}
+.app .trabalho-descricao{color:var(--muted);max-width:64ch;margin:0;font:400 14px/1.65 var(--sans)}
+.app .trabalho-ativacao{display:flex;align-items:center;justify-content:space-between;gap:24px;border-top:1px solid var(--line);padding-top:22px;margin-top:26px}
+.app .trabalho-ativacao strong{font:600 14px/1.5 var(--sans)}
+.app .trabalho-ativacao p{font-size:13px;color:var(--muted);margin:3px 0 0}
+.app .trabalho-switch-estado{display:flex;gap:12px;align-items:center;font:500 12px/1.4 var(--sans);white-space:nowrap}
+.app .trabalho-switch-estado .switch{width:42px;height:24px;min-height:24px;cursor:pointer}
+.app .trabalho-switch-estado .switch span{width:18px;height:18px;left:3px;top:3px}
+.app .trabalho-switch-estado .switch[aria-checked=true] span{left:21px}
+.app .trabalho-exemplos{margin:28px 0}
+.app .trabalho-secao h2{font:600 15px/1.4 var(--sans);margin:0 0 4px}
+.app .trabalho-secao p{font-size:13px;color:var(--muted);margin:0 0 16px}
+.app .trabalho-grade{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
+.app .trabalho-exemplo{min-width:0;padding:0 8px 0 0}
+.app .trabalho-exemplo .trabalho-icone{background:transparent;width:24px;height:28px;justify-content:flex-start;color:var(--forest-text);margin-bottom:10px}
+.app .trabalho-exemplo h3{font:600 14px/1.45 var(--sans);margin:0 0 5px;letter-spacing:-.015em}
+.app .trabalho-exemplo p{font:400 13px/1.65 var(--sans);color:var(--muted);margin:0;max-width:32ch}
+.app .trabalho-nota{display:flex;align-items:flex-start;gap:8px;color:var(--muted);font:400 12px/1.6 var(--sans);margin:20px 0 0;max-width:75ch}
+.app .trabalho-nota svg{width:15px;height:18px;flex:none}
+.app .trabalho-detalhes{border:1px solid var(--line);border-radius:12px;background:var(--paper);margin:14px 0;overflow:hidden}
+.app .trabalho-detalhes summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:17px 20px;min-height:52px;transition:background var(--rapido)}
+.app .trabalho-detalhes summary::-webkit-details-marker{display:none}
+.app .trabalho-detalhes summary:hover{background:var(--surface)}
+.app .trabalho-detalhes summary>span:nth-child(2){flex:1;min-width:0}
+.app .trabalho-detalhes strong{display:block;font:600 13px/1.5 var(--sans)}
+.app .trabalho-detalhes small{display:block;font:400 12px/1.5 var(--sans);color:var(--muted);margin-top:3px}
+.app .trabalho-chevron{display:flex;align-items:center;color:var(--muted);transition:transform var(--rapido)}
+.app .trabalho-detalhes[open]>summary .trabalho-chevron{transform:rotate(90deg)}
+.app .trabalho-detalhes-corpo{padding:0 20px 20px;border-top:1px solid var(--line)}
+.app .trabalho-detalhes-corpo>p{max-width:68ch;color:var(--muted);font-size:13px;line-height:1.65;margin:16px 0}
+.app .trabalho-detalhes-corpo h3{font:600 15px/1.4 var(--sans);margin:18px 0 6px}
+.app .trabalho-link{display:inline-flex;align-items:center;gap:8px;margin-top:18px;font-size:13px;color:var(--forest-text)}
+.app .trabalho-salvar{padding:16px 0;justify-content:flex-end;align-items:center}
+.app #cfg-rota .trabalho-salvar[hidden]{display:none!important}
+.app .trabalho-feedback:empty{display:none}
+.app .trabalho-feedback{padding-top:12px;color:var(--forest-text);font-size:13px}
+.app .trabalho-feedback[role=alert],.app .trabalho-erro{color:var(--red-text);background:var(--red-bg);padding:12px 14px;border-radius:8px;font-size:13px}
+.app #advanced-chat{padding:0 24px}
+.app #advanced-chat:empty{display:none}
+.app .trabalho-acompanhamento{max-width:800px;margin:24px auto 20px;padding:24px 28px;background:var(--paper);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sombra-1);min-width:0}
+.app .trabalho-acompanhamento-topo{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:16px}
+.app .trabalho-status{display:inline-flex;align-items:center;gap:7px;font:600 11px/1.4 var(--sans);color:var(--amber-text);background:var(--amber-bg);border-radius:99px;padding:5px 9px}
+.app .trabalho-status svg{width:14px;height:14px}
+.app .trabalho-status-liberado{color:var(--forest-text);background:var(--mint)}
+.app .trabalho-envio{font-size:11px;color:var(--muted)}
+.app .trabalho-acompanhamento h2{font:600 21px/1.35 var(--sans);letter-spacing:-.025em;margin:0 0 10px;max-width:48ch}
+.app .trabalho-contexto{font:400 14px/1.6 var(--sans);color:var(--ink);max-width:64ch;margin:0 0 8px}
+.app .trabalho-contexto:first-letter{text-transform:uppercase}
+.app .trabalho-orientacao,.app .trabalho-proximo{font:400 13px/1.6 var(--sans);color:var(--muted);max-width:68ch;margin:8px 0}
+.app .trabalho-preservado{display:flex;align-items:center;gap:7px;color:var(--forest-text);font:500 12px/1.5 var(--sans);margin:16px 0}
+.app .trabalho-preservado svg{width:15px;height:15px}
+.app .trabalho-acoes:empty{display:none}
+.app .trabalho-acoes{margin:18px 0}
+.app .trabalho-acoes .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px}
+.app .trabalho-secundario{border:0;border-top:1px solid var(--line);border-radius:0;margin:0;background:transparent}
+.app .trabalho-secundario summary{padding:15px 0}
+.app .trabalho-secundario summary .trabalho-icone{background:transparent;width:22px}
+.app .trabalho-secundario .trabalho-detalhes-corpo{border:0;padding:0 0 18px 34px}
+.app .trabalho-limite{padding-left:12px;border-left:2px solid var(--line-strong)}
+.app .trabalho-pedido-texto{white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow:auto}
+.app .trabalho-materiais{list-style:none;margin:16px 0 0;padding:0}
+.app .trabalho-materiais li{display:grid;grid-template-columns:18px 1fr auto;gap:9px;align-items:center;padding:10px 0;border-top:1px solid var(--line);font-size:13px}
+.app .trabalho-materiais li>span{overflow-wrap:anywhere;min-width:0}
+.app .trabalho-materiais li small{font-size:11px}
+.app .trabalho-sincronizacao{max-width:800px;margin:16px auto;padding:16px;border:1px solid var(--red-borda);border-radius:12px;font-size:13px}
+.app .trabalho-admin-cabeca{display:flex;gap:16px;align-items:flex-start;justify-content:space-between;margin-bottom:24px}
+.app .trabalho-admin-cabeca h2{margin:0 0 6px;font:600 20px/1.4 var(--sans)}
+.app .trabalho-admin-cabeca p{margin:0;color:var(--muted);font-size:13px;max-width:65ch}
+.app .trabalho-autorizacao{border-top:1px solid var(--line);padding:22px 0}
+.app .trabalho-autorizacao h4{font:600 15px/1.4 var(--sans);margin:0 0 6px}
+.app .trabalho-autorizacao>p{max-width:70ch;color:var(--muted);font-size:13px;line-height:1.6}
+.app .trabalho-autorizacao .linha-botoes{margin-top:18px}
+.app .trabalho-autorizacao form label{display:block;margin:12px 0;font-size:13px}
+.app .trabalho-autorizacao form input{display:block;margin-top:6px;max-width:240px}
+.app .trabalho-concessao{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;margin:18px 0}
+.app .trabalho-concessao dt{font-size:11px;color:var(--muted);margin-bottom:5px}
+.app .trabalho-concessao dd{font:600 14px/1.5 var(--sans);margin:0}
+.app :is(.trabalho-detalhes summary,.trabalho-switch-estado button,.trabalho-link):focus-visible{outline:2px solid var(--forest-text);outline-offset:4px;border-radius:8px}
+.app .trabalho-acompanhamento[aria-busy=true] .trabalho-status svg{animation:trabalho-pulso 1s ease-in-out infinite alternate}
+@keyframes trabalho-pulso{to{opacity:.35}}
+@media(max-width:760px){
+ .app .trabalho-principal{padding:22px 20px;border-radius:12px}
+ .app .trabalho-principal h2{font-size:21px}
+ .app .trabalho-grade{grid-template-columns:1fr;gap:20px}
+ .app .trabalho-exemplo{position:relative;padding-left:38px}
+ .app .trabalho-exemplo .trabalho-icone{position:absolute;left:0;top:0}
+ .app .trabalho-exemplo p{max-width:none}
+ .app .trabalho-ativacao{align-items:flex-start;gap:12px}
+ .app .trabalho-switch-estado{gap:8px}
+ .app #advanced-chat{padding:0 12px}
+ .app .trabalho-acompanhamento{margin:14px auto;padding:20px 18px;border-radius:12px}
+ .app .trabalho-acompanhamento h2{font-size:19px}
+ .app .trabalho-acompanhamento-topo{gap:8px;flex-wrap:wrap}
+ .app .trabalho-secundario .trabalho-detalhes-corpo{padding-left:0}
+ .app .trabalho-detalhes summary{padding:15px 14px}
+ .app .trabalho-secundario summary{padding:15px 0}
+ .app .trabalho-detalhes .trabalho-icone{width:28px;height:28px}
+ .app .trabalho-concessao{grid-template-columns:1fr;gap:12px}
+ .app .trabalho-materiais li{grid-template-columns:18px 1fr}
+ .app .trabalho-materiais li small{grid-column:2}
+ .app .trabalho-acoes .btn{width:100%}
+}
+@media(prefers-reduced-motion:reduce){.app .trabalho-acompanhamento *,.app .trabalho-detalhes *{animation:none!important;transition:none!important}}
+.app .trabalho-resumo,.app .trabalho-historico{max-width:1040px;margin:32px 0}
+.app .trabalho-metricas{display:grid;grid-template-columns:1fr 1fr;gap:32px;padding:22px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:18px 0 20px}
+.app .trabalho-metricas>div+div{border-left:1px solid var(--line);padding-left:32px}
+.app .trabalho-metricas span{display:block;color:var(--muted);font:500 12px/1.5 var(--sans)}
+.app .trabalho-metricas strong{display:block;font:600 30px/1.3 var(--sans);letter-spacing:-.035em;margin:7px 0 3px;font-variant-numeric:tabular-nums}
+.app .trabalho-metricas small{color:var(--muted);font:400 12px/1.5 var(--sans)}
+.app .trabalho-casos{list-style:none;margin:0;padding:0}
+.app .trabalho-casos li{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:16px 0;border-bottom:1px solid var(--line)}
+.app .trabalho-casos li a{font-size:13px;color:var(--forest-text);padding:8px 0}
+.app .trabalho-historico-topo{display:flex;gap:20px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.app .trabalho-filtro{font-size:12px;color:var(--muted);display:flex;gap:10px;align-items:center}
+.app .trabalho-filtro select{font-size:13px;max-width:260px}
+.app .trabalho-motivo>span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-width:60ch;font-size:12px;line-height:1.6;color:var(--muted)}
+.app .trabalho-historico .tabela td{font-size:13px;padding-top:16px;padding-bottom:16px}
+.app .trabalho-paginacao{display:flex;gap:16px;justify-content:flex-end;align-items:center;font-size:12px;color:var(--muted);margin-top:16px}
+.app .trabalho-paginacao button{font-size:13px}
+@media(max-width:760px){
+ .app .trabalho-metricas{gap:16px}
+ .app .trabalho-metricas>div+div{padding-left:16px}
+ .app .trabalho-metricas strong{font-size:24px;overflow-wrap:anywhere}
+ .app .trabalho-historico-topo{align-items:flex-start;flex-direction:column;gap:8px}
+ .app .trabalho-filtro{width:100%;justify-content:space-between}
+ .app .trabalho-historico .tabela{min-width:0;width:100%;display:block}
+ .app .trabalho-historico .tabela thead{display:none}
+ .app .trabalho-historico .tabela tbody{display:block}
+ .app .trabalho-historico .tabela tr{display:grid;grid-template-columns:1fr 1fr;padding:12px 0;border-bottom:1px solid var(--line);gap:8px}
+ .app .trabalho-historico .tabela td{display:block;padding:0!important;border:0;white-space:normal!important;min-width:0}
+ .app .trabalho-historico .tabela td::before{display:block;content:attr(data-r);font-size:10px;color:var(--muted);margin-bottom:3px}
+ .app .trabalho-historico .tabela td:last-child{grid-column:1/-1}
+ .app .trabalho-paginacao{justify-content:space-between;gap:8px}
+ .app .trabalho-casos li{gap:12px}
+}
+/* O controle conserva uma área de toque de 48 × 44 px em todos os tamanhos. */
+.app .trabalho-switch-estado .switch{width:48px;height:44px;min-height:44px;background:transparent}
+.app .trabalho-switch-estado .switch[aria-checked]{background:transparent}
+.app .trabalho-switch-estado .switch::before{content:'';position:absolute;width:42px;height:24px;left:3px;top:10px;border-radius:99px;background:var(--stone)}
+.app .trabalho-switch-estado .switch[aria-checked=true]::before{background:var(--forest-strong)}
+.app .trabalho-switch-estado .switch span{width:18px;height:18px;left:6px;top:13px}
+.app .trabalho-switch-estado .switch[aria-checked=true] span{left:24px}
+.app .trabalho-switch-estado .switch::after{inset:0}
+.app .trabalho-solicitante{display:flex;justify-content:space-between;align-items:center;gap:16px}
+.app .trabalho-solicitante h4{margin:0}
+.app .trabalho-autorizacao h3{font:600 17px/1.4 var(--sans);letter-spacing:-.02em;margin:16px 0 8px}
+@media(max-width:760px){.app .trabalho-solicitante{align-items:flex-start;flex-wrap:wrap;gap:8px}}
+.app .pagina .trabalho-principal h2{font:600 24px/1.3 var(--sans);letter-spacing:-.03em}
+.app .pagina .trabalho-secao h2{font:600 16px/1.4 var(--sans);letter-spacing:-.015em}
+@media(max-width:760px){.app .pagina .trabalho-principal h2{font-size:21px}}
+.app .trabalho-acompanhamento{max-width:760px}
+.app .principal:has(#advanced-chat article) .boas-vindas.inicio-conversa,.app .principal:has(#advanced-chat article) #inicio-atalhos{display:none}
+.app .principal:has(#advanced-chat article) #msgs{flex:1 1 auto;margin-top:0;padding-bottom:24px}
+.app .principal:has(#advanced-chat article) .compositor{margin-bottom:0}
+.app .trabalho-carregando{max-width:760px;margin:20px auto;color:var(--muted);font-size:12px}
+.app .trabalho-pendente{font-size:12px;color:var(--amber-text);margin:12px 0 0}
+.app .trabalho-pendente[hidden],.app #rota-manual[hidden]{display:none!important}
+
+/* Uso e resultados: acompanha trabalho, não volume de respostas. */
+.resultados{max-width:1200px}.resultados-intro{display:flex;gap:32px;align-items:center;justify-content:space-between;margin:16px 0 32px}.app .resultados-intro h2{font-size:28px;letter-spacing:-.7px;margin:14px 0 12px;line-height:1.2}.resultados-intro p{max-width:680px;color:var(--muted);line-height:1.65}.resultados-intro .btn{flex-shrink:0}.resultados-filtros{display:flex;flex-wrap:wrap;align-items:end;gap:14px;padding-bottom:20px;border-bottom:1px solid var(--line)}.resultados-filtros label{display:grid;gap:7px;flex:1 1 140px;font-size:12px;font-weight:600}.resultados-filtros .entrada{min-width:0;width:100%;font-size:13px}.resultados-atualizacao{font-size:12px;color:var(--muted);margin:18px 0 24px}.resultados-metricas{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px;padding:8px 0 28px}.resultados-metricas>div{display:flex;flex-direction:column;gap:10px;border-right:1px solid var(--line);padding-right:20px}.resultados-metricas>div:last-child{border:0}.resultados-metricas span{font-size:13px}.resultados-metricas strong{font-size:32px;font-weight:600;letter-spacing:-1px}.resultados-metricas small{color:var(--muted);font-size:12px;line-height:1.5}.resultados-nota{font-size:12px;line-height:1.65;color:var(--muted);max-width:850px;margin-bottom:22px}.resultados-andamento{display:grid;grid-template-columns:1fr 1fr;gap:30px;padding:28px 0}.resultados-andamento h3{font-size:15px}.resultados-andamento p,.resultados-equipe p{color:var(--muted);font-size:13px;line-height:1.7}.resultados-equipe{margin:32px 0}.resultados-pessoas details{border-bottom:1px solid var(--line);padding:14px 0}.resultados-pessoas summary{display:flex;justify-content:space-between;gap:16px;cursor:pointer;font-size:14px}.resultados-pessoas summary span:last-child{color:var(--muted);font-size:12px}.resultados-pessoas .entrada{max-width:260px}.resultados-resumo p{display:flex;justify-content:space-between;gap:24px;border-bottom:1px solid var(--line);padding:10px 0}.resultados-distribuicao{margin:32px 0}.resultados-distribuicao>div{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:16px 0;border-bottom:1px solid var(--line);font-size:13px}.resultados-distribuicao>div span:nth-child(2){color:var(--muted)}.resultado-trabalho{appearance:none;background:transparent;border:0;border-bottom:1px solid var(--line);width:100%;padding:20px 0;display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:16px;color:var(--ink);text-align:left;cursor:pointer;font:inherit}.resultado-trabalho>span:nth-child(2){display:grid;gap:8px}.resultado-trabalho strong{font-size:15px;font-weight:600}.resultado-trabalho strong small{font-weight:400;color:var(--muted);margin-left:5px}.resultado-trabalho span span{font-size:13px}.resultado-trabalho small{color:var(--muted);font-size:12px;line-height:1.5}.resultado-trabalho-consumo{display:flex;align-items:center;gap:12px;font-size:13px}.resultado-trabalho:hover{background:var(--paper)}.resultado-trabalho:focus-visible,.resultados summary:focus-visible{outline:2px solid var(--forest-text);outline-offset:4px}.resultados-paginacao{display:flex;align-items:center;justify-content:flex-end;gap:20px;padding:20px 0;font-size:12px}.resultados-vazio{padding:40px 0;max-width:520px}.resultados-vazio p{color:var(--muted);line-height:1.7}.resultado-tentativa{padding:20px 0;border-bottom:1px solid var(--line)}.resultado-tentativa>div{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between}.resultado-tentativa>div span{font-size:12px;color:var(--muted)}.resultado-tentativa label{display:block;font-size:13px}.resultado-tentativa .entrada{margin:8px 0}.resultado-check{display:flex;align-items:flex-start;gap:12px;padding:12px 0;line-height:1.5;font-size:14px}.resultado-check input{width:18px;height:18px;accent-color:var(--forest-text);flex-shrink:0;margin-top:2px}#resultado-verificar{margin:28px 0}#resultado-verificar-erro{color:var(--red)}
+@media(max-width:800px){.resultados-intro{display:block}.resultados-intro .btn{margin-top:12px}.app .resultados-intro h2{font-size:24px}.resultados-metricas{grid-template-columns:1fr 1fr;gap:26px 16px}.resultados-metricas>div:nth-child(2){border:0}.resultados-metricas strong{font-size:28px}.resultados-andamento{grid-template-columns:1fr;gap:16px}.resultado-trabalho{grid-template-columns:32px minmax(0,1fr);gap:12px}.resultado-trabalho-consumo{grid-column:2}.resultados-distribuicao>div{align-items:flex-start;flex-direction:column;gap:8px}.resultados-paginacao{justify-content:space-between;gap:8px}.resultados-intro,.resultados-filtros{min-width:0}.resultados-filtros label{flex-basis:130px}.resultados-filtros .btn{width:100%}}
+.resultado-evidencia{font:11px/1.6 var(--sans);overflow-wrap:anywhere;word-break:break-word;max-width:100%}
+.app .pagina .resultados-intro h2{font-size:28px;line-height:1.2;letter-spacing:-.7px}.resultados-filtros .data-br{width:100%;min-width:0}.resultados-filtros .data-br .entrada{padding-right:40px}@media(max-width:800px){.app .pagina .resultados-intro h2{font-size:24px}}
+.resultados-filtro-opcoes{flex:1 1 220px;font-size:13px;min-width:0}.resultados-filtro-opcoes summary{cursor:pointer;min-height:40px;display:flex;align-items:center;gap:12px;color:var(--forest-text);font-weight:500}.resultados-filtro-opcoes summary::after{content:'+';margin-left:auto;font-size:18px}.resultados-filtro-opcoes[open] summary::after{content:'−'}.resultados-filtro-opcoes>div{display:flex;gap:14px;flex-wrap:wrap;padding:12px 0}.resultados-filtro-opcoes[open]{flex-basis:100%}.resultados-filtro-opcoes label{min-width:140px}@media(max-width:800px){.resultados-intro{margin:8px 0 24px}.resultados-filtros{gap:12px}.resultados-filtro-opcoes{flex-basis:100%}.resultados-atualizacao{margin:14px 0 20px}.resultados-intro .btn{margin-top:6px}.resultados-metricas{padding-top:0}.app .pagina .resultados-intro h2{font-size:22px}}

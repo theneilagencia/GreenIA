@@ -1,0 +1,135 @@
+// HTTP mínimo: rotas com parâmetros, corpo JSON com limite, cookies,
+import { semProvedor } from './sem-provedor.js';
+// arquivos estáticos e cabeçalhos de segurança. Sem framework.
+import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { extname, join, normalize, sep } from 'node:path';
+
+export class ErroHttp extends Error {
+  constructor(status, codigo, mensagem, extra = {}) {
+    super(mensagem || codigo);
+    Object.assign(this, { status, codigo, extra });
+  }
+}
+export const erro = (status, codigo, mensagem, extra) => new ErroHttp(status, codigo, mensagem, extra);
+
+function decodificarParametro(valor) {
+  try { return decodeURIComponent(valor); }
+  catch { throw erro(400, 'endereco_invalido', 'O endereço está inválido. Abra novamente pelo menu.'); }
+}
+
+export function criarRoteador() {
+  const rotas = [];
+  const add = metodo => (caminho, h, op = {}) => rotas.push({
+    metodo, h, op, re: new RegExp('^' + caminho.replace(/:(\w+)/g, '(?<$1>[^/]+)') + '$'),
+  });
+  return {
+    get: add('GET'), post: add('POST'), put: add('PUT'), patch: add('PATCH'), del: add('DELETE'),
+    achar(metodo, caminho) {
+      for (const r of rotas) {
+        const m = r.re.exec(caminho);
+        if (m && r.metodo === metodo) return { ...r, params: Object.fromEntries(Object.entries(m.groups || {}).map(([k, v]) => [k, decodificarParametro(v)])) };
+      }
+      return null;
+    },
+  };
+}
+
+// Corpo bruto (texto), para quem precisa dos bytes exatos (assinatura de webhook).
+export function lerBruto(req, limiteMb = 1) {
+  return new Promise((resolve, reject) => {
+    const partes = []; let total = 0;
+    req.on('data', c => { total += c.length; if (total > limiteMb * 1024 * 1024) { reject(erro(413, 'grande_demais', `Envio acima de ${limiteMb} MB.`)); req.destroy(); return; } partes.push(c); });
+    req.on('end', () => resolve(Buffer.concat(partes).toString('utf8')));
+    req.on('error', reject);
+  });
+}
+export function lerCorpo(req, limiteMb = 1) {
+  return new Promise((resolve, reject) => {
+    const partes = [];
+    let total = 0;
+    req.on('data', c => {
+      total += c.length;
+      if (total > limiteMb * 1024 * 1024) { reject(erro(413, 'grande_demais', `Envio acima de ${limiteMb} MB.`)); req.destroy(); return; }
+      partes.push(c);
+    });
+    req.on('end', () => {
+      if (!total) return resolve({});
+      try { resolve(JSON.parse(Buffer.concat(partes).toString('utf8'))); }
+      catch { reject(erro(400, 'json_invalido', 'Corpo inválido.')); }
+    });
+    req.on('error', reject);
+  });
+}
+
+export function lerCookies(req) {
+  const out = Object.create(null);
+  for (const p of String(req.headers.cookie || '').split(';')) {
+    const i = p.indexOf('=');
+    if (i > 0) {
+      const nome = p.slice(0, i).trim();
+      try { out[nome] = decodeURIComponent(p.slice(i + 1).trim()); }
+      catch { delete out[nome]; } // Cookie corrompido nunca autentica nem impede a entrada.
+    }
+  }
+  return out;
+}
+
+export function enviarJson(res, status, dados, extras = {}) {
+  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...extras });
+  res.end(JSON.stringify(dados));
+}
+
+// Só o ambiente da empresa exporta CSV: o provedor de IA não aparece nas planilhas.
+export function enviarCsv(res, nome, linhas) {
+  linhas = semProvedor(linhas);
+  const cel = v => {
+    let s = v === null || v === undefined ? '' : String(v);
+    if (typeof v !== 'number' && /^[=+\-@\t\r]/.test(s)) s = "'" + s;           // evita fórmula ao abrir na planilha
+    return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  res.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="${nome}"`, 'cache-control': 'no-store' });
+  res.end('﻿' + linhas.map(l => l.map(cel).join(';')).join('\r\n') + '\r\n');
+}
+
+// CSP: só o próprio servidor, mais as fontes do Google (com fonte do sistema de reserva).
+// Somente o documento HTML da LP comercial recebe as origens do Google Ads.
+export function cabecalhosLpComercial(res) {
+  const scripts = 'https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com';
+  const medicao = scripts + ' https://googleads.g.doubleclick.net https://pagead2.googlesyndication.com https://www.google.com.br';
+  res.setHeader('content-security-policy', `default-src 'self'; script-src 'self' ${scripts}; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: ${medicao}; connect-src 'self' ${medicao} https://ad.doubleclick.net; frame-src 'self' https://www.googletagmanager.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`);
+}
+export function cabecalhosSeguranca(res) {
+  res.setHeader('content-security-policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+  res.setHeader('x-content-type-options', 'nosniff');
+  res.setHeader('referrer-policy', 'same-origin');
+  res.setHeader('x-frame-options', 'DENY');
+}
+
+const TIPOS = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.ico': 'image/x-icon', '.json': 'application/json; charset=utf-8',
+  '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
+
+// Revalidação a cada carga (no-cache + ETag): o navegador guarda os arquivos, mas confere com o servidor e
+// recebe 304 quando nada mudou. Um deploy novo aparece na hora, sem misturar módulos antigos e novos.
+export async function servirEstatico(res, raiz, caminho, req = null) {
+  const arquivo = normalize(join(raiz, decodificarParametro(caminho)));
+  if (!arquivo.startsWith(normalize(raiz) + sep) || !TIPOS[extname(arquivo)]) return false;
+  try {
+    const dados = await readFile(arquivo);
+    // Somente blocos JSON-LD estáticos do site público recebem hashes na CSP.
+    // Não libera JavaScript inline nem altera CSP de telas internas.
+    if (['vendas.html', 'faq.html'].includes(caminho)) {
+      const hashes = [...dados.toString('utf8').matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(m => `'sha256-${createHash('sha256').update(m[1]).digest('base64')}'`);
+      const csp = res.getHeader('content-security-policy');
+      if (hashes.length && typeof csp === 'string') res.setHeader('content-security-policy', csp.replace("script-src 'self'", "script-src 'self' " + hashes.join(' ')));
+    }
+    const etag = `"${createHash('sha1').update(dados).digest('base64url').slice(0, 20)}"`;
+    // Fontes têm a versão no nome do arquivo: podem ficar em cache sem revalidar.
+    const cab = { 'content-type': TIPOS[extname(arquivo)], 'cache-control': extname(arquivo) === '.woff2' ? 'public, max-age=31536000, immutable' : 'no-cache', etag };
+    if (req?.headers['if-none-match'] === etag) { res.writeHead(304, cab); res.end(); return true; }
+    res.writeHead(200, cab);
+    res.end(dados);
+    return true;
+  } catch { return false; }
+}

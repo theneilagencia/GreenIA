@@ -1,0 +1,5675 @@
+{
+  "resultados": [
+    {
+      "escopo": "app",
+      "rota": "nova",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 141,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 3,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 30,
+          "largura": 217
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 22,
+          "largura": 182
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "conversas",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 101,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "c/1",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 141,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 11,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 24,
+          "largura": 266
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 25,
+          "largura": 60
+        },
+        {
+          "altura": 25,
+          "largura": 135
+        },
+        {
+          "altura": 25,
+          "largura": 86
+        },
+        {
+          "altura": 19,
+          "largura": 46
+        },
+        {
+          "altura": 17,
+          "largura": 267
+        },
+        {
+          "altura": 17,
+          "largura": 159
+        },
+        {
+          "altura": 17,
+          "largura": 120
+        },
+        {
+          "altura": 22,
+          "largura": 722
+        },
+        {
+          "altura": 30,
+          "largura": 139
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "quick-wins",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 105,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 17,
+          "largura": 271
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "quick-wins/processos",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 208,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 17,
+          "largura": 148
+        },
+        {
+          "altura": 22,
+          "largura": 980
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "quick-wins/programados",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 105,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/nova",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 105,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/nova/modelos",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 178,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 10,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 17,
+          "largura": 49
+        },
+        {
+          "altura": 17,
+          "largura": 49
+        },
+        {
+          "altura": 17,
+          "largura": 49
+        },
+        {
+          "altura": 17,
+          "largura": 49
+        },
+        {
+          "altura": 17,
+          "largura": 49
+        },
+        {
+          "altura": 17,
+          "largura": 49
+        },
+        {
+          "altura": 17,
+          "largura": 49
+        },
+        {
+          "altura": 17,
+          "largura": 49
+        },
+        {
+          "altura": 17,
+          "largura": 49
+        },
+        {
+          "altura": 17,
+          "largura": 49
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 105,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 4,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 22,
+          "largura": 576
+        },
+        {
+          "altura": 17,
+          "largura": 79
+        },
+        {
+          "altura": 22,
+          "largura": 800
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/usar",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 105,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 3,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        },
+        {
+          "altura": 22,
+          "largura": 800
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/teste",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 105,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 6,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        },
+        {
+          "altura": 17,
+          "largura": 118
+        },
+        {
+          "altura": 30,
+          "largura": 125
+        },
+        {
+          "altura": 30,
+          "largura": 120
+        },
+        {
+          "altura": 30,
+          "largura": 140
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/editar",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 455,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 22,
+          "largura": 272
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/ajustar",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 105,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 3,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        },
+        {
+          "altura": 17,
+          "largura": 118
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/atualizar",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 105,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 3,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        },
+        {
+          "altura": 17,
+          "largura": 118
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/refinar",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 105,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 3,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        },
+        {
+          "altura": 22,
+          "largura": 766
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/publicar",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 105,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 3,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        },
+        {
+          "altura": 17,
+          "largura": 118
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/versoes",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 105,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/programacoes",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 105,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/programar",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 105,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 5,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        },
+        {
+          "altura": 22,
+          "largura": 766
+        },
+        {
+          "altura": 17,
+          "largura": 319
+        },
+        {
+          "altura": 22,
+          "largura": 766
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/acompanhamento",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 103,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 3,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 17,
+          "largura": 132
+        },
+        {
+          "altura": 22,
+          "largura": 980
+        },
+        {
+          "altura": 22,
+          "largura": 980
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/acompanhamento/registro/1",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 139,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 4,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 17,
+          "largura": 181
+        },
+        {
+          "altura": 22,
+          "largura": 980
+        },
+        {
+          "altura": 22,
+          "largura": 980
+        },
+        {
+          "altura": 22,
+          "largura": 980
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/2/acompanhamento/preparar",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 208,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 17,
+          "largura": 132
+        },
+        {
+          "altura": 22,
+          "largura": 980
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "conhecimento",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 137,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "pendencias",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 109,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "preparacao",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 188,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 29,
+          "largura": 153
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "revisao-acessos",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 153,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "primeiros-passos",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 160,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 7,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 40,
+          "largura": 28
+        },
+        {
+          "altura": 40,
+          "largura": 31
+        },
+        {
+          "altura": 40,
+          "largura": 31
+        },
+        {
+          "altura": 40,
+          "largura": 31
+        },
+        {
+          "altura": 40,
+          "largura": 30
+        },
+        {
+          "altura": 40,
+          "largura": 31
+        },
+        {
+          "altura": 29,
+          "largura": 171
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "visao-geral",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 105,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "uso",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 135,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "pessoas",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 152,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 3,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 28,
+          "largura": 71
+        },
+        {
+          "altura": 28,
+          "largura": 107
+        },
+        {
+          "altura": 28,
+          "largura": 71
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "pessoas/pessoas",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 152,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "pessoas/grupos",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 152,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "pessoas/criacao",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 152,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "modelos",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 80,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 248
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "modelos/roteamento",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 80,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "modelos/historico",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 80,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "politicas",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 132,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 20,
+          "largura": 36
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "politicas/texto",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 132,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "atividade",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 88,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 113,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/nova",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 154,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/aprovacoes",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 113,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "configuracoes",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 139,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 164
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/usuarios",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 83,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/roles",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 185,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/marca",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 236,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 2,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 21,
+          "largura": 272
+        },
+        {
+          "altura": 21,
+          "largura": 272
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/landing",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 223,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 6,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 9,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 21,
+          "largura": 272
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/url",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 133,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/acessos",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 297,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 150,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 17,
+          "largura": 313
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/1",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 154,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/2",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 154,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 22,
+          "largura": 980
+        },
+        {
+          "altura": 22,
+          "largura": 980
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/3",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 154,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/4",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 154,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/5",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 154,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/6",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 154,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/7",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 154,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/8",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 154,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 93,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "usuarios",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 83,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "planos",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 83,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "planos/novo",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 62,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "ambientes",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 101,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "uso",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 37,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 33,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 180,
+          "largura": 27
+        },
+        {
+          "altura": 16,
+          "largura": 946
+        },
+        {
+          "altura": 28,
+          "largura": 71
+        },
+        {
+          "altura": 28,
+          "largura": 98
+        }
+      ]
+    },
+    {
+      "escopo": "console",
+      "rota": "auditoria",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 84,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "configuracoes",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 139,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "encerramentos",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 143,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/resumo",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 82,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/usuarios",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 82,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/marca",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 82,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/landing",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 186,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 7,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 9,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 61
+        },
+        {
+          "altura": 21,
+          "largura": 272
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        }
+      ]
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/url",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 186,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 61
+        }
+      ]
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/permissoes",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 82,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/auditoria",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 186,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 61
+        }
+      ]
+    },
+    {
+      "escopo": "publico",
+      "rota": "",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 480,
+        "altura": 261,
+        "linha": 65.28
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 12,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 26,
+          "largura": 102
+        },
+        {
+          "altura": 28,
+          "largura": 120
+        },
+        {
+          "altura": 28,
+          "largura": 93
+        },
+        {
+          "altura": 28,
+          "largura": 77
+        },
+        {
+          "altura": 28,
+          "largura": 65
+        },
+        {
+          "altura": 28,
+          "largura": 88
+        },
+        {
+          "altura": 16,
+          "largura": 98
+        },
+        {
+          "altura": 16,
+          "largura": 65
+        },
+        {
+          "altura": 16,
+          "largura": 50
+        },
+        {
+          "altura": 16,
+          "largura": 38
+        },
+        {
+          "altura": 16,
+          "largura": 97
+        },
+        {
+          "altura": 16,
+          "largura": 146
+        }
+      ]
+    },
+    {
+      "escopo": "publico",
+      "rota": "qa-global",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 520,
+        "altura": 337,
+        "linha": 84.28
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 5,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 19,
+          "largura": 159
+        },
+        {
+          "altura": 17,
+          "largura": 70
+        },
+        {
+          "altura": 17,
+          "largura": 69
+        },
+        {
+          "altura": 17,
+          "largura": 46
+        },
+        {
+          "altura": 17,
+          "largura": 184
+        }
+      ]
+    },
+    {
+      "escopo": "publico",
+      "rota": "entrar",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 330,
+        "altura": 67,
+        "linha": 33.6
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 29,
+          "largura": 170
+        }
+      ]
+    },
+    {
+      "escopo": "publico",
+      "rota": "encontrar",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 330,
+        "altura": 34,
+        "linha": 33.6
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 26,
+          "largura": 330
+        },
+        {
+          "altura": 29,
+          "largura": 71
+        }
+      ]
+    },
+    {
+      "escopo": "publico",
+      "rota": "politica",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 712,
+        "altura": 41,
+        "linha": 40.8
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 22,
+          "largura": 171
+        },
+        {
+          "altura": 29,
+          "largura": 104
+        }
+      ]
+    },
+    {
+      "escopo": "publico",
+      "rota": "termos",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 712,
+        "altura": 41,
+        "linha": 40.8
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 26,
+          "largura": 102
+        },
+        {
+          "altura": 29,
+          "largura": 104
+        }
+      ]
+    },
+    {
+      "escopo": "publico",
+      "rota": "privacidade",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 712,
+        "altura": 41,
+        "linha": 40.8
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 26,
+          "largura": 102
+        },
+        {
+          "altura": 29,
+          "largura": 104
+        }
+      ]
+    },
+    {
+      "escopo": "publico",
+      "rota": "encerramento",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 330,
+        "altura": 67,
+        "linha": 33.6
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "publico",
+      "rota": "plataforma",
+      "width": 1280,
+      "redePendente": true,
+      "tituloMedidas": {
+        "largura": 350,
+        "altura": 67,
+        "linha": 33.6
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "nova",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 20,
+          "largura": 34
+        },
+        {
+          "altura": 22,
+          "largura": 182
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "conversas",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "c/1",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 58,
+        "altura": 70,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 7,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 24,
+          "largura": 266
+        },
+        {
+          "altura": 20,
+          "largura": 34
+        },
+        {
+          "altura": 17,
+          "largura": 267
+        },
+        {
+          "altura": 17,
+          "largura": 159
+        },
+        {
+          "altura": 17,
+          "largura": 120
+        },
+        {
+          "altura": 22,
+          "largura": 324
+        },
+        {
+          "altura": 30,
+          "largura": 30
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "quick-wins",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 17,
+          "largura": 271
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "quick-wins/processos",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 279,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 22,
+          "largura": 358
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "quick-wins/programados",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/nova",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/nova/modelos",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 3,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 22,
+          "largura": 358
+        },
+        {
+          "altura": 22,
+          "largura": 358
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/usar",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 3,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        },
+        {
+          "altura": 22,
+          "largura": 358
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/teste",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 5,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        },
+        {
+          "altura": 30,
+          "largura": 125
+        },
+        {
+          "altura": 30,
+          "largura": 120
+        },
+        {
+          "altura": 30,
+          "largura": 140
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/editar",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 164,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 22,
+          "largura": 272
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/ajustar",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/atualizar",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/refinar",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 3,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        },
+        {
+          "altura": 22,
+          "largura": 324
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/publicar",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/versoes",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/programacoes",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/programar",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 4,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        },
+        {
+          "altura": 22,
+          "largura": 324
+        },
+        {
+          "altura": 22,
+          "largura": 324
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/acompanhamento",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 279,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 22,
+          "largura": 358
+        },
+        {
+          "altura": 22,
+          "largura": 358
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/acompanhamento/registro/1",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 279,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 3,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 22,
+          "largura": 358
+        },
+        {
+          "altura": 22,
+          "largura": 358
+        },
+        {
+          "altura": 22,
+          "largura": 358
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/2/acompanhamento/preparar",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 279,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 22,
+          "largura": 358
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "conhecimento",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "pendencias",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "preparacao",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 70,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "revisao-acessos",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "primeiros-passos",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "visao-geral",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 57,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "uso",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "pessoas",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "pessoas/pessoas",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "pessoas/grupos",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "pessoas/criacao",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "modelos",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "modelos/roteamento",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "modelos/historico",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "politicas",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 20,
+          "largura": 36
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "politicas/texto",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "atividade",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/nova",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 70,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/aprovacoes",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "configuracoes",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 164
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/usuarios",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/roles",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 70,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/marca",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 70,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 2,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/landing",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 70,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 5,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 9,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/url",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/acessos",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 94,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 2,
+        "altura": 351,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 17,
+          "largura": 313
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/1",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 70,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/2",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 70,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 22,
+          "largura": 358
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/3",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 70,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/4",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 70,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/5",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 70,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/6",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 70,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/7",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 70,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/8",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 70,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 182,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "usuarios",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 304,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "planos",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 304,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "planos/novo",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 304,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "ambientes",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 304,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "uso",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 304,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "auditoria",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 304,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "configuracoes",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 304,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "encerramentos",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 304,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/resumo",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 304,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/usuarios",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 96,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/marca",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 96,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 2,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/landing",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 304,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/url",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 304,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/permissoes",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 304,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/auditoria",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 96,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "publico",
+      "rota": "",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 320,
+        "altura": 171,
+        "linha": 42.84
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "publico",
+      "rota": "qa-global",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 273,
+        "altura": 172,
+        "linha": 43.12
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "publico",
+      "rota": "entrar",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 288,
+        "altura": 67,
+        "linha": 33.6
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "publico",
+      "rota": "encontrar",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 288,
+        "altura": 67,
+        "linha": 33.6
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "publico",
+      "rota": "politica",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 342,
+        "altura": 31,
+        "linha": 31.2
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "publico",
+      "rota": "termos",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 342,
+        "altura": 31,
+        "linha": 31.2
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "publico",
+      "rota": "privacidade",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 342,
+        "altura": 62,
+        "linha": 31.2
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "publico",
+      "rota": "encerramento",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 288,
+        "altura": 67,
+        "linha": 33.6
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "publico",
+      "rota": "plataforma",
+      "width": 390,
+      "redePendente": true,
+      "tituloMedidas": {
+        "largura": 272,
+        "altura": 67,
+        "linha": 33.6
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "nova",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 281,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 20,
+          "largura": 34
+        },
+        {
+          "altura": 22,
+          "largura": 182
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "conversas",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 211,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "c/1",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 0,
+        "altura": 281,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 6,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 24,
+          "largura": 266
+        },
+        {
+          "altura": 20,
+          "largura": 34
+        },
+        {
+          "altura": 17,
+          "largura": 159
+        },
+        {
+          "altura": 17,
+          "largura": 120
+        },
+        {
+          "altura": 22,
+          "largura": 254
+        },
+        {
+          "altura": 30,
+          "largura": 30
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "quick-wins",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 187,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 17,
+          "largura": 271
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "quick-wins/processos",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 209,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 22,
+          "largura": 288
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "quick-wins/programados",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 187,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/nova",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 187,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/nova/modelos",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 327,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 187,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 3,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 22,
+          "largura": 288
+        },
+        {
+          "altura": 22,
+          "largura": 288
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/usar",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 187,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/teste",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 187,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 5,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        },
+        {
+          "altura": 30,
+          "largura": 125
+        },
+        {
+          "altura": 30,
+          "largura": 120
+        },
+        {
+          "altura": 30,
+          "largura": 140
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/editar",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 889,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/ajustar",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 187,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/atualizar",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 187,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/refinar",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 187,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 3,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        },
+        {
+          "altura": 22,
+          "largura": 254
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/publicar",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 187,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/versoes",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 187,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/programacoes",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 187,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/programar",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 187,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 3,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 16,
+          "largura": 70
+        },
+        {
+          "altura": 16,
+          "largura": 229
+        },
+        {
+          "altura": 22,
+          "largura": 254
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/acompanhamento",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 209,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 22,
+          "largura": 288
+        },
+        {
+          "altura": 22,
+          "largura": 288
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/1/acompanhamento/registro/1",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 209,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 22,
+          "largura": 288
+        },
+        {
+          "altura": 22,
+          "largura": 288
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "qw/2/acompanhamento/preparar",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 209,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 22,
+          "largura": 288
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "conhecimento",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 257,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "pendencias",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 211,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "preparacao",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 398,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "revisao-acessos",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 304,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "primeiros-passos",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 304,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "visao-geral",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 0,
+        "altura": 234,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "uso",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 257,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "pessoas",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 304,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "pessoas/pessoas",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 304,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "pessoas/grupos",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 304,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "pessoas/criacao",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 304,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "modelos",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 164,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "modelos/roteamento",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 164,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "modelos/historico",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 164,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "politicas",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 234,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 20,
+          "largura": 36
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "politicas/texto",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 234,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "atividade",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 187,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 257,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/nova",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 327,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/aprovacoes",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 257,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "configuracoes",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 281,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/usuarios",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 164,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/roles",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 327,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/marca",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 444,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 2,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/landing",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 468,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 5,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 9,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/url",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 257,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/acessos",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 585,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 0,
+        "altura": 351,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 17,
+          "largura": 313
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/1",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 327,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/2",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 327,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 22,
+          "largura": 288
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/3",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 327,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/4",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 327,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/5",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 327,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/6",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 327,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/7",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 327,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_cd49026f3e4944aa9c94/passo/8",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 327,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 112,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "usuarios",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 234,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "planos",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 234,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "planos/novo",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 132,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "ambientes",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 234,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "uso",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 234,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "auditoria",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 234,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "configuracoes",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 234,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "encerramentos",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 234,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/resumo",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 234,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/usuarios",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 234,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/marca",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 26,
+        "altura": 211,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/landing",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 234,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/url",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 234,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/permissoes",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 234,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "console",
+      "rota": "empresas/emp_db7bf5a1348844728f35/auditoria",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 234,
+        "altura": 23,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "publico",
+      "rota": "",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 288,
+        "altura": 147,
+        "linha": 36.72
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "publico",
+      "rota": "qa-global",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 273,
+        "altura": 172,
+        "linha": 43.12
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "publico",
+      "rota": "entrar",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 218,
+        "altura": 67,
+        "linha": 33.6
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "publico",
+      "rota": "encontrar",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 218,
+        "altura": 67,
+        "linha": 33.6
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "publico",
+      "rota": "politica",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 272,
+        "altura": 62,
+        "linha": 31.2
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "publico",
+      "rota": "termos",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 272,
+        "altura": 62,
+        "linha": 31.2
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "publico",
+      "rota": "privacidade",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 272,
+        "altura": 62,
+        "linha": 31.2
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "publico",
+      "rota": "encerramento",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 218,
+        "altura": 67,
+        "linha": 33.6
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "publico",
+      "rota": "plataforma",
+      "width": 320,
+      "redePendente": true,
+      "tituloMedidas": {
+        "largura": 202,
+        "altura": 101,
+        "linha": 33.6
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": []
+    }
+  ],
+  "errosQuantidade": 0,
+  "pedidosQuantidade": 3,
+  "publicacao": "Somente rotas e medições. Textos de tela, URLs de execução, valores e identidades omitidos."
+}

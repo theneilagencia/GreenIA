@@ -1,0 +1,2669 @@
+{
+  "rotas": [
+    {
+      "metodo": "GET",
+      "caminho": "/api/acompanhamento",
+      "arquivo": "src/acompanhamento.js",
+      "linha": 18,
+      "status": 401,
+      "ms": 14,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/acompanhamento/integracoes/:id",
+      "arquivo": "src/acompanhamento.js",
+      "linha": 62,
+      "status": 401,
+      "ms": 3,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/acompanhamento/acessos",
+      "arquivo": "src/acompanhamento.js",
+      "linha": 74,
+      "status": 401,
+      "ms": 2,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/acompanhamento/acessos/:id/revisar",
+      "arquivo": "src/acompanhamento.js",
+      "linha": 81,
+      "status": 401,
+      "ms": 5,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/config",
+      "arquivo": "src/admin.js",
+      "linha": 259,
+      "status": 401,
+      "ms": 2,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/admin/config",
+      "arquivo": "src/admin.js",
+      "linha": 267,
+      "status": 401,
+      "ms": 2,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/admin/smtp/teste",
+      "arquivo": "src/admin.js",
+      "linha": 280,
+      "status": 401,
+      "ms": 2,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/uso",
+      "arquivo": "src/admin.js",
+      "linha": 293,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/eventos",
+      "arquivo": "src/admin.js",
+      "linha": 304,
+      "status": 401,
+      "ms": 2,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/quick-wins",
+      "arquivo": "src/admin.js",
+      "linha": 319,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/quick-wins-permissoes",
+      "arquivo": "src/admin.js",
+      "linha": 329,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/admin/quick-wins-permissoes",
+      "arquivo": "src/admin.js",
+      "linha": 331,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/login/codigo",
+      "arquivo": "src/auth.js",
+      "linha": 75,
+      "status": 400,
+      "ms": 2,
+      "codigo": "email_invalido",
+      "mensagem": "Informe um email válido."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/login/entrar",
+      "arquivo": "src/auth.js",
+      "linha": 93,
+      "status": 401,
+      "ms": 1,
+      "codigo": "codigo_invalido",
+      "mensagem": "Código inválido ou vencido. Peça um novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/sair",
+      "arquivo": "src/auth.js",
+      "linha": 114,
+      "status": 403,
+      "ms": 1,
+      "codigo": "csrf",
+      "mensagem": "Sessão inválida. Recarregue a página."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/bases/documentos",
+      "arquivo": "src/bases.js",
+      "linha": 59,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/conhecimento",
+      "arquivo": "src/bases.js",
+      "linha": 67,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/bases/resumo",
+      "arquivo": "src/bases.js",
+      "linha": 80,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/bases/areas",
+      "arquivo": "src/bases.js",
+      "linha": 84,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/bases/documentos",
+      "arquivo": "src/bases.js",
+      "linha": 93,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/bases/documentos/:id",
+      "arquivo": "src/bases.js",
+      "linha": 110,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/bases/documentos/:id/governanca",
+      "arquivo": "src/bases.js",
+      "linha": 127,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "DELETE",
+      "caminho": "/api/bases/documentos/:id",
+      "arquivo": "src/bases.js",
+      "linha": 136,
+      "status": 401,
+      "ms": 3,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/conversas/resumo-exclusao",
+      "arquivo": "src/conversas.js",
+      "linha": 212,
+      "status": 401,
+      "ms": 2,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "DELETE",
+      "caminho": "/api/conversas",
+      "arquivo": "src/conversas.js",
+      "linha": 216,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/conversas",
+      "arquivo": "src/conversas.js",
+      "linha": 227,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/conversas",
+      "arquivo": "src/conversas.js",
+      "linha": 261,
+      "status": 401,
+      "ms": 2,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/conversas/:id",
+      "arquivo": "src/conversas.js",
+      "linha": 264,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/conversas/:id/mensagens/:mensagem/tabelas/:indice/csv",
+      "arquivo": "src/conversas.js",
+      "linha": 270,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PATCH",
+      "caminho": "/api/conversas/:id",
+      "arquivo": "src/conversas.js",
+      "linha": 280,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "DELETE",
+      "caminho": "/api/conversas/:id",
+      "arquivo": "src/conversas.js",
+      "linha": 296,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/conversas/:id/mensagens",
+      "arquivo": "src/conversas.js",
+      "linha": 329,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/integracoes",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 45,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/admin/integracoes/descobrir",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 48,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/admin/integracoes",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 53,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/integracoes/aprovacoes",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 54,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/admin/integracoes/aprovacoes/:id/decidir",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 55,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/admin/integracoes/webhooks",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 56,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/admin/integracoes/webhooks/:id/rotacionar",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 60,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/integracoes/:id",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 61,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PATCH",
+      "caminho": "/api/admin/integracoes/:id",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 62,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/admin/integracoes/:id/credencial",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 64,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/admin/integracoes/:id/capabilities",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 65,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/admin/integracoes/:id/testar",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 66,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/admin/integracoes/:id/publicar",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 67,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/admin/integracoes/:id/pausar",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 68,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/admin/integracoes/:id/retomar",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 69,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/admin/integracoes/:id/revogar",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 70,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/admin/integracoes/:id/oauth/iniciar",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 71,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/integracoes/oauth/retorno",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 74,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/integracoes/necessidades",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 82,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/integracoes/planos",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 86,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/integracoes/planos/:id",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 95,
+      "status": 401,
+      "ms": 4,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/integracoes/planos/:id/executar",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 100,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/integracoes/aprovacoes",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 105,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/integracoes/aprovacoes/:id",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 106,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/integracoes/webhooks/:id",
+      "arquivo": "src/integracoes/rotas.js",
+      "linha": 113,
+      "status": 404,
+      "ms": 2,
+      "codigo": "desconhecido",
+      "mensagem": "Entrega recusada."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins/:id/medicao",
+      "arquivo": "src/medicao.js",
+      "linha": 66,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/:id/medicoes",
+      "arquivo": "src/medicao.js",
+      "linha": 71,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/quick-wins/:id/medicoes/:m",
+      "arquivo": "src/medicao.js",
+      "linha": 80,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "DELETE",
+      "caminho": "/api/quick-wins/:id/medicoes/:m",
+      "arquivo": "src/medicao.js",
+      "linha": 90,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/:id/decisoes",
+      "arquivo": "src/medicao.js",
+      "linha": 97,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins/:id/medicao.csv",
+      "arquivo": "src/medicao.js",
+      "linha": 112,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/problemas",
+      "arquivo": "src/medicao.js",
+      "linha": 124,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/problemas/tipos",
+      "arquivo": "src/medicao.js",
+      "linha": 138,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/problemas",
+      "arquivo": "src/medicao.js",
+      "linha": 140,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/admin/problemas/:id",
+      "arquivo": "src/medicao.js",
+      "linha": 145,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/modelos",
+      "arquivo": "src/modelos.js",
+      "linha": 271,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/modelos",
+      "arquivo": "src/modelos.js",
+      "linha": 282,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/roteamento",
+      "arquivo": "src/modelos.js",
+      "linha": 293,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/modelos/catalogo",
+      "arquivo": "src/modelos.js",
+      "linha": 362,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/admin/modelos/:id",
+      "arquivo": "src/modelos.js",
+      "linha": 368,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/admin/modelos/:id/homologar",
+      "arquivo": "src/modelos.js",
+      "linha": 409,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "DELETE",
+      "caminho": "/api/admin/modelos/:id/homologar",
+      "arquivo": "src/modelos.js",
+      "linha": 428,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/admin/modelos-config",
+      "arquivo": "src/modelos.js",
+      "linha": 433,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/sigilo",
+      "arquivo": "src/modelos.js",
+      "linha": 465,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/admin/sigilo",
+      "arquivo": "src/modelos.js",
+      "linha": 466,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/governanca",
+      "arquivo": "src/modelos.js",
+      "linha": 473,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/admin/governanca",
+      "arquivo": "src/modelos.js",
+      "linha": 474,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/operador/instancia",
+      "arquivo": "src/operador.js",
+      "linha": 130,
+      "status": 404,
+      "ms": 1,
+      "codigo": "nao_encontrado",
+      "mensagem": "Não encontrado."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/operador/instancia/pacotes",
+      "arquivo": "src/operador.js",
+      "linha": 131,
+      "status": 404,
+      "ms": 1,
+      "codigo": "nao_encontrado",
+      "mensagem": "Não encontrado."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/operador/instancias",
+      "arquivo": "src/operador.js",
+      "linha": 134,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/operador/instancias/:id/pacotes",
+      "arquivo": "src/operador.js",
+      "linha": 146,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/paineis-modelos",
+      "arquivo": "src/paineis.js",
+      "linha": 89,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins/:id/painel",
+      "arquivo": "src/paineis.js",
+      "linha": 90,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/:id/painel",
+      "arquivo": "src/paineis.js",
+      "linha": 105,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/:id/painel/preparar",
+      "arquivo": "src/paineis.js",
+      "linha": 115,
+      "status": 401,
+      "ms": 2,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins/:id/painel/registros/:registro",
+      "arquivo": "src/paineis.js",
+      "linha": 143,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/:id/painel/registros/:registro",
+      "arquivo": "src/paineis.js",
+      "linha": 147,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/:id/painel/registros/:registro/retirar",
+      "arquivo": "src/paineis.js",
+      "linha": 168,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/areas",
+      "arquivo": "src/pessoas.js",
+      "linha": 54,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/areas",
+      "arquivo": "src/pessoas.js",
+      "linha": 58,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/areas/:id",
+      "arquivo": "src/pessoas.js",
+      "linha": 62,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/admin/areas",
+      "arquivo": "src/pessoas.js",
+      "linha": 68,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/admin/areas/:id",
+      "arquivo": "src/pessoas.js",
+      "linha": 77,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/admin/areas/:id/pessoas",
+      "arquivo": "src/pessoas.js",
+      "linha": 105,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/admin/areas/:id/pessoas/:pessoa",
+      "arquivo": "src/pessoas.js",
+      "linha": 122,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "DELETE",
+      "caminho": "/api/admin/areas/:id/pessoas/:pessoa",
+      "arquivo": "src/pessoas.js",
+      "linha": 134,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "DELETE",
+      "caminho": "/api/admin/areas/:id",
+      "arquivo": "src/pessoas.js",
+      "linha": 143,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/pessoas",
+      "arquivo": "src/pessoas.js",
+      "linha": 154,
+      "status": 401,
+      "ms": 2,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/admin/pessoas",
+      "arquivo": "src/pessoas.js",
+      "linha": 161,
+      "status": 401,
+      "ms": 2,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/admin/pessoas/:id",
+      "arquivo": "src/pessoas.js",
+      "linha": 180,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/grupos",
+      "arquivo": "src/pessoas.js",
+      "linha": 208,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/admin/grupos",
+      "arquivo": "src/pessoas.js",
+      "linha": 219,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/admin/grupos/:id",
+      "arquivo": "src/pessoas.js",
+      "linha": 228,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "DELETE",
+      "caminho": "/api/admin/grupos/:id",
+      "arquivo": "src/pessoas.js",
+      "linha": 243,
+      "status": 401,
+      "ms": 2,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/operador/plano",
+      "arquivo": "src/plano.js",
+      "linha": 212,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/operador/pacotes",
+      "arquivo": "src/plano.js",
+      "linha": 213,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/empresa/resumo",
+      "arquivo": "src/plataforma/api-empresa.js",
+      "linha": 19,
+      "status": 401,
+      "ms": 2,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/empresa/usuarios",
+      "arquivo": "src/plataforma/api-empresa.js",
+      "linha": 34,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/empresa/usuarios",
+      "arquivo": "src/plataforma/api-empresa.js",
+      "linha": 35,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/empresa/usuarios/:uid",
+      "arquivo": "src/plataforma/api-empresa.js",
+      "linha": 41,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "DELETE",
+      "caminho": "/api/empresa/usuarios/:uid",
+      "arquivo": "src/plataforma/api-empresa.js",
+      "linha": 47,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/empresa/usuarios/:uid/reenviar",
+      "arquivo": "src/plataforma/api-empresa.js",
+      "linha": 52,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/empresa/roles",
+      "arquivo": "src/plataforma/api-empresa.js",
+      "linha": 63,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/empresa/roles",
+      "arquivo": "src/plataforma/api-empresa.js",
+      "linha": 68,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/empresa/roles/:id",
+      "arquivo": "src/plataforma/api-empresa.js",
+      "linha": 74,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "DELETE",
+      "caminho": "/api/empresa/roles/:id",
+      "arquivo": "src/plataforma/api-empresa.js",
+      "linha": 82,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/empresa/marca",
+      "arquivo": "src/plataforma/api-empresa.js",
+      "linha": 93,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/empresa/marca",
+      "arquivo": "src/plataforma/api-empresa.js",
+      "linha": 94,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/empresa/landing",
+      "arquivo": "src/plataforma/api-empresa.js",
+      "linha": 95,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/empresa/landing",
+      "arquivo": "src/plataforma/api-empresa.js",
+      "linha": 96,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/empresa/url",
+      "arquivo": "src/plataforma/api-empresa.js",
+      "linha": 97,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/empresa/url",
+      "arquivo": "src/plataforma/api-empresa.js",
+      "linha": 102,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/empresa/dominio/verificar",
+      "arquivo": "src/plataforma/api-empresa.js",
+      "linha": 108,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/empresa/acessos-greenia",
+      "arquivo": "src/plataforma/api-empresa.js",
+      "linha": 113,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/empresa/acessos-greenia/:id/encerrar",
+      "arquivo": "src/plataforma/api-empresa.js",
+      "linha": 114,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/empresa/auditoria",
+      "arquivo": "src/plataforma/api-empresa.js",
+      "linha": 121,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/login/codigo",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 28,
+      "status": 400,
+      "ms": 1,
+      "codigo": "email_invalido",
+      "mensagem": "Informe um email válido."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/login/entrar",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 48,
+      "status": 401,
+      "ms": 1,
+      "codigo": "codigo_invalido",
+      "mensagem": "Código inválido ou vencido. Peça um novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/sair",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 58,
+      "status": 403,
+      "ms": 1,
+      "codigo": "csrf",
+      "mensagem": "Sessão inválida. Recarregue a página."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/plataforma/eu",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 64,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/plataforma/empresas",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 84,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/empresas",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 90,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/plataforma/empresas/:id",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 97,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/plataforma/empresas/:id",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 107,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/empresas/:id/status",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 108,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/empresas/:id/plano",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 109,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/plataforma/empresas/:id/url",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 110,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/plataforma/empresas/:id/marca",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 111,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/plataforma/empresas/:id/landing",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 112,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/plataforma/empresas/:id/concessoes",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 113,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/empresas/:id/usuarios",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 115,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/plataforma/empresas/:id/usuarios/:uid",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 116,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "DELETE",
+      "caminho": "/api/plataforma/empresas/:id/usuarios/:uid",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 117,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/empresas/:id/pacotes",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 119,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/empresas/:id/dominio/verificar",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 124,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/empresas/:id/exportar",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 130,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/plataforma/exportacoes/:id/arquivo",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 139,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/exportacoes/:id/encerrar-necessidade",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 146,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/exportacoes/:id/hold",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 147,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/exportacoes/:id/liberar",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 148,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/exportacoes/:id/declarar-eliminacao",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 149,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/empresas/:id/excluir",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 151,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/empresas/:id/entrar",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 155,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/plataforma/empresas/:id/acessos",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 171,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/acessos/:id/encerrar",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 172,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/plataforma/contatos",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 183,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/contatos/:id/interacao",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 184,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/contatos/:id/hold",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 185,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/contatos/:id/liberar",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 186,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/plataforma/planos",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 191,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/planos/previa",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 198,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/plataforma/premissas",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 206,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/plataforma/premissas",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 207,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/planos",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 213,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/plataforma/planos/:id",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 214,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/plataforma/usuarios",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 217,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/plataforma/usuarios/:id",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 226,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/admins",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 241,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "DELETE",
+      "caminho": "/api/plataforma/admins/:id",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 250,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/plataforma/ambientes",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 263,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/plataforma/uso",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 268,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/plataforma/consumo",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 281,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/plataforma/empresas/:id/consumo",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 288,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/plataforma/homologacoes",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 310,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/homologacoes",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 311,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "DELETE",
+      "caminho": "/api/plataforma/homologacoes/:id",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 326,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/vetos-sigilo",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 334,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "DELETE",
+      "caminho": "/api/plataforma/vetos-sigilo/:id",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 344,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/plataforma/openrouter/chave/validade",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 354,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/plataforma/openrouter/chave",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 379,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "DELETE",
+      "caminho": "/api/plataforma/openrouter/chave",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 399,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/plataforma/consumo/servidor",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 412,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/plataforma/consumo/alerta",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 422,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/plataforma/auditoria",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 433,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/plataforma/configuracoes",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 439,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/plataforma/configuracoes",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 450,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/smtp/teste",
+      "arquivo": "src/plataforma/api-plataforma.js",
+      "linha": 468,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/login/codigo",
+      "arquivo": "src/plataforma/api-publica.js",
+      "linha": 41,
+      "status": 400,
+      "ms": 2,
+      "codigo": "email_invalido",
+      "mensagem": "Informe um email válido."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/login/entrar",
+      "arquivo": "src/plataforma/api-publica.js",
+      "linha": 51,
+      "status": 401,
+      "ms": 1,
+      "codigo": "codigo_invalido",
+      "mensagem": "Código inválido ou vencido. Peça um novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/sair",
+      "arquivo": "src/plataforma/api-publica.js",
+      "linha": 66,
+      "status": 403,
+      "ms": 1,
+      "codigo": "csrf",
+      "mensagem": "Sessão inválida. Recarregue a página."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/publico",
+      "arquivo": "src/plataforma/api-publica.js",
+      "linha": 75,
+      "status": 200,
+      "ms": 1,
+      "codigo": null
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/encerramento",
+      "arquivo": "src/plataforma/encerramento.js",
+      "linha": 159,
+      "status": 404,
+      "ms": 1,
+      "codigo": "nao_encontrado",
+      "mensagem": "Não encontrado."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/encerramento/codigo",
+      "arquivo": "src/plataforma/encerramento.js",
+      "linha": 165,
+      "status": 404,
+      "ms": 1,
+      "codigo": "nao_encontrado",
+      "mensagem": "Não encontrado."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/encerramento/excluir",
+      "arquivo": "src/plataforma/encerramento.js",
+      "linha": 176,
+      "status": 404,
+      "ms": 1,
+      "codigo": "nao_encontrado",
+      "mensagem": "Não encontrado."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/encerramento/devolucao",
+      "arquivo": "src/plataforma/encerramento.js",
+      "linha": 194,
+      "status": 404,
+      "ms": 1,
+      "codigo": "nao_encontrado",
+      "mensagem": "Não encontrado."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/plataforma/exclusoes",
+      "arquivo": "src/plataforma/encerramento.js",
+      "linha": 273,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/empresas/:id/exclusao/hold",
+      "arquivo": "src/plataforma/encerramento.js",
+      "linha": 274,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/empresas/:id/exclusao/confirmar-data",
+      "arquivo": "src/plataforma/encerramento.js",
+      "linha": 275,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/empresas/:id/exclusao/liberar",
+      "arquivo": "src/plataforma/encerramento.js",
+      "linha": 276,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/plataforma/devolucoes/:id/gerar",
+      "arquivo": "src/plataforma/encerramento.js",
+      "linha": 277,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/politica",
+      "arquivo": "src/politica.js",
+      "linha": 117,
+      "status": 200,
+      "ms": 2,
+      "codigo": null
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/politica/ciencia",
+      "arquivo": "src/politica.js",
+      "linha": 122,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/admin/politica",
+      "arquivo": "src/politica.js",
+      "linha": 130,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/politica/versoes",
+      "arquivo": "src/politica.js",
+      "linha": 138,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins",
+      "arquivo": "src/quickwins.js",
+      "linha": 330,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins/portfolio",
+      "arquivo": "src/quickwins.js",
+      "linha": 337,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins/modelos-iniciais",
+      "arquivo": "src/quickwins.js",
+      "linha": 360,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/modelos-iniciais/:indice/ocultar",
+      "arquivo": "src/quickwins.js",
+      "linha": 364,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/assistente/sugerir",
+      "arquivo": "src/quickwins.js",
+      "linha": 376,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/assistente/interpretar",
+      "arquivo": "src/quickwins.js",
+      "linha": 396,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/assistente/estrutura",
+      "arquivo": "src/quickwins.js",
+      "linha": 424,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/assistente/exemplo",
+      "arquivo": "src/quickwins.js",
+      "linha": 434,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins/assistente/entrada-teste",
+      "arquivo": "src/quickwins.js",
+      "linha": 440,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/:id/exemplo-teste",
+      "arquivo": "src/quickwins.js",
+      "linha": 447,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins/:id",
+      "arquivo": "src/quickwins.js",
+      "linha": 474,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins/:id/estimativas",
+      "arquivo": "src/quickwins.js",
+      "linha": 476,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins",
+      "arquivo": "src/quickwins.js",
+      "linha": 480,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins/:id/refinamento",
+      "arquivo": "src/quickwins.js",
+      "linha": 523,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/:id/refinamento",
+      "arquivo": "src/quickwins.js",
+      "linha": 524,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/quick-wins/:id",
+      "arquivo": "src/quickwins.js",
+      "linha": 526,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/:id/publicar",
+      "arquivo": "src/quickwins.js",
+      "linha": 544,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins/:id/versoes",
+      "arquivo": "src/quickwins.js",
+      "linha": 575,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins/:id/comparar",
+      "arquivo": "src/quickwins.js",
+      "linha": 581,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/:id/versoes/:numero/restaurar",
+      "arquivo": "src/quickwins.js",
+      "linha": 593,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "DELETE",
+      "caminho": "/api/quick-wins/:id",
+      "arquivo": "src/quickwins.js",
+      "linha": 604,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/:id/arquivos",
+      "arquivo": "src/quickwins.js",
+      "linha": 613,
+      "status": 401,
+      "ms": 5,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins/:id/fontes",
+      "arquivo": "src/quickwins.js",
+      "linha": 620,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/:id/fontes/link",
+      "arquivo": "src/quickwins.js",
+      "linha": 624,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PUT",
+      "caminho": "/api/quick-wins/:id/fontes/:doc",
+      "arquivo": "src/quickwins.js",
+      "linha": 630,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "DELETE",
+      "caminho": "/api/quick-wins/:id/fontes/:doc",
+      "arquivo": "src/quickwins.js",
+      "linha": 643,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "DELETE",
+      "caminho": "/api/quick-wins/:id/arquivos/:doc",
+      "arquivo": "src/quickwins.js",
+      "linha": 650,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins/:id/uso",
+      "arquivo": "src/quickwins.js",
+      "linha": 663,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins/assistente/preparacao",
+      "arquivo": "src/qw-preparacao.js",
+      "linha": 20,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins/:id/preparacao",
+      "arquivo": "src/qw-preparacao.js",
+      "linha": 30,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/:id/pedir-conexao",
+      "arquivo": "src/qw-preparacao.js",
+      "linha": 36,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins/pedidos-conexao",
+      "arquivo": "src/qw-preparacao.js",
+      "linha": 48,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/pedidos-conexao/:id/concluir",
+      "arquivo": "src/qw-preparacao.js",
+      "linha": 49,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins-programados",
+      "arquivo": "src/qw-programacao.js",
+      "linha": 200,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins/:id/programacoes/:programacao/configuracao",
+      "arquivo": "src/qw-programacao.js",
+      "linha": 201,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PATCH",
+      "caminho": "/api/quick-wins/:id/programacoes/:programacao",
+      "arquivo": "src/qw-programacao.js",
+      "linha": 205,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/quick-wins/:id/programacoes",
+      "arquivo": "src/qw-programacao.js",
+      "linha": 215,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/:id/programacoes/previa",
+      "arquivo": "src/qw-programacao.js",
+      "linha": 225,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/:id/programacoes",
+      "arquivo": "src/qw-programacao.js",
+      "linha": 230,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/:id/programacoes/:programacao/estado",
+      "arquivo": "src/qw-programacao.js",
+      "linha": 253,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/quick-wins/:id/programacoes/:programacao/executar",
+      "arquivo": "src/qw-programacao.js",
+      "linha": 261,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/publico",
+      "arquivo": "src/servidor.js",
+      "linha": 78,
+      "status": 200,
+      "ms": 1,
+      "codigo": null
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/saude",
+      "arquivo": "src/servidor.js",
+      "linha": 83,
+      "status": 200,
+      "ms": 1,
+      "codigo": null
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/eu",
+      "arquivo": "src/servidor.js",
+      "linha": 84,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/contato",
+      "arquivo": "src/vendas.js",
+      "linha": 16,
+      "status": 404,
+      "ms": 1,
+      "codigo": "nao_encontrado",
+      "mensagem": "Não encontrado."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/operador/leads",
+      "arquivo": "src/vendas.js",
+      "linha": 37,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/visao-geral",
+      "arquivo": "src/visao.js",
+      "linha": 99,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/admin/visual/diagnostico",
+      "arquivo": "src/visual/rotas.js",
+      "linha": 306,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/artefatos",
+      "arquivo": "src/visual/rotas.js",
+      "linha": 317,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/artefatos/:id",
+      "arquivo": "src/visual/rotas.js",
+      "linha": 323,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/artefatos/:id/paginas/:n",
+      "arquivo": "src/visual/rotas.js",
+      "linha": 330,
+      "status": 401,
+      "ms": 0,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "GET",
+      "caminho": "/api/artefatos/:id/baixar",
+      "arquivo": "src/visual/rotas.js",
+      "linha": 351,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "PATCH",
+      "caminho": "/api/artefatos/:id",
+      "arquivo": "src/visual/rotas.js",
+      "linha": 360,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/artefatos/:id/imagem",
+      "arquivo": "src/visual/rotas.js",
+      "linha": 371,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/artefatos/:id/gerar-imagem",
+      "arquivo": "src/visual/rotas.js",
+      "linha": 399,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/artefatos/:id/derivar",
+      "arquivo": "src/visual/rotas.js",
+      "linha": 436,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    },
+    {
+      "metodo": "POST",
+      "caminho": "/api/artefatos/:id/restaurar",
+      "arquivo": "src/visual/rotas.js",
+      "linha": 461,
+      "status": 401,
+      "ms": 1,
+      "codigo": "sem_sessao",
+      "mensagem": "Entre de novo."
+    }
+  ],
+  "robustez": [
+    {
+      "nome": "cookie inválido",
+      "tipo": "instalacao",
+      "status": 500,
+      "texto": "{\"erro\":\"interno\",\"mensagem\":\"Algo deu errado. Tente de novo.\"}"
+    },
+    {
+      "nome": "cookie inválido",
+      "tipo": "multiempresa",
+      "status": 500,
+      "texto": "{\"erro\":\"interno\",\"mensagem\":\"Algo deu errado. Tente de novo.\"}"
+    },
+    {
+      "nome": "percentual no parâmetro",
+      "tipo": "instalacao",
+      "status": 500,
+      "texto": "{\"erro\":\"interno\",\"mensagem\":\"Algo deu errado. Tente de novo.\"}"
+    },
+    {
+      "nome": "percentual no parâmetro",
+      "tipo": "multiempresa",
+      "status": 404,
+      "texto": "{\"erro\":\"ambiente\",\"mensagem\":\"Abra o endereço da sua empresa para entrar.\"}"
+    },
+    {
+      "nome": "método inesperado",
+      "tipo": "instalacao",
+      "status": 404,
+      "texto": "{\"erro\":\"nao_encontrado\",\"mensagem\":\"Não encontrado.\"}"
+    },
+    {
+      "nome": "método inesperado",
+      "tipo": "multiempresa",
+      "status": 200,
+      "texto": "{\"ok\":true,\"ia\":true,\"versao\":null,\"design\":false}"
+    }
+  ],
+  "limite": "Declarações literais, IDs inexistentes, requests anônimos. 401/403/404 são barreiras, não execução funcional."
+}

@@ -580,6 +580,7 @@ export function rotasConversas(app, r) {
     const { conv, texto, titulo, cor, fonte } = respostaGuardada(pessoa, params);
     const pronto = um(app.db, 'select id, nome, dados from arquivos_gerados where conversa_id = ? and mensagem_id = ? and mime = ? order by id desc limit 1', conv.id, Number(params.mensagem), MIMES.pptx);
     if (pronto) return { nome: pronto.nome, midia: `/api/conversas/${conv.id}/arquivos/${pronto.id}/midia/`, ...previaDoPptx(Buffer.from(pronto.dados)) };
+    if (um(app.db, "select 1 from artefatos_visuais where conversa_id = ? and mensagem_id = ? and tipo = 'presentation'", conv.id, Number(params.mensagem))) throw erro(409, 'pptx_nao_gerado', 'O PowerPoint desta apresentação não está disponível. Peça para gerar o arquivo novamente; o pedido e os materiais continuam na conversa.');
     if (/O arquivo com o acabamento solicitado não foi gerado/.test(texto)) throw erro(409, 'design_nao_gerado', 'O PowerPoint solicitado não foi gerado.');
     return { nome: nomeDoArquivo(titulo, 'pptx'), midia: null, ...previaDoPptx(pptx(texto, { titulo, cor, fonte, subtitulo: `Gerado na GreenIA em ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` })) };
   });
@@ -588,6 +589,7 @@ export function rotasConversas(app, r) {
     const { conv, texto, titulo, cor, fonte } = respostaGuardada(pessoa, params);
     const pronto = um(app.db, 'select dados from arquivos_gerados where conversa_id = ? and mensagem_id = ? and mime = ? order by id desc limit 1', conv.id, Number(params.mensagem), MIMES[params.formato]);
     if (pronto) return enviarOffice(res, params.formato, titulo, Buffer.from(pronto.dados));
+    if (params.formato === 'pptx' && um(app.db, "select 1 from artefatos_visuais where conversa_id = ? and mensagem_id = ? and tipo = 'presentation'", conv.id, Number(params.mensagem))) throw erro(409, 'pptx_nao_gerado', 'O PowerPoint desta apresentação não está disponível. Peça para gerar o arquivo novamente; o pedido e os materiais continuam na conversa.');
     if (params.formato === 'pptx' && /O arquivo com o acabamento solicitado não foi gerado/.test(texto)) throw erro(409, 'design_nao_gerado', 'O PowerPoint solicitado não foi gerado.');
     if (params.formato === 'xlsx') {
       // Todas as tabelas da resposta, uma por aba.
@@ -1600,7 +1602,7 @@ export function rotasConversas(app, r) {
     // O PPTX solicitado usa o mesmo design que passou pela conferência no
     // navegador. Nunca converte de volta ao template de texto da resposta.
     const visualPptx = !qw && !modeloApr && /\b(pptx|power ?point|apresenta[cç][aã]o|slides?|deck)\b/i.test(texto)
-      ? visuais?.artefatos?.find(a => a.tipo === 'presentation' && a.plano?.motor === 'design') : null;
+      ? visuais?.artefatos?.find(a => a.tipo === 'presentation') : null;
     if (!gerado && visualPptx) {
       linha({ t: 'etapa', v: 'Exportando o design validado para PowerPoint…', arquivo: true });
       try {

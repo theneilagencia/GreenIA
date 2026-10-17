@@ -119,6 +119,7 @@ function desenhar() {
           ${C.opcoes.length > 1 && !qw?.v2 ? `<details class="preferencias-resposta"><summary>Preferências</summary><div class="preferencias-resposta-painel"><p>O GreenIA recomenda a opção adequada para o seu pedido, dentro do seu acesso e do limite de consumo.</p><label for="modelo">Como responder</label><select class="caixa-nivel" id="modelo" aria-label="Como responder" title="O GreenIA recomenda a opção adequada dentro do seu acesso e do orçamento." ${podeTrocar ? '' : 'disabled'}>
             ${C.opcoes.map(o => `<option value="${esc(o.id)}" ${o.id === C.modelo ? 'selected' : ''} ${o.bloqueado ? 'disabled' : ''}>${esc(o.automatico ? 'Seguir a recomendação do GreenIA' : o.nivel || o.nome)}${o.bloqueado ? ' · indisponível até a renovação' : ''}</option>`).join('')}
           </select></div></details>` : ''}
+          <details class="preferencias-resposta"><summary>Acompanhar trabalho</summary><div class="preferencias-resposta-painel"><label for="resultado-vinculo">Este pedido é</label><select class="entrada" id="resultado-vinculo"><option value="nao_classificado">Continuação do trabalho atual</option><option value="etapa">Próxima etapa planejada</option><option value="correcao">Correção do que foi pedido</option><option value="preferencia">Mudança de preferência</option><option value="escopo">Ampliação do trabalho</option><option value="novo">Um novo trabalho</option></select><p>O consumo fica reunido no mesmo trabalho. Novo trabalho e ampliação ficam separados.</p><a href="#/resultados">Conferir entregas e consumo</a></div></details>
           <button type="button" class="caixa-chave" id="sigilosa" role="switch" aria-checked="${sig}" ${sig ? 'aria-readonly="true"' : ''} aria-describedby="efeito-sigilo"
             title="${esc(sig ? `Dados sigilosos: ligado até a conversa ser apagada${conv.motivo_sigilosa ? ` (${conv.motivo_sigilosa})` : ''}` : 'Dados sigilosos: desligado')}">${sig ? ICONE.cadeado : ICONE.cadeadoAberto}<span class="caixa-chave-rotulo">Dados sigilosos</span></button>
           <span class="sr" id="efeito-sigilo">${sig ? `Ligado até a conversa ser apagada.${conv.motivo_sigilosa ? ` Motivo: ${esc(conv.motivo_sigilosa)}.` : ''}` : 'Desligado. Ao ligar, a plataforma pede confirmação.'}</span>
@@ -696,6 +697,7 @@ async function enviar(reenvio = null, { executar = false } = {}) {
   }
   const texto = reenvio?.texto ?? $('entrada').value.trim();
   const anexos = reenvio?.anexos ?? C.anexos;
+  const acompanhamento = $('resultado-vinculo')?.value || 'nao_classificado';
   if (!texto && !anexos.length) return;
   C.enviando = true; C.expandida = false; atualizarEnviar();
   try { await garantirConversa(); } catch (e) { toast(e.message); C.enviando = false; atualizarEnviar(); return; }
@@ -707,8 +709,9 @@ async function enviar(reenvio = null, { executar = false } = {}) {
   // Quick Win 2.0: quem usa não escolhe modelo; o roteamento da GreenIA decide.
   const arquivos = anexos.filter(a => !a.link), links = anexos.filter(a => a.link).map(a => ({ url: a.url, ...(a.papel ? { papel: a.papel } : {}) }));
   let r;
-  try { r = await api(`/api/conversas/${C.conv.id}/mensagens`, { metodo: 'POST', corpo: { texto, anexos: arquivos, ...(reenvio?.advanced_alternativa?{advanced_alternativa:reenvio.advanced_alternativa}:{}), ...(links.length ? { links } : {}), ...(C.qw?.v2 ? (executar ? { executar_quick_win: true } : {}) : { modelo: C.modelo }) }, bruto: true }); }
+  try { r = await api(`/api/conversas/${C.conv.id}/mensagens`, { metodo: 'POST', corpo: { texto, acompanhamento, anexos: arquivos, ...(reenvio?.advanced_alternativa?{advanced_alternativa:reenvio.advanced_alternativa}:{}), ...(links.length ? { links } : {}), ...(C.qw?.v2 ? (executar ? { executar_quick_win: true } : {}) : { modelo: C.modelo }) }, bruto: true }); }
   catch { C.enviando = false; C.pensando = false; desenharMensagens(); atualizarEnviar(); toast('A conexão falhou. Confira a conversa antes de enviar de novo.'); return; }
+  if (r.ok && $('resultado-vinculo')) $('resultado-vinculo').value='nao_classificado';
   if (!r.ok) {
     const d = await r.json().catch(() => ({}));
     C.pensando = false;

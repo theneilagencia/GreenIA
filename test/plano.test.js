@@ -29,13 +29,13 @@ test('variáveis do servidor: PLANO_CREDITOS e reserva de 20% por padrão', () =
   assert.deepEqual(lerPlano({ PLANO_CREDITOS: '10000', PLANO_RESERVA: '2000', PLANO_PRECO_USD: '290' }), { creditos: 10000, reserva: 2000, precoUsd: 290 });
 });
 
-test('operador de outro domínio entra; só ele vê dólar e preços dos modelos', async () => {
+test('operador entra; dinheiro fica nas rotas da Administração Geral', async () => {
   assert.equal((await op.get('/api/eu')).dados.operador, true);
   assert.equal((await admin.get('/api/eu')).dados.unidade, 'creditos');
-  assert.equal((await op.get('/api/eu')).dados.unidade, 'usd');
+  assert.equal((await op.get('/api/eu')).dados.unidade, 'creditos');
   const deAdmin = (await admin.get('/api/admin/modelos')).dados;
   assert.ok(!JSON.stringify(deAdmin).includes('precoEntrada'));
-  assert.ok(JSON.stringify((await op.get('/api/admin/modelos')).dados).includes('precoEntrada'));
+  assert.ok(!JSON.stringify((await op.get('/api/admin/modelos')).dados).includes('precoEntrada'));
   // Qualquer outro domínio continua recusado.
   assert.equal((await S.cliente().post('/api/login/codigo', { email: 'alguem@outra.com' })).status, 403);
 });
@@ -73,7 +73,7 @@ test('o cliente vê créditos, nunca dólar: uso, eventos, tetos e CSV', async (
   const uso = (await admin.get('/api/admin/uso')).dados;
   assert.equal(uso.totais.custo, 20);                     // US$ 0,20 = 20 créditos
   const usoOp = (await op.get('/api/admin/uso')).dados;
-  assert.ok(Math.abs(usoOp.totais.custo - 0.2) < 1e-9);
+  assert.ok(Math.abs(usoOp.totais.custo - 20) < 1e-9);
   const ev = (await admin.get('/api/admin/eventos?tipo=credits.consumed')).dados.eventos[0];
   assert.ok(!ev.detalhes.includes('"custo"') && ev.detalhes.includes('"creditos":4'));
   const csv = (await admin.get('/api/admin/uso?formato=csv')).dados;
@@ -82,7 +82,7 @@ test('o cliente vê créditos, nunca dólar: uso, eventos, tetos e CSV', async (
   // Tetos: o admin digita em créditos; o servidor guarda em dólar.
   assert.equal((await admin.put('/api/admin/config', { tetoPessoaMensal: 500 })).status, 200);
   assert.equal((await admin.get('/api/admin/config')).dados.tetoPessoaMensal, 500);
-  assert.equal((await op.get('/api/admin/config')).dados.tetoPessoaMensal, 5);
+  assert.equal((await op.get('/api/admin/config')).dados.tetoPessoaMensal, 500);
   // Só o operador vê o resumo com custo real e libera pacotes.
   assert.equal((await admin.get('/api/operador/plano')).status, 403);
   assert.equal((await admin.post('/api/operador/pacotes', { creditos: 20 })).status, 403);
@@ -122,12 +122,12 @@ test('mês que terminou só no rápido: na virada, o admin recebe o aviso de ren
   await T.fechar();
 });
 
-test('sem plano, nada muda: o admin vê dólar e não há bloqueio', async () => {
+test('sem plano o cliente continua em créditos e não recebe preços', async () => {
   const T = await subir({ ia: OR.ia });
   const a = await T.cliente().entrar('admin@exemplo.com.br');
-  assert.equal((await a.get('/api/eu')).dados.unidade, 'usd');
+  assert.equal((await a.get('/api/eu')).dados.unidade, 'creditos');
   assert.equal((await a.get('/api/eu')).dados.plano, null);
-  assert.ok(JSON.stringify((await a.get('/api/admin/modelos')).dados).includes('precoEntrada'));
+  assert.ok(!JSON.stringify((await a.get('/api/admin/modelos')).dados).includes('precoEntrada'));
   await T.fechar();
 });
 

@@ -100,6 +100,7 @@ const SECOES_USO = () => [
     // "Ver todas" do histórico leva a ela. Continua na busca (Ctrl K).
     { id: 'conversas', nome: 'Conversas', icone: 'conversa', naLateral: () => false },
     { id: 'quick-wins', nome: 'Quick Wins', icone: 'raio', ativo: h => h === '#/quick-wins' || h.startsWith('#/quick-wins/') || h.startsWith('#/qw/') },
+    { id: 'resultados', nome: 'Uso e resultados', icone: 'grafico' },
     { id: 'conhecimento', nome: 'Conhecimento', icone: 'livro', selo: seloBase },
     // Pendências: atalho só quando há o que resolver (com a contagem) ou quando a tela está aberta; o endereço e a
     // busca continuam valendo sempre para quem pode acompanhar.
@@ -128,7 +129,8 @@ const SECOES_ADMIN = () => [
     { id: 'integracoes', nome: 'Integrações', icone: 'servidor', ver: () => !!E.integracoes && (pode('integrations.manage') || pode('integrations.approve')) },
   ] },
   { titulo: 'Acompanhar', itens: [
-    { id: 'uso', nome: 'Uso e créditos', icone: 'grafico', ver: () => pode('usage.read') },
+    { id: 'resultados', nome: 'Uso e resultados', href:()=> '#/resultados?visao=empresa', icone: 'grafico', ver: () => pode('usage.read') },
+    { id: 'uso', nome: 'Créditos do plano', icone: 'grafico', ver: () => pode('usage.read') },
     { id: 'atividade', nome: 'Atividade', icone: 'atividade', ver: () => pode('audit.read') },
   ] },
   { titulo: 'Empresa', itens: [
@@ -429,6 +431,7 @@ async function rota() {
   try {
     if ((m = /^#\/c\/(\d+)$/.exec(h))) await vistaConversa({ id: Number(m[1]) });
     else if (h === '#/nova') await vistaConversa({});
+    else if (h === '#/resultados' || h.startsWith('#/resultados?')) await (await importarTela('/resultados.js')).vistaResultados();
     else if (h === '#/pendencias') await (await importarTela('/acompanhamento.js')).vistaAcompanhamento();
     else if (h === '#/primeiros-passos') (await importarTela('/onboarding.js')).vistaOnboarding();
     else if (h === '#/conversas') await vistaConversas();

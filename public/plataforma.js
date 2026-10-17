@@ -9,7 +9,7 @@ import { renderMarca, ligarMarca, renderLanding, ligarLanding, acoesLanding, est
 const $ = id => document.getElementById(id);
 const C = { eu: null, csrf: '', catalogo: null, planos: [] };
 const num = v => Number(v || 0).toLocaleString('pt-BR');
-const usd = v => (v === null || v === undefined ? '–' : `US$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+const usd = v => (v === null || v === undefined ? '–' : `US$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}`);
 const data = iso => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '–');
 const dataHora = iso => (iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '–');
 const SELO_STATUS = { ativa: 'selo-verde', em_implantacao: 'selo-ambar', suspensa: 'selo-vermelho', cancelada: 'selo-cinza' };
@@ -329,7 +329,7 @@ async function novaEmpresa() {
 
 // Abas da empresa: Marca, Página de apresentação e URL e domínio ficam juntas em "Marca e endereço" (como na
 // administração da empresa), com subabas. Os endereços antigos (…/marca, …/landing, …/url) levam à subaba certa.
-const ABAS = [['resumo', 'Resumo'], ['usuarios', 'Usuários'], ['marca-e-endereco', 'Marca e endereço'], ['permissoes', 'Permissões'], ['auditoria', 'Auditoria']];
+const ABAS = [['resumo', 'Resumo'], ['usuarios', 'Usuários'], ['resultados','Uso e resultados'], ['marca-e-endereco', 'Marca e endereço'], ['permissoes', 'Permissões'], ['auditoria', 'Auditoria']];
 const SUBABAS_MARCA = [['marca', 'Marca'], ['landing', 'Página de apresentação'], ['url', 'URL e domínio']];
 const ABA_ANTIGA = { marca: 'marca', landing: 'landing', url: 'url' };
 // Endereço canônico de uma aba da empresa (ou null se já é o canônico).
@@ -346,7 +346,7 @@ async function vistaEmpresa(id, aba = 'resumo', sub = '') {
   const e = d.empresa;
   const nav = `<nav class="subnav" aria-label="Seções da empresa">${ABAS.map(([k, n]) => `<a href="#/empresas/${id}/${k}${k === 'marca-e-endereco' ? '/marca' : ''}" ${k === aba ? 'aria-current="page"' : ''}>${n}</a>`).join('')}</nav>`;
   const nav2 = aba === 'marca-e-endereco' ? `<nav class="subnav subnav-2" aria-label="Marca e endereço">${SUBABAS_MARCA.map(([k, n]) => `<a href="#/empresas/${id}/marca-e-endereco/${k}" ${k === sub ? 'aria-current="page"' : ''}>${n}</a>`).join('')}</nav>` : '';
-  const corpo = { resumo: abaResumo, usuarios: abaUsuarios, marca: abaMarca, landing: abaLanding, url: abaUrl, permissoes: abaPermissoes, auditoria: abaAuditoriaEmpresa }[aba === 'marca-e-endereco' ? sub : aba] || abaResumo;
+  const corpo = { resumo: abaResumo, resultados: abaResultadosOperacao, usuarios: abaUsuarios, marca: abaMarca, landing: abaLanding, url: abaUrl, permissoes: abaPermissoes, auditoria: abaAuditoriaEmpresa }[aba === 'marca-e-endereco' ? sub : aba] || abaResumo;
   // Cabeçalho: o status e, à direita, as ações da aba aberta (a principal por último).
   tela(e.name, `${nav}${nav2}<div id="aba"></div>`, `${selo(e.status, e.statusNome)}<span class="acoes-aba" id="acoes-aba"></span>`, '#/empresas');
   await corpo(d, id);
@@ -1395,3 +1395,10 @@ async function iniciar() {
   rota();
 }
 iniciar();
+
+async function abaResultadosOperacao(d,id){
+ const r=await api(`/api/plataforma/empresas/${id}/resultados`),u=r.uso,f=r.financeiro;
+ $('aba').innerHTML=`<div class="resultados"><h2>Uso, resultados e conciliação</h2><p class="dica">Administração Geral · Informações financeiras não são disponibilizadas no ambiente do cliente</p><div class="resultados-metricas"><div><span>Trabalhos verificados</span><strong>${num(u.coorte.concluidos)}</strong></div><div><span>Créditos registrados</span><strong>${num(u.coorte.creditosConsumidos)}</strong></div><div><span>Custo reportado pelo provedor</span><strong>${f.custoReportado==null?'Não medido':usd(f.custoReportado)}</strong></div><div><span>Chamadas pendentes</span><strong>${num(f.pendentes)}</strong></div></div><p>${esc(f.nota)}</p><p>Fatura confirmada: ${f.custoConfirmadoFatura==null?'Pendente de conciliação':usd(f.custoConfirmadoFatura)} · Conciliação por geração: ${f.custoConciliadoGeracao==null?'Não medida':usd(f.custoConciliadoGeracao)}</p><button class="btn btn-verde" id="resultado-conciliar">Consultar cobranças pendentes</button><p id="resultado-conciliar-estado" role="status"></p><details class="trabalho-detalhes"><summary>Registrar estorno confirmado de créditos</summary><div class="trabalho-detalhes-corpo"><p>Devolve créditos ao saldo da empresa sem apagar o consumo. Use uma referência única para a decisão; envios repetidos não devolvem créditos duas vezes.</p><form id="resultado-estorno"><label>Identificador do trabalho<input class="entrada" name="trabalho" type="number" min="1" required></label><label>Créditos a devolver<input class="entrada" name="creditos" type="number" min="0.1" step="0.1" required></label><label>Referência da decisão<input class="entrada" name="referencia" minlength="5" maxlength="200" required></label><p role="alert" id="resultado-estorno-erro"></p><button class="btn btn-verde">Devolver créditos ao saldo</button></form></div></details><details class="trabalho-detalhes"><summary>Registros das chamadas · até 200 recentes</summary><div class="trabalho-detalhes-corpo">${tabela(['Execução','Geração','Estado','Reportado','Conciliado'],f.chamadas.map(c=>`<tr><td data-r="Execução">${c.id}</td><td data-r="Geração">${esc(c.geracao||'Não informada')}</td><td data-r="Estado">${esc(c.estado)}</td><td data-r="Reportado">${c.custo_reportado==null?'Pendente':usd(c.custo_reportado)}</td><td data-r="Conciliado">${c.custo_conciliado==null?'Pendente':usd(c.custo_conciliado)}</td></tr>`))}</div></details></div>`;
+ $('resultado-estorno').onsubmit=async e=>{e.preventDefault();const f=e.target,b=f.querySelector('button');if(b.disabled)return;b.disabled=true;try{await api(`/api/plataforma/empresas/${id}/resultados/estornos`,{metodo:'POST',corpo:Object.fromEntries(new FormData(f))});toast('Estorno confirmado no saldo.');await abaResultadosOperacao(d,id);}catch(e){$('resultado-estorno-erro').textContent=e.message;b.disabled=false;}};
+ $('resultado-conciliar').onclick=async()=>{const b=$('resultado-conciliar');b.disabled=true;try{const x=await api(`/api/plataforma/empresas/${id}/resultados/conciliar`,{metodo:'POST',corpo:{}});toast(`${x.conciliadas} chamadas conciliadas.`);await abaResultadosOperacao(d,id);}catch(e){$('resultado-conciliar-estado').textContent=e.message;b.disabled=false;}};
+}

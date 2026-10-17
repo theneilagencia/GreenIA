@@ -1,3 +1,4 @@
+import { financeiroResultados, conciliarResultados, resumoResultados, estornarResultado } from '../resultados.js';
 // APIs do console do operador da plataforma (/api/plataforma/*). Só admins da plataforma; toda ação relevante é auditada.
 import { erro } from '../http.js';
 import { exec, todos, um } from '../db.js';
@@ -98,6 +99,9 @@ export function rotasPlataforma(P, r) {
     return resumoEmpresa(E.lerEmpresa(P, c.id));
   }, { limiteMb: 3 });
 
+  r.post('/api/plataforma/empresas/:id/resultados/estornos',({sessao,params,corpo,origem})=>{precisa(sessao,'platform.companies.manage');E.exigirEmpresa(P,params.id);const app=P.tenant(params.id);const resultado=estornarResultado(app,{id:null,email:sessao.email},corpo);auditar(P,{usuario:sessao.userId,empresa:params.id,acao:'usage.refunded',entidade:'company',id:params.id,depois:{trabalho:corpo.trabalho,creditos:corpo.creditos,repetido:!!resultado.repetido},origem});return resultado;});
+  r.get('/api/plataforma/empresas/:id/resultados',({sessao,params,query})=>{precisa(sessao,'platform.companies.manage');E.exigirEmpresa(P,params.id);const app=P.tenant(params.id);return {uso:resumoResultados(app,{id:-1,permissoes:['usage.read']},{...query,visao:'empresa'}),financeiro:financeiroResultados(app)};});
+  r.post('/api/plataforma/empresas/:id/resultados/conciliar',async({sessao,params,origem})=>{precisa(sessao,'platform.companies.manage');E.exigirEmpresa(P,params.id);const d=await conciliarResultados(P.tenant(params.id));auditar(P,{usuario:sessao.userId,empresa:params.id,acao:'usage.reconciled',entidade:'company',id:params.id,depois:{conciliadas:d.conciliadas},origem});return d;});
   r.get('/api/plataforma/empresas/:id', ({ sessao, params }) => {
     precisa(sessao, 'platform.companies.manage');
     const c = E.exigirEmpresa(P, params.id);

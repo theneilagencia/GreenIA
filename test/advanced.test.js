@@ -120,7 +120,7 @@ test('recomendação: administrador aprova sem escolher modelos; servidor ignora
   const r=await enviarMensagem(s.ana,s.conv.id,{texto});const id=r.erro.advanced.pedido;await s.ana.post(`/api/advanced/pedidos/${id}/solicitar`);
   const rec=(await s.admin.get('/api/admin/advanced')).dados.pedidos.find(p=>p.id===id).recomendacao;
   assert.equal(rec.disponivel,true);assert.equal(rec.execucaoAutomatica,false);assert.equal(rec.validadeDias,1);
-  const d=await s.admin.post(`/api/admin/advanced/pedidos/${id}/decidir`,{decisao:'aprovar',seguir_recomendacao:true,versao:rec.versao,limite_usd:rec.limite,dias:1,modelos:['nao/aprovado'],provedores:['nao-aprovado']});assert.equal(d.status,200,JSON.stringify(d.dados));
+  const d=await s.admin.post(`/api/admin/advanced/pedidos/${id}/decidir`,{decisao:'aprovar',seguir_recomendacao:true,versao:rec.versao,limite_creditos:rec.limite,dias:1,modelos:['nao/aprovado'],provedores:['nao-aprovado']});assert.equal(d.status,200,JSON.stringify(d.dados));
   const a=um(s.app.db,'select * from advanced_autorizacoes order by id desc limit 1');assert.deepEqual(JSON.parse(a.modelos),[ID]);assert.deepEqual(JSON.parse(a.provedores),['anthropic']);assert.equal(a.conversa_id,s.conv.id);assert.equal(s.OR.chamadas.length,0);
  }finally{await s.fechar();}
 });
@@ -131,7 +131,7 @@ test('recomendação não aprova proteção nem orçamento; mudanças exigem nov
   const rec=await consulta();assert.equal(rec.disponivel,true);
   salvarConfig(s.app.db,{advanced:{limiteMensalUsd:0}});const sem=await consulta();assert.equal(sem.codigo,'advanced_orcamento');assert.equal(sem.disponivel,false);
   salvarConfig(s.app.db,{advanced:{limiteMensalUsd:10}});
-  const stale=await s.admin.post(`/api/admin/advanced/pedidos/${id}/decidir`,{decisao:'aprovar',seguir_recomendacao:true,versao:rec.versao,limite_usd:rec.limite,dias:1});assert.equal(stale.status,409);assert.equal(stale.dados.erro,'recomendacao_mudou');
+  const stale=await s.admin.post(`/api/admin/advanced/pedidos/${id}/decidir`,{decisao:'aprovar',seguir_recomendacao:true,versao:rec.versao,limite_creditos:rec.limite,dias:1});assert.equal(stale.status,409);assert.equal(stale.dados.erro,'recomendacao_mudou');
   const a=JSON.parse(um(s.app.db,'select atributos from modelos where id=?',ID).atributos);a.advanced.aprovado=false;exec(s.app.db,'update modelos set atributos=? where id=?',JSON.stringify(a),ID);
   assert.equal((await consulta()).codigo,'advanced_seguranca');assert.equal(um(s.app.db,'select count(*) n from advanced_autorizacoes').n,0);assert.equal(s.OR.chamadas.length,0);
  }finally{await s.fechar();}

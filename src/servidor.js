@@ -1,3 +1,4 @@
+import { rotasResultados, iniciarResultados, sincronizarContas } from './resultados.js';
 import { memoriaDoConteiner } from './vigia-memoria.js';
 import { rotasPaineis } from './paineis.js';
 import { rotasAcompanhamento } from './acompanhamento.js';
@@ -14,7 +15,7 @@ import { dirname, join } from 'node:path';
 import { abrirBanco, exec, um } from './db.js';
 import { lerConfig, salvarConfig } from './config.js';
 import { criarEmail } from './email.js';
-import { rotasPlano, ehOperador, emCreditos, veDolar, situacaoPlano, MSG as MSG_PLANO, PEDIDO_CREDITOS, pedidosDeCreditos } from './plano.js';
+import { rotasPlano, ehOperador, emCreditos, situacaoPlano, MSG as MSG_PLANO, PEDIDO_CREDITOS, pedidosDeCreditos } from './plano.js';
 import { semProvedor } from './sem-provedor.js';
 import { registrar } from './eventos.js';
 import { cabecalhosLpComercial, cabecalhosSeguranca, criarRoteador, enviarJson, ErroHttp, lerBruto, lerCookies, lerCorpo, servirEstatico } from './http.js';
@@ -78,6 +79,7 @@ export function criarApp(op = {}) {
   app.mestra = op.mestra || (() => (app._mestra ??= chaveMestra({ pasta: op.banco && op.banco !== ':memory:' ? dirname(op.banco) : join(tmpdir(), `greenia-${process.pid}`) })));
   if (!app.tenant) for (const e of app.operadores) garantirOperador(app, e);
 
+  iniciarResultados(app);
   const r = criarRoteador();
   rotasLogin(app, r);
   r.get('/api/publico', () => {
@@ -94,7 +96,7 @@ export function criarApp(op = {}) {
   });
   r.get('/api/eu', ({ sessao }) => ({
     pessoa: sessao.pessoa, csrf: sessao.csrf, quickWins: permissoesQw(db, sessao.pessoa), iaConfigurada: app.ia.configurada !== false, iaSimulada: !!app.ia.simulada,
-    unidade: veDolar(app, sessao.pessoa) ? 'usd' : 'creditos', operador: ehOperador(app, sessao.pessoa), plano: planoParaTela(app, sessao.pessoa), bases: resumoBases(db, sessao.pessoa),
+    unidade: 'creditos', operador: ehOperador(app, sessao.pessoa), plano: planoParaTela(app, sessao.pessoa), bases: resumoBases(db, sessao.pessoa),
     ...(integracoesLigadas(app, sessao.pessoa) ? { integracoes: true } : {}),
     ...(app.extraEu?.(sessao) ?? {}),
   }));
@@ -122,7 +124,7 @@ export function criarApp(op = {}) {
     return out;
   };
   app.limitesArquivo = LIMITES_ARQUIVO;
-  for (const modulo of [rotasAdvanced, rotasAcompanhamento, rotasSugestao, rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao, rotasPlano, rotasVisao, rotasOperador, rotasVendas, rotasArtefatos, rotasIntegracoes, rotasProgramacao, rotasPaineis]) modulo(app, r);
+  for (const modulo of [rotasResultados, rotasAdvanced, rotasAcompanhamento, rotasSugestao, rotasModelos, rotasPessoas, rotasBases, rotasQuickWins, rotasConversas, rotasPolitica, rotasAdmin, rotasMedicao, rotasPlano, rotasVisao, rotasOperador, rotasVendas, rotasArtefatos, rotasIntegracoes, rotasProgramacao, rotasPaineis]) modulo(app, r);
 
   app.tratar = (req, res, externo) => tratar(app, r, req, res, externo);
   app.servidor = createServer((req, res) => tratar(app, r, req, res));
@@ -208,20 +210,24 @@ async function tratar(app, r, req, res, externo) {
       if (app.tenant) {
         const perms = sessao.pessoa.permissoes || [];
         if (rota.op.admin && !perms.includes(permissaoAdmin(url.pathname, req.method))) throw new ErroHttp(403, 'sem_permissao', 'Você não tem permissão para isso.');
-        if (req.method !== 'GET' && /^\/api\/(conversas|quick-wins|bases|medicoes|artefatos|integracoes)/.test(url.pathname) && !perms.includes('chat.use')) throw new ErroHttp(403, 'sem_permissao', 'Seu acesso é só de consulta.');
+        if (req.method !== 'GET' && /^\/api\/(conversas|quick-wins|bases|medicoes|artefatos|integracoes|resultados\/trabalhos)/.test(url.pathname) && !perms.includes('chat.use')) throw new ErroHttp(403, 'sem_permissao', 'Seu acesso é só de consulta.');
         app.checarRecurso?.(req.method, url.pathname);
       } else if (rota.op.admin && !sessao.pessoa.admin) throw new ErroHttp(403, 'so_admin', 'Só o admin pode fazer isso.');
     }
     const corpo = req.method === 'GET' ? {} : rota.op.bruto ? await lerBruto(req, rota.op.limiteMb ?? 1) : await lerCorpo(req, rota.op.limiteMb ?? 1);
+    if (url.pathname.startsWith('/api/admin/advanced')) {
+      for(const k of Object.keys(corpo)) if(/_creditos$/.test(k)||/Creditos$/.test(k)){const usd=k.replace(/_creditos$/,'_usd').replace(/Creditos$/,'Usd');corpo[usd]=Number(corpo[k])*.01;delete corpo[k];}
+    }
     const ctx = { app, req, res, cookies, sessao, pessoa: sessao?.pessoa, params: rota.params, query: Object.fromEntries(url.searchParams), corpo };
-    ctx.creditos = !rota.op.maquina && !veDolar(app, ctx.pessoa);   // rotas com token do operador respondem em dólar
+    ctx.creditos = !rota.op.maquina && !operador(url.pathname);   // rotas com token do operador respondem em dólar
     let out = await rota.h(ctx);
+    if(req.method!=='GET'&&/^\/api\/admin\/pessoas/.test(url.pathname))sincronizarContas(app);
     if (ctx.creditos && out) out = emCreditos(out);   // com plano, só o operador recebe valores em dólar
     if (!operador(url.pathname)) out = semProvedor(out);   // ambiente da empresa: o provedor de IA não aparece
     if (!res.headersSent && !res.writableEnded) enviarJson(res, 200, out ?? { ok: true });
   } catch (e) {
     if (res.headersSent) { res.end(); return; }
-    if (e instanceof ErroHttp) { const corpo = { erro: e.codigo, mensagem: e.message, ...e.extra }; return enviarJson(res, e.status, operador(new URL(req.url, 'http://x').pathname) ? corpo : semProvedor(corpo)); }
+    if (e instanceof ErroHttp) { const corpo = { erro: e.codigo, mensagem: e.message, ...e.extra }; return enviarJson(res, e.status, operador(new URL(req.url, 'http://x').pathname) ? corpo : semProvedor(emCreditos(corpo))); }
     app.log('erro', erroParaLog(e));   // sem a mensagem: uma exceção pode repetir o conteúdo do pedido
     enviarJson(res, 500, { erro: 'interno', mensagem: 'Algo deu errado. Tente de novo.' });
   }

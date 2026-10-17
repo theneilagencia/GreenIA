@@ -1,3 +1,4 @@
+import { sincronizarContas } from '../resultados.js';
 // Servidor multiempresa: uma base de código e um processo para todas as empresas.
 // Resolve a empresa (tenant) pelo domínio próprio, pelo subdomínio ou pelo caminho /<slug>,
 // sempre no servidor, e entrega a requisição ao ambiente daquela empresa com a sessão e as
@@ -170,6 +171,8 @@ function abrirTenant(P, id) {
     get enviados() { return P.email.enviados; },
   };
   t = criarApp({ banco: c.banco, ia: P.ia, email, agora: P.agora, log: P.log, cookieSeguro: P.cookieSeguro, tenant: { companyId: id }, mestra: P.mestra });
+  t.pessoasResultados=()=>todos(P.db,`select u.id,u.name nome,u.email,u.status usuario_status,cu.status situacao from company_users cu join users u on u.id=cu.user_id where cu.company_id=?`,id).map(u=>({...u,id:um(t.db,'select id from pessoas where user_id=?',u.id)?.id,ativo:u.usuario_status==='ativo'?1:0,situacao:u.usuario_status==='ativo'?u.situacao:'inativo'})).filter(u=>u.id);
+  sincronizarContas(t);
   t.pessoasDoTrabalho = () => todos(P.db, "select u.id, u.name from users u join company_users cu on cu.user_id = u.id where cu.company_id = ? and cu.status = 'ativo' and u.status = 'ativo'", id).map(u => {
     const pid = sincronizarPessoa(P, id, u.id), perms = permissoesNaEmpresa(P.db, u.id, id);
     return { id: pid, nome: u.name || 'Pessoa da empresa', aprova: perms.has('integrations.approve'), prepara: perms.has('integrations.manage') };
@@ -258,6 +261,7 @@ function sincronizarPessoa(P, companyId, userId, { operador = false } = {}) {
   const existente = um(t.db, 'select id from pessoas where user_id = ?', userId) || um(t.db, 'select id from pessoas where email = ?', u.email);
   if (existente) exec(t.db, 'update pessoas set user_id = ?, email = ?, nome = ?, papel = ?, ativo = ? where id = ?', userId, u.email, u.name || u.email.split('@')[0], admin ? 'admin' : 'usuario', ativo, existente.id);
   else if (v || admin) exec(t.db, 'insert into pessoas (email, nome, papel, ativo, user_id) values (?, ?, ?, ?, ?)', u.email, u.name || u.email.split('@')[0], admin ? 'admin' : 'usuario', ativo, userId);
+  const resultadoPid=um(t.db,'select id from pessoas where user_id=?',userId)?.id;if(op&&resultadoPid)exec(t.db,"insert into resultado_contas(pessoa_id,categoria) values (?,'tecnica') on conflict(pessoa_id) do update set categoria='tecnica'",resultadoPid);
   return um(t.db, 'select id from pessoas where user_id = ?', userId)?.id ?? null;
 }
 

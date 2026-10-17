@@ -1,3 +1,4 @@
+import { abrirTentativa, finalizarTentativa, registrarDownloadResultado } from './resultados.js';
 import { trabalhoDoPedido } from '../public/trabalhos.js';
 import { acessoAdvanced, prepararPedidoAdvanced, conferirAdvanced } from './advanced.js';
 // Conversas do chat e dos quick wins. Cada conversa é de quem a criou: nem o
@@ -540,6 +541,7 @@ export function rotasConversas(app, r) {
     const a = /^[1-9]\d*$/.test(params.arquivo) && um(app.db, 'select nome, mime, dados from arquivos_gerados where id = ? and conversa_id = ?', Number(params.arquivo), conv.id);
     if (!a) throw erro(404, 'arquivo', 'Arquivo não encontrado.');
     const dados = Buffer.from(a.dados);
+    if(!query?.ver)res.once('finish',()=>{try{registrarDownloadResultado(app,pessoa,conv.id,Number(params.arquivo));}catch{}});
     // Imagem: "ver=1" mostra na própria conversa (prévia); sem ele, baixa. Só tipos de imagem conhecidos.
     const img = /^image\/(png|jpeg|webp)$/.test(a.mime), html = a.mime === 'text/html', ext = img ? (a.mime === 'image/jpeg' ? 'jpg' : a.mime.slice(6)) : html ? 'html' : a.mime === 'application/zip' ? 'zip' : Object.keys(MIMES).find(k => MIMES[k] === a.mime) || 'pptx';
     const nome = nomeDoArquivo(a.nome.replace(/\.(pptx|docx|xlsx|png|jpe?g|webp|html|zip)$/i, ''), ext);
@@ -636,11 +638,14 @@ export function rotasConversas(app, r) {
   const BLOQUEIOS = new Set(['dado_bloqueado', 'sigilo_nao_permitido', 'sem_modelo_autorizado', 'sem_modelo', 'grande_demais']);
   const executarMensagem = async ctx => {
     const id = Number(ctx.params.id);
-    minhaConversa(app, ctx.pessoa, id);
+    const convResultados = minhaConversa(app, ctx.pessoa, id);
     if (enviosAtivos.has(id)) throw erro(409, 'conversa_em_uso', 'Esta conversa está processando uma resposta. Use Interromper para encerrar a execução.');
+    const acompanhamento = abrirTentativa(app,ctx.pessoa,convResultados,ctx.corpo);
+    let falhaResultados = null;
     const controle = new AbortController();
     cancelamentos.set(id, controle); enviosAtivos.set(id, 1);
-    try { return await comCancelamento(controle.signal, () => comUso(app, { pessoa_id: ctx.pessoa.id }, () => enviarMensagem({ ...ctx, sinal: controle.signal }))); } catch (e) {
+    try { return await comCancelamento(controle.signal, () => comUso(app, { pessoa_id: ctx.pessoa.id, conversa_id:id, teste:convResultados.teste, ...acompanhamento }, () => enviarMensagem({ ...ctx, sinal: controle.signal }))); } catch (e) {
+      falhaResultados = e;
       if (controle.signal.aborted) {
         const mensagem = 'Execução interrompida por você. O trabalho parcial não foi concluído.';
         const conv = um(app.db, 'select id from conversas where id = ? and pessoa_id = ?', id, ctx.pessoa.id);
@@ -660,7 +665,7 @@ export function rotasConversas(app, r) {
         if (conv) aviso(app, conv.id, ctx.regerar ? `A nova resposta não foi gerada. ${e.message} A resposta anterior foi mantida.` : `Uma mensagem não foi enviada. ${e.message} Por segurança, o conteúdo dela não foi guardado.`);
       }
       throw e;
-    } finally { enviosAtivos.delete(id); cancelamentos.delete(id); }
+    } finally { try { finalizarTentativa(app,acompanhamento,{erro:falhaResultados,interrompido:controle.signal.aborted}); } catch { app.log('acompanhamento','Não foi possível consolidar a execução; não considerar concluída.'); } finally { enviosAtivos.delete(id); cancelamentos.delete(id); } }
   };
   r.post('/api/conversas/:id/mensagens', executarMensagem, { limiteMb: 42 });
   r.post('/api/conversas/:id/interromper', ({ pessoa, params }) => {

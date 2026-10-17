@@ -23,7 +23,7 @@ test('envio falha sem confirmar registro; tentativa segura, recusa e expiração
   await admin.post(`/api/admin/advanced/pedidos/${pedido.id}/decidir`,{decisao:'recusar',motivo:'Limite não aprovado para este teste.'});await p.reload();
   await p.getByText('Não aprovado',{exact:true}).waitFor();await p.getByRole('button',{name:'Pedir revisão',exact:true}).click();await p.getByText('Aguardando aprovação',{exact:true}).waitFor();
   const rec=(await admin.get('/api/admin/advanced')).dados.pedidos[0].recomendacao;
-  await admin.post(`/api/admin/advanced/pedidos/${pedido.id}/decidir`,{decisao:'aprovar',seguir_recomendacao:true,versao:rec.versao,limite_usd:rec.limite,dias:1});
+  await admin.post(`/api/admin/advanced/pedidos/${pedido.id}/decidir`,{decisao:'aprovar',seguir_recomendacao:true,versao:rec.versao,limite_creditos:rec.limite,dias:1});
   exec(N.app.db,"update advanced_autorizacoes set expira_em='2020-01-01'");await p.reload();
   await p.getByText('Autorização encerrada',{exact:true}).waitFor();assert.equal(await p.getByRole('button',{name:'Continuar apresentação',exact:true}).count(),0);
   await p.getByText('Ver pedido e anexos',{exact:true}).click();await p.getByText('Crie uma apresentação PPTX de altíssimo nível sobre um projeto fictício.',{exact:true}).waitFor();

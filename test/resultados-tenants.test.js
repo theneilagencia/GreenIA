@@ -15,6 +15,7 @@ test('Uso e resultados multiempresa: bancos isolados, permissão granular, convi
   const geral=await ops.get(`/api/plataforma/empresas/${A.id}/resultados`);assert.equal(geral.status,200,JSON.stringify(geral.dados));assert.ok(geral.dados.financeiro);assert.equal(geral.dados.uso.coorte.iniciados,1);
   assert.equal((await ana.get(`/api/plataforma/empresas/${A.id}/resultados`)).status,401);assert.equal((await ana.get('/api/operador/resultados')).status,403);
   const uid=um(ta.db,'select user_id from pessoas where id=?',pa).user_id;
+  assert.equal((await ops.put('/api/plataforma/usuarios/'+uid,{status:'bloqueado'})).status,200);assert.equal(um(ta.db,'select habilitada from resultado_habilitacao where pessoa_id=? order by id desc limit 1',pa).habilitada,0);assert.equal((await ops.put('/api/plataforma/usuarios/'+uid,{status:'ativo'})).status,200);await ana.entrarEmpresa('ana@alfa.com');
   const role=um(s.P.db,"select id from roles where key='member'").id;exec(s.P.db,'update company_users set role_id=? where company_id=? and user_id=?',role,A.id,uid);
   assert.equal((await ana.get('/api/resultados?visao=empresa')).status,403);assert.equal((await ana.get('/api/resultados')).status,200);assert.equal((await ana.put('/api/resultados/contas/'+pa,{categoria:'teste'})).status,403);
  }finally{await s.fechar();}

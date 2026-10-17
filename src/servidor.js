@@ -221,7 +221,7 @@ async function tratar(app, r, req, res, externo) {
     const ctx = { app, req, res, cookies, sessao, pessoa: sessao?.pessoa, params: rota.params, query: Object.fromEntries(url.searchParams), corpo };
     ctx.creditos = !rota.op.maquina && !operador(url.pathname);   // rotas com token do operador respondem em dólar
     let out = await rota.h(ctx);
-    if(req.method!=='GET'&&/^\/api\/admin\/pessoas/.test(url.pathname))sincronizarContas(app);
+    if(req.method!=='GET'&&(/^\/api\/admin\/pessoas/.test(url.pathname)||url.pathname==='/api/login/entrar'))sincronizarContas(app);
     if (ctx.creditos && out) out = emCreditos(out);   // com plano, só o operador recebe valores em dólar
     if (!operador(url.pathname)) out = semProvedor(out);   // ambiente da empresa: o provedor de IA não aparece
     if (!res.headersSent && !res.writableEnded) enviarJson(res, 200, out ?? { ok: true });

@@ -262,6 +262,7 @@ function sincronizarPessoa(P, companyId, userId, { operador = false } = {}) {
   if (existente) exec(t.db, 'update pessoas set user_id = ?, email = ?, nome = ?, papel = ?, ativo = ? where id = ?', userId, u.email, u.name || u.email.split('@')[0], admin ? 'admin' : 'usuario', ativo, existente.id);
   else if (v || admin) exec(t.db, 'insert into pessoas (email, nome, papel, ativo, user_id) values (?, ?, ?, ?, ?)', u.email, u.name || u.email.split('@')[0], admin ? 'admin' : 'usuario', ativo, userId);
   const resultadoPid=um(t.db,'select id from pessoas where user_id=?',userId)?.id;if(op&&resultadoPid)exec(t.db,"insert into resultado_contas(pessoa_id,categoria) values (?,'tecnica') on conflict(pessoa_id) do update set categoria='tecnica'",resultadoPid);
+  if(t.pessoasResultados)sincronizarContas(t);
   return um(t.db, 'select id from pessoas where user_id = ?', userId)?.id ?? null;
 }
 

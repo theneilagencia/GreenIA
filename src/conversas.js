@@ -1414,10 +1414,18 @@ export function rotasConversas(app, r) {
         const nome = fonteNome ? `${String(fonteNome).replace(/\.pptx$/i, '').replace(/-novo-design$/, '').slice(0, 60)}-novo-design.pptx` : `${String(modeloApr.nome).replace(/\.pdf$/i, '').slice(0, 60)}-adaptada.pptx`;
         // Dado do pedido que nem a rodada de conferência conseguiu encaixar: a pessoa fica sabendo, em vez de descobrir no arquivo.
         if (r.fatos_faltando?.length) avisoDepois(`Estes dados do pedido não entraram na apresentação: ${r.fatos_faltando.join(', ')}. Confira os slides de agenda e cronograma antes de usar.`);
+        // Trava final: slides com o mesmo conteúdo repetido (QA em produção: dez slides iguais ao "01 · Contexto") não
+        // são entregues; a pessoa recebe o motivo, em vez de um arquivo errado.
+        const textoDoSlide = p => p.blocos.map(b => String(r.textos[b.id] ?? b.texto).trim()).filter(t => t && !/^\d{1,3}\s*\/\s*\d{1,3}$/.test(t)).join(' | ');
+        const vistos = new Map();
+        for (const t of paginas.map(textoDoSlide)) if (t.length > 40) vistos.set(t, (vistos.get(t) || 0) + 1);
+        const repetidos = [...vistos.values()].filter(n => n > 1).reduce((a, n) => a + n, 0);
+        if (repetidos) throw Object.assign(new Error('slides repetidos'), { codigo: 'slides_repetidos', n: repetidos });
         gerado = { nome, textos: r.textos, dados: pptxDeModelo(paginas, { textos: r.textos, titulo: nome }), detalhes: { slides: paginas.length, blocos: paginas.reduce((n, p) => n + p.blocos.length, 0), sem_adaptacao: r.faltando.length, modelo: modeloApr.nome, ...(plano ? { plano, fonte: fonteDeck?.nome || json(deckAnterior?.detalhes, {})?.fonte } : {}) } };
       } catch (e) {
         app.log?.('modelo de apresentação', erroParaLog(e));
-        avisoDepois(e?.codigo === 'modelo_grande' ? `O modelo tem ${e.total} páginas; o limite para montar no mesmo layout é 60.`
+        avisoDepois(e?.codigo === 'slides_repetidos' ? `A montagem saiu com ${e.n} slides de conteúdo repetido, por isso o arquivo não foi entregue. Peça de novo; se repetir, envie a apresentação e o modelo novamente numa conversa nova.`
+          : e?.codigo === 'modelo_grande' ? `O modelo tem ${e.total} páginas; o limite para montar no mesmo layout é 60.`
           : e?.codigo === 'modelo_sem_memoria' ? 'O servidor não tem memória livre suficiente para ler este modelo agora, por isso a apresentação no mesmo layout não foi montada. Nada foi perdido: o pedido pode ser repetido.'
           : 'Não foi possível montar a apresentação no layout do modelo agora. Tente de novo em alguns minutos.');
       } finally { clearInterval(vida); }

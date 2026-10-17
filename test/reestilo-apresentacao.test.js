@@ -188,3 +188,11 @@ test('título que promete o que o slide não tem volta a ser o do slide de orige
   assert.equal(r.slides[2].conteudo, 'Próximos passos\n• Visita técnica gratuita');
   assert.equal(r.slides[1].conteudo.split('\n')[0], 'Resultados', 'título que bate com o conteúdo fica');
 });
+
+test('correção de uma versão em reestilo (base) com a mesma página do modelo repetida: cada slide fica com o seu texto', async () => {
+  const paginas = paginasDoPlano(MODELO, [{ pagina: 0 }, { pagina: 1 }, { pagina: 1 }, { pagina: 1 }, { pagina: 2 }]);
+  const base = {};
+  paginas.forEach((p, k) => p.blocos.forEach(b => { base[b.id] = /\d+ \/ \d+/.test(b.texto) ? b.texto : `slide ${k + 1} ${b.id}`; }));
+  const r = await adaptarModelo({ paginas, contexto: FONTE, pedido: 'corrija a ortografia', base, chamar: async () => ({ texto: '{}' }) });
+  for (const k of [1, 2, 3]) assert.equal(r.textos[`${k + 1}.1`], `slide ${k + 1} ${k + 1}.1`, `slide ${k + 1} mantém o próprio texto`);
+});

@@ -154,3 +154,21 @@ test('pedido real com dois PDFs e nome com acento: modelo é o PDF citado e o co
   assert.equal(r2.fim?.arquivos?.[0]?.modelo, 'Apresentacao-Kickoff-Repet.pdf', JSON.stringify(r2.fim?.arquivos));
   assert.equal(r2.fim.arquivos[0].fonte, 'Apresentação-Kickoff-Rafisa.pptx');
 });
+
+test('trava final: montagem com slides de conteúdo repetido não é entregue; a resposta diz por quê', { skip: semNavegador }, async () => {
+  const repetido = 'Contexto do projeto\n• A RAFISA deseja estruturar seus processos para gerar resultados mensais';
+  const antes = OR.chamadas.length;
+  OR.responder = b => {
+    const sis = typeof b.messages[0].content === 'string' ? b.messages[0].content : b.messages[0].content.map(p => p.text).join('');
+    if (sis.startsWith(PLANO)) return JSON.stringify({ slides: [{ pagina: 1, conteudo: repetido }, { pagina: 1, conteudo: repetido }, { pagina: 1, conteudo: 'Kickoff Rafisa' }] });
+    return 'Entendi: vou montar a apresentação.\n\n## O que foi feito\n- Ajustes.';
+  };
+  const conv = (await ana.post('/api/conversas', {})).dados.conversa;
+  const fonte = { nome: 'Apresentacao-Kickoff-Rafisa.pptx', base64: pptx('# Kickoff Rafisa\n\nA RAFISA deseja estruturar seus processos para gerar resultados mensais\n\n# 07 · Papéis\n\nTexto\n\n# 09 · Escopo\n\nTexto', { titulo: 'Rafisa' }).toString('base64') };
+  const r = await enviarMensagem(ana, conv.id, { texto: PEDIDO, anexos: [fonte, anexos()[1]] });
+  assert.equal(r.status, 200);
+  assert.ok(!r.fim?.arquivos?.length, 'nenhum arquivo entregue');
+  const resp = todos(S.app.db, "select texto from mensagens where conversa_id = ? and papel = 'assistant'", conv.id).at(-1).texto;
+  assert.match(resp, /não foi gerado[\s\S]*conteúdo repetido/);
+  assert.ok(OR.chamadas.length > antes);
+});

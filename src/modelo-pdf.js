@@ -716,6 +716,9 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
   const vezes = new Map();
   for (const p of paginas) for (const b of p.blocos) vezes.set(b.texto, (vezes.get(b.texto) || 0) + 1);
   const primeiro = new Map(), repetidos = [];
+  // Mesma página do modelo usada em mais de um slide (versão em reestilo sendo corrigida): o texto que se repete é do
+  // layout, não rodapé; cada slide fica com o seu. QA em produção: a correção copiou o slide "01 · Contexto" para dez slides.
+  const paginaRepetida = paginas.some((p, i) => paginas.findIndex(q => (q.elementos && q.elementos === p.elementos) || (q.fundo && q.fundo === p.fundo)) !== i);
   // Número puro fica como está, a menos que esteja colado a um texto na mesma linha ("19" + "OUT", "45" + "DIAS
   // ÚTEIS"): aí é parte de uma data ou prazo e é adaptado junto.
   const vizinhoNaLinha = b => paginas.some(p => p.blocos.includes(b) && p.blocos.some(o => o !== b && Math.abs(o.y - b.y) < b.tam * 0.5 && o.x > b.x && o.x - (b.x + (b.largura || 0)) < b.tam * 1.5 && /\p{L}/u.test(o.texto)));
@@ -724,7 +727,7 @@ export async function adaptarModelo({ paginas, contexto, pedido, chamar, porPart
   const slides = paginas.map((p, i) => ({ numero: i + 1, blocos: p.blocos.filter(b => {
     if (fica(b)) return false;
     // No reestilo a mesma página do modelo pode repetir: o texto repetido é layout, não rodapé, e cada slide tem o seu.
-    if (!conteudos && vezes.get(b.texto) >= 3) { if (primeiro.has(b.texto)) { repetidos.push([b.id, primeiro.get(b.texto)]); return false; } primeiro.set(b.texto, b.id); }
+    if (!conteudos && !paginaRepetida && vezes.get(b.texto) >= 3) { if (primeiro.has(b.texto)) { repetidos.push([b.id, primeiro.get(b.texto)]); return false; } primeiro.set(b.texto, b.id); }
     return true;
   }) }));
   const partes = [];

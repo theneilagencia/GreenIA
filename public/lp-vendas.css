@@ -463,7 +463,7 @@
 .lv .m-resultados-linha>div>span{display:block;font:400 12.5px/1.5 var(--sans);color:var(--muted);margin-top:3px}
 .lv .m-resultados-status{font:500 12px/1.5 var(--sans);color:var(--acento);text-align:right}
 .lv .m-resultados-status.pendente{color:var(--muted)}
-@media(prefers-reduced-motion:no-preference){.lv .m-resultados-linha{animation:l-sobe .55s var(--ease) both;animation-delay:calc(.25s + var(--i)*.18s)}.lv .l-resultados-demo.espera .m-resultados-linha{animation-play-state:paused}}
+
 @media(max-width:760px){.lv .m-resultados{padding:24px 20px}.lv .m-resultados-topo{flex-direction:column;gap:14px;margin-bottom:24px}.lv .m-resultados-indicadores{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 16px;margin-bottom:24px}.lv .m-resultados-indicadores span{font-size:12.5px;min-height:38px}.lv .m-resultados-progresso{padding:16px}.lv .m-resultados-linha{display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px 12px}.lv .m-resultados-marca{width:28px;height:28px}.lv .m-resultados-status{grid-column:2;text-align:left}.lv .m-resultados-linha b{font-size:13.5px}}
 
 .lv.l-faq-pagina main{max-width:1240px}
@@ -486,3 +486,24 @@
 .lv .l-faq-ajuda .btn{max-width:100%;white-space:normal;height:auto;min-height:44px;line-height:1.4;padding:12px 18px;text-align:center}
 
 .lv .l-faq-grupo details{scroll-margin-top:90px}
+
+/* Uso e resultados compartilha a sequência e os controles das demais demonstrações. */
+.lv .l-resultados-demo{--op-green:var(--acento);--op-light:var(--tinta)}
+.lv .m-resultados-cenas{min-height:96px;margin-bottom:24px;padding:18px 20px;background:var(--tinta);border-radius:var(--r-md)}
+.lv .m-resultados-cenas [hidden]{display:none}
+.lv .m-resultados-cenas strong{display:block;font:500 13px/1.5 var(--sans);color:var(--ink);margin-bottom:6px}
+.lv .m-resultados-cenas p{font:400 14px/1.6 var(--sans);color:var(--ink-2);margin:0;max-width:75ch}
+.lv .l-resultados-demo .m-barra i{animation:none;transition:width .7s var(--ease)}
+.lv .l-resultados-demo .op-controls{margin-top:24px;padding-top:20px;border-top:1px solid var(--hair)}
+.lv .l-resultados-demo .op-steps button{color:var(--muted);font:500 13px/1.4 var(--sans)}
+.lv .l-resultados-demo .op-steps button[aria-current]{color:var(--ink);background:var(--tinta-2);border-color:var(--hair-2)}
+.lv .l-resultados-demo .op-steps button:hover{background:var(--tinta);color:var(--ink)}
+.lv .l-resultados-demo .op-playback{padding-bottom:0}
+.lv .l-resultados-demo .op-playback button{color:var(--ink);background:var(--bg);border-color:var(--hair-2);font-family:var(--sans);min-height:44px}
+.lv .l-resultados-demo .op-time{color:var(--muted)}
+.lv .l-resultados-demo .op-progress{margin:16px 0 0;background:var(--hair)}
+.lv .l-resultados-demo .op-progress span{background:var(--acento)}
+.lv .l-resultados-demo button:focus-visible{outline:2px solid var(--acento);outline-offset:3px}
+@media(prefers-reduced-motion:no-preference){.lv .l-resultados-demo[data-playing="true"] .m-resultados-marca{box-shadow:0 0 0 4px var(--tinta)}}
+@media(prefers-reduced-motion:reduce){.lv .l-resultados-demo .m-barra i{transition:none}}
+@media(max-width:760px){.lv .m-resultados-cenas{min-height:155px;padding:16px}.lv .m-resultados-cenas p{font-size:13px}.lv .l-resultados-demo .op-steps button{font-size:12px}}

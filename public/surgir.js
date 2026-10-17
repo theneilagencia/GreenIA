@@ -11,6 +11,7 @@ const GRADES = '.l-pilares,.l-planos,.l-etapas,.l-inst,.p-passos,.p-recursos,.p-
 // Conta de 0 até o número (formato 15.420 ou 82%), mantendo o texto ao redor.
 function contar(raiz) {
   for (const el of raiz.querySelectorAll('.num, .l-inst-uso b')) {
+    if (el.closest('[data-op-resultados]')) continue;
     const no = [...el.childNodes].find(n => n.nodeType === 3 && /\d/.test(n.textContent));
     if (!no || el.dataset.contou) continue;
     const m = /(\d{1,3}(?:\.\d{3})*|\d+)(%?)/.exec(no.textContent);

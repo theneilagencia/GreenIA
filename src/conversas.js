@@ -2,6 +2,7 @@
 // responsável nem o admin leem o conteúdo pela API.
 import { erro } from './http.js';
 import { criarPrazoArquivo } from './tempo-arquivo.js';
+import { exigeAltaQualidade, NOTA_ALTA_QUALIDADE, NOTA_FIDELIDADE } from '../public/qualidade-entrega.js';
 import { comCancelamento } from './cancelamento-chat.js';
 import { extrairTabelas, gerarCsv, nomesDasTabelas } from '../public/tabelas.js';
 import { docx, MIMES, nomeDoArquivo, pptx, soEntregavel, xlsx, zipar } from './escritorio.js';
@@ -254,6 +255,12 @@ export const semPromessaDeArquivo = t => String(t || '').split('\n')
   .map(l => l.replace(/[^.!\n]*\b(arquivo|apresenta[cç][aã]o|planilha|documento|pptx|docx|xlsx|vers[aã]o)\b[^.!\n]*\b(pront[oa]|dispon[ií]vel|segue|est[aá])\b[^.!\n]*\b(download|baixar|abaixo)\b[^.!\n]*[.!]?/gi, '').trimEnd())
   .filter((l, i, a) => l.trim() || (a[i - 1] || '').trim()).join('\n');
 
+export function fonteDeApresentacao(deck) {
+  const texto = conteudoParaEdicao('pptx', deck.dados);
+  if (texto.length > MAX_CONTEUDO) throw erro(413, 'apresentacao_grande', 'A apresentação contém mais conteúdo do que pode ser adaptado de uma vez. Divida o material em partes; nenhum slide foi descartado para gerar uma versão incompleta.');
+  return { nome: deck.nome, texto };
+}
+
 export function pecaDaConversa(texto) {
   if (!PEDE_CRIAR.test(String(texto || ''))) return null;
   const v = visualDoPedido(texto);
@@ -433,6 +440,44 @@ export function rotasConversas(app, r) {
   };
   r.post('/api/conversas', criarConversa);
   app.criarConversaProgramada = pessoa => quickWinId => criarConversa({ pessoa, corpo: { quick_win_id: quickWinId } });
+
+  // A edição cria uma versão independente: nenhuma resposta posterior ao pedido
+  // editado participa do contexto e nenhuma ação externa é copiada ou executada.
+  r.post('/api/conversas/:id/mensagens/:mensagem/editar', ({ pessoa, params }) => {
+    const origem = minhaConversa(app, pessoa, params.id);
+    if (origem.quick_win_id || origem.teste) throw erro(409, 'editar_fluxo', 'Edite o pedido em uma conversa livre.');
+    if (ocupado([origem.id])) throw erro(409, 'conversa_ocupada', 'Interrompa a execução antes de editar o pedido.');
+    const alvo = um(app.db, "select * from mensagens where conversa_id = ? and id = ? and papel = 'user'", origem.id, Number(params.mensagem));
+    if (!alvo) throw erro(404, 'mensagem', 'Pedido não encontrado.');
+    if (!alvo.texto || alvo.texto === NAO_GUARDADO) throw erro(409, 'material_nao_guardado', 'A política de retenção não guardou este pedido. Envie-o novamente.');
+    const anteriores = todos(app.db, 'select * from mensagens where conversa_id = ? and id < ? order by id', origem.id, alvo.id);
+    if (anteriores.length > 1000) throw erro(413, 'historico_grande', 'Esta conversa é grande demais para criar uma versão editada. Abra uma nova conversa com os materiais necessários.');
+    const agora = AGORA(app);
+    let nova;
+    transacao(app.db, () => {
+      nova = Number(exec(app.db, 'insert into conversas (pessoa_id, titulo, modelo, sigilosa, motivo_sigilosa, mascarada, cortada, criado_em, atualizado_em) values (?, ?, ?, ?, ?, ?, ?, ?, ?)', pessoa.id, `${origem.titulo} · versão editada`.slice(0, 160), origem.modelo, origem.sigilosa, origem.motivo_sigilosa, origem.mascarada, origem.cortada, agora, agora).lastInsertRowid);
+      const copiarAnexos = (de, para) => {
+        for (const a of todos(app.db, 'select * from anexos where conversa_id = ? and mensagem_id = ?', origem.id, de)) {
+          const id = Number(exec(app.db, 'insert into anexos (conversa_id, mensagem_id, nome, texto, papel, tipo_fonte, url_exibida, ignorada, estilo) values (?, ?, ?, ?, ?, ?, ?, ?, ?)', nova, para, a.nome, a.texto, a.papel, a.tipo_fonte, a.url_exibida, a.ignorada, a.estilo).lastInsertRowid);
+          exec(app.db, 'insert into anexos_arquivos (anexo_id, mime, dados) select ?, mime, dados from anexos_arquivos where anexo_id = ?', id, a.id);
+        }
+      };
+      for (const m of anteriores) {
+        const id = Number(exec(app.db, 'insert into mensagens (conversa_id, papel, texto, modelo, fornecedor, fontes, criado_em) values (?, ?, ?, ?, ?, ?, ?)', nova, m.papel, m.texto, m.modelo, m.fornecedor, m.fontes, m.criado_em).lastInsertRowid);
+        copiarAnexos(m.id, id);
+        // Apenas arquivos de conteúdo; planos de integração e sites publicados
+        // continuam vinculados exclusivamente à execução original.
+        exec(app.db, "insert into arquivos_gerados (conversa_id, mensagem_id, nome, mime, dados, detalhes, textos, criado_em) select ?, ?, nome, mime, dados, detalhes, textos, criado_em from arquivos_gerados where conversa_id = ? and mensagem_id = ? and (mime like 'application/vnd.openxmlformats-officedocument.%' or mime = 'application/pdf' or mime like 'image/%')", nova, id, origem.id, m.id);
+      }
+      if (um(app.db, 'select 1 from anexos where conversa_id = ? and mensagem_id = ?', origem.id, alvo.id)) {
+        const id = Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, criado_em) values (?, 'user', 'Material anexado ao pedido editado.', ?)", nova, agora).lastInsertRowid);
+        copiarAnexos(alvo.id, id);
+      }
+    });
+    registrar(app, 'conversation.prompt_edited', pessoa.id, { conversa: nova, origem: origem.id, mensagem: alvo.id });
+    return { conversa: { id: nova } };
+  });
+
 
   r.get('/api/conversas/:id', ({ pessoa, params }) => {
     const conv = minhaConversa(app, pessoa, params.id);
@@ -843,7 +888,7 @@ export function rotasConversas(app, r) {
     if (edicao && PEDE_MODELO(texto) && (brutos.some(ehPdf) || (podeModelo && modeloDaConversa(app, conv.id, anexos, brutos, texto)))) {
       if (!PEDE_DO_ZERO.test(texto)) {
         const deck = edicao.tipo === 'pptx' ? edicao : apresentacaoDaPessoa(app, conv.id, texto, anexos, brutos);
-        try { if (deck) fonteDeck = { nome: deck.nome, texto: conteudoParaEdicao('pptx', deck.dados).slice(0, 40000) }; } catch { /* sem leitura: adapta o modelo */ }
+        if (deck) fonteDeck = fonteDeApresentacao(deck);
       }
       edicao = null;
     }
@@ -854,11 +899,11 @@ export function rotasConversas(app, r) {
     // .pptx da conversa pelo nome, ela é o conteúdo do reestilo.
     if (modeloApr && !fonteDeck && !PEDE_DO_ZERO.test(texto)) {
       const deck = apresentacaoDaPessoa(app, conv.id, texto, anexos, brutos);
-      if (deck && citaNome(texto, deck.nome)) try { fonteDeck = { nome: deck.nome, texto: conteudoParaEdicao('pptx', deck.dados).slice(0, 40000) }; } catch { /* adapta o modelo */ }
+      if (deck) fonteDeck = fonteDeApresentacao(deck);
     }
     const deckAnterior = podeModelo ? um(app.db, "select id, textos, detalhes from arquivos_gerados where conversa_id = ? and detalhes like '%\"modelo\"%' order by id desc limit 1", conv.id) : null;
     if (!modeloApr && !edicao && deckAnterior && !ehPergunta(texto)) modeloApr = modeloDaConversa(app, conv.id, anexos, brutos, texto);
-    const baseDeck = modeloApr && deckAnterior && !PEDE_DO_ZERO.test(texto) && !brutos.some(ehPdf) ? json(deckAnterior.textos, null) : null;
+    const baseDeck = modeloApr && deckAnterior && !PEDE_DO_ZERO.test(texto) && !brutos.some(ehPdf) && !anexos.some(a => /\.pptx$/i.test(a.nome)) ? json(deckAnterior.textos, null) : null;
     // Pedido "no mesmo layout" sem o arquivo original disponível (PDF enviado antes de a GreenIA guardar modelos, ou
     // nenhum PDF): nada de apresentação genérica no lugar; a resposta pede o arquivo.
     // Material em PPTX/DOCX (com estilo lido do tema) segue pela peça visual nas cores e fontes dele.
@@ -881,6 +926,8 @@ export function rotasConversas(app, r) {
       if (estilo) pecaChat.operacao.entregaveis[0].visual.estilo = estiloComoTexto(estilo);
     }
     const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, execucaoQw, pesquisa, false, !execucaoQw && !edicao && PEDE_ARQUIVO.test(texto))
+      + NOTA_FIDELIDADE
+      + (exigeAltaQualidade(texto) ? NOTA_ALTA_QUALIDADE : '')
       + blocoCreditos(app)
       + notaDeData(app)
       + (programada ? NOTA_PROGRAMADA : '')
@@ -1045,7 +1092,7 @@ export function rotasConversas(app, r) {
       if (grande)
         throw erro(413, 'grande_demais', MSG_USUARIO.grande, solicitado ? { rota: { solicitacao: solicitacao() } } : undefined);   // o material em si é grande demais para qualquer modelo permitido
       await avisarGovernanca(app, sigilosa ? 'sem_modelo_sigilo' : reservaDoPlano ? 'plano_reserva' : 'sem_modelo', { pessoa: pessoa.id, conversa: conv.id });
-      throw erro(sigilosa ? 409 : 503, sigilosa ? 'sem_modelo_autorizado' : 'sem_modelo', sigilosa ? MSG_USUARIO.sigilo : MSG_USUARIO.indisponivel, solicitado ? { rota: { solicitacao: solicitacao() } } : undefined);
+      throw erro(sigilosa ? 409 : 503, sigilosa ? 'sem_modelo_autorizado' : 'sem_modelo', rota.requisitos.qualidadeExigida ? 'O padrão de qualidade solicitado precisa de um recurso de IA compatível e autorizado para este conteúdo. Não há um disponível agora; nenhum conteúdo foi enviado e o administrador foi informado.' : sigilosa ? MSG_USUARIO.sigilo : MSG_USUARIO.indisponivel, solicitado ? { rota: { solicitacao: solicitacao() } } : undefined);
     }
     if (reservaDoPlano && automatico && rota.fallback?.tipo === 'abaixo_do_necessario') aviso(app, conv.id, 'Os créditos deste mês acabaram: até a renovação, as respostas usam o modo econômico.');
     if (conv.modelo && conv.modelo !== pedido && !trocaDoPlano) {
@@ -1284,7 +1331,7 @@ export function rotasConversas(app, r) {
     // Chamadas extras da execução (conferência e plano visual): o MESMO recurso e a mesma rota já decididos e
     // conferidos acima, com a defesa final de credenciais em cada uma.
     const prazoArquivo = criarPrazoArquivo();
-    const chamadaAuxiliar = fn => (modeloApr || edicao) ? prazoArquivo.executar(fn) : fn(undefined);
+    const chamadaAuxiliar = fn => (modeloApr || edicao || exigeAltaQualidade(texto)) ? prazoArquivo.executar(fn) : fn(undefined);
     const chamar = msgs => chamadaAuxiliar(async sinal => {
       const txt = msgs.map(x => typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')).join('\n');
       if (contemCredencial(txt)) throw new ErroIA('conteúdo não enviado');
@@ -1390,7 +1437,7 @@ export function rotasConversas(app, r) {
         linha({ t: 'etapa', v: 'Montando o visual…' });
         try {
           visuais = await produzirVisuais(app, { pessoa, conv, qw, espec, resposta, chamar, chamarDesign, usarIA: !reservaDoPlano,
-            governanca: { sigilosa, areaReforcada, protegidos: protegidos.length > 0, reserva: reservaDoPlano }, etapa: v => linha({ t: 'etapa', v }) });
+            governanca: { sigilosa, areaReforcada, qualidadeAlta: exigeAltaQualidade(texto), protegidos: protegidos.length > 0, reserva: reservaDoPlano }, etapa: v => linha({ t: 'etapa', v }) });
           if (visuais) custoVisual = visuais.custos;
         } catch (e) { app.log?.('produção visual', erroParaLog(e)); registroQualidade.visual = { falhou: true }; }
       }
@@ -1402,7 +1449,7 @@ export function rotasConversas(app, r) {
         linha({ t: 'etapa', v: 'Montando o visual…' });
         try {
           visuais = await produzirVisuais(app, { pessoa, conv, qw: null, espec: pecaChat, resposta: soEntregavel(resposta), chamar, chamarDesign, usarIA: !reservaDoPlano,
-            governanca: { sigilosa, areaReforcada, protegidos: protegidos.length > 0, reserva: reservaDoPlano }, etapa: v => linha({ t: 'etapa', v }) });
+            governanca: { sigilosa, areaReforcada, qualidadeAlta: exigeAltaQualidade(texto), protegidos: protegidos.length > 0, reserva: reservaDoPlano }, etapa: v => linha({ t: 'etapa', v }) });
           if (visuais) { custoVisual = visuais.custos; fim = { ...(fim || {}), custo: (fim?.custo || 0) + custoVisual.plano_visual + custoVisual.imagem }; }
         } catch (e) { app.log?.('produção visual', erroParaLog(e)); aviso(app, conv.id, 'Não foi possível montar a peça visual agora. O conteúdo está na resposta e pode ser baixado em PowerPoint ou Word.'); }
       }
@@ -1455,6 +1502,7 @@ export function rotasConversas(app, r) {
         }
         const r = await adaptarModelo({ paginas, contexto: material, pedido: pedidoFinal, base: baseDeck, conteudos, material: materialReestilo, chamar: chamarDesign, etapa: v => { ultimaEtapa = v; linha({ t: 'etapa', v }); } });
         fim = { ...(fim || {}), custo: (fim?.custo || 0) + r.custo, economia: (fim?.economia || 0) + r.economia };
+        if (exigeAltaQualidade(pedidoFinal) && (r.faltando.length || r.fatos_faltando?.length)) throw Object.assign(new Error('A apresentação ficou incompleta.'), { codigo: 'qualidade_nao_atingida' });
         // Reestilo: o arquivo leva o nome da apresentação da pessoa (é a apresentação dela, no design novo).
         const fonteNome = plano ? (fonteDeck?.nome || json(deckAnterior?.detalhes, {})?.fonte) : null;
         const nome = fonteNome ? `${String(fonteNome).replace(/\.pptx$/i, '').replace(/-novo-design$/, '').slice(0, 60)}-novo-design.pptx` : `${String(modeloApr.nome).replace(/\.pdf$/i, '').slice(0, 60)}-adaptada.pptx`;
@@ -1471,7 +1519,8 @@ export function rotasConversas(app, r) {
         gerado = { nome, textos: r.textos, dados: pptxDeModelo(paginas, { textos: r.textos, titulo: nome }), detalhes: { slides: paginas.length, blocos: paginas.reduce((n, p) => n + p.blocos.length, 0), sem_adaptacao: r.faltando.length, modelo: modeloApr.nome, ...(plano ? { plano, fonte: fonteDeck?.nome || json(deckAnterior?.detalhes, {})?.fonte } : {}) } };
       } catch (e) {
         app.log?.('modelo de apresentação', erroParaLog(e));
-        avisoDepois(e?.codigo === 'arquivo_tempo_excedido' ? 'A montagem excedeu o tempo de espera e foi interrompida. O arquivo não foi gerado; os materiais enviados continuam na conversa.'
+        avisoDepois(e?.codigo === 'qualidade_nao_atingida' ? 'A apresentação não atingiu o padrão solicitado: a adaptação ficou incompleta ou as alterações não puderam ser confirmadas. O arquivo não foi entregue como concluído.'
+          : e?.codigo === 'arquivo_tempo_excedido' ? 'A montagem excedeu o tempo de espera e foi interrompida. O arquivo não foi gerado; os materiais enviados continuam na conversa.'
           : e?.codigo === 'slides_repetidos' ? `A montagem saiu com ${e.n} slides de conteúdo repetido, por isso o arquivo não foi entregue. Peça de novo; se repetir, envie a apresentação e o modelo novamente numa conversa nova.`
           : e?.codigo === 'modelo_grande' ? `O modelo tem ${e.total} páginas; o limite para montar no mesmo layout é 60.`
           : e?.codigo === 'modelo_sem_memoria' ? 'O servidor não tem memória livre suficiente para ler este modelo agora, por isso a apresentação no mesmo layout não foi montada. Nada foi perdido: o pedido pode ser repetido.'
@@ -1508,7 +1557,8 @@ export function rotasConversas(app, r) {
             : 'Não foi possível aplicar as alterações no arquivo original desta vez. As alterações estão descritas na resposta; peça de novo para tentar outra vez.');
         } catch (e) {
           app.log?.('ajuste no arquivo', erroParaLog(e));
-          avisoDepois(e?.codigo === 'arquivo_tempo_excedido' ? 'A montagem excedeu o tempo de espera e foi interrompida. O arquivo não foi gerado; os materiais enviados continuam na conversa.' : 'Não foi possível aplicar as alterações no arquivo original desta vez. As alterações estão descritas na resposta; peça de novo para tentar outra vez.');
+          avisoDepois(e?.codigo === 'qualidade_nao_atingida' ? 'A apresentação não atingiu o padrão solicitado: a adaptação ficou incompleta ou as alterações não puderam ser confirmadas. O arquivo não foi entregue como concluído.'
+          : e?.codigo === 'arquivo_tempo_excedido' ? 'A montagem excedeu o tempo de espera e foi interrompida. O arquivo não foi gerado; os materiais enviados continuam na conversa.' : 'Não foi possível aplicar as alterações no arquivo original desta vez. As alterações estão descritas na resposta; peça de novo para tentar outra vez.');
         }
       }
     }
@@ -1560,6 +1610,12 @@ export function rotasConversas(app, r) {
       resposta = `${semPromessaDeArquivo(resposta).trim()}\n\n**O arquivo ${edicao ? 'ajustado' : 'no layout pedido'} não foi gerado nesta resposta.** ${avisosDepois.at(-1) || 'Não foi possível montar o arquivo agora.'}`;
       avisosDepois.length = 0;
       linha({ t: 'substituir', v: resposta });
+    }
+    const qualidadeVisualFalhou = !!visuais?.ignorados?.some(x => x.motivo === 'qualidade_exigida_nao_atingida');
+    if (qualidadeVisualFalhou) {
+      resposta = `${semPromessaDeArquivo(resposta).trim()}\n\n**O arquivo com o acabamento solicitado não foi gerado.** O conteúdo está nesta resposta, mas o design não passou pela validação. A plataforma não substituiu a entrega por uma versão básica.`;
+      linha({ t: 'substituir', v: resposta });
+      if (registroQualidade) registroQualidade.status = 'parcial';
     }
     sinal?.throwIfAborted();
     const respId = Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, modelo, fornecedor, fontes, criado_em) values (?, 'assistant', ?, ?, ?, ?, ?)",
@@ -1646,7 +1702,7 @@ export function rotasConversas(app, r) {
     }
     // Pediu arquivo, recebe arquivo: nenhum caminho especializado gerou o arquivo pedido -> a versão a partir da resposta
     // fica registrada junto dela (o cartão de download aparece sempre, também ao reabrir a conversa).
-    if (!arquivos.length && !artefatos.length && formatosPedidos.length && !modeloAusente && !modeloApr && !edicao && !ehPergunta(texto) && PEDE_ENTREGA.test(texto) && soEntregavel(resposta).trim().length > 40)
+    if (!arquivos.length && !artefatos.length && formatosPedidos.length && !modeloAusente && !modeloApr && !edicao && !qualidadeVisualFalhou && !ehPergunta(texto) && PEDE_ENTREGA.test(texto) && soEntregavel(resposta).trim().length > 40)
       for (const f of formatosPedidos) guardar(`resposta.${f}`, 'text/uri-list', Buffer.from(f), { tipo: 'da_resposta', formato: f });
     if (visuais && registroQualidade) registroQualidade.visual = { artefatos: artefatos.map(a => ({ id: a.id, tipo: a.tipo, formato: a.formato, paginas: a.paginas, status: a.status, correcoes: a.correcoes, ...(a.imagem_final ? { imagem_final: !!a.imagem_final.gerada } : {}) })),
       ignorados: visuais.ignorados, ms: visuais.ms };

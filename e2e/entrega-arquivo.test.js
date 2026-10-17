@@ -101,3 +101,24 @@ test('conversa reaberta em execução mantém Interromper disponível', async ()
   assert.deepEqual(p.erros, []);
   await p.close();
 });
+
+test('editar pedido: cancelar preserva texto; salvar executa em nova conversa', async () => {
+  const p = await pagina();
+  await p.fill('#entrada', 'Explique o processo de cadastro'); await p.click('#enviar');
+  await p.waitForFunction(() => document.querySelector('#enviar')?.getAttribute('aria-label') === 'Enviar');
+  const original = p.url();
+  await p.getByRole('button', { name: 'Editar pedido', exact: true }).click();
+  await p.fill('#editar-pedido', 'Rascunho descartado');
+  await p.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  assert.equal(p.url(), original);
+  assert.equal(await p.locator('.bolha-eu').innerText(), 'Explique o processo de cadastro');
+  await p.getByRole('button', { name: 'Editar pedido', exact: true }).click();
+  await p.fill('#editar-pedido', 'Explique o processo de cadastro em três etapas');
+  await p.getByRole('button', { name: 'Salvar e executar', exact: true }).click();
+  await p.waitForFunction(url => location.href !== url && document.querySelector('#enviar')?.getAttribute('aria-label') === 'Enviar', original);
+  assert.equal(await p.locator('.bolha-eu').last().innerText(), 'Explique o processo de cadastro em três etapas');
+  await p.goto(original); await p.locator('#entrada').waitFor();
+  assert.equal(await p.locator('.bolha-eu').innerText(), 'Explique o processo de cadastro');
+  assert.deepEqual(p.erros, []);
+  await p.close();
+});

@@ -27,9 +27,10 @@
 import { lerModelos, perfisDe, ehGratuito, AUTO, AUTOMATICO, ehClasse } from './modelos.js';
 import { todos } from './db.js';
 import { afinidadeDaTarefa } from './pools-modelos.js';
+import { exigeAltaQualidade } from '../public/qualidade-entrega.js';
 export { AUTOMATICO };
 
-export const VERSAO_ROTEADOR = '3.1';
+export const VERSAO_ROTEADOR = '3.2';
 export const NIVEL = { rapido: 1, equilibrado: 2, avancado: 3 };
 const CLASSE_DO_NIVEL = { 1: 'rapido', 2: 'equilibrado', 3: 'avancado' };
 export const NOME_CLASSE = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
@@ -153,7 +154,7 @@ export function analisarPedido({ texto = '', anexos = [], historicoChars = 0, co
     // compatibilidade com o registro: tokens de entrada (estimativa de custo) e de saída
     tokensEntrada: tokens.custoEntrada, tokensSaida: saida,
     sinais: { caracteres: texto.length, anexos: anexos.length, anexoChars, historicoChars, contextoChars, perguntas, itens, etapas: perguntas + itens, criterios, codigo,
-      risco: RISCO.test(t), explicitoSimples: SIMPLES.test(t), ajuste, continuacao, ...(ajuste ? { nivelOriginal: anterior?.trabalho || anterior?.nivel || null, dependencias: dependencias || null } : {}), feedbackAnterior: feedback || null, insatisfacaoFonte,
+      risco: RISCO.test(t), qualidadeAlta: exigeAltaQualidade(texto), explicitoSimples: SIMPLES.test(t), ajuste, continuacao, ...(ajuste ? { nivelOriginal: anterior?.trabalho || anterior?.nivel || null, dependencias: dependencias || null } : {}), feedbackAnterior: feedback || null, insatisfacaoFonte,
       insatisfacaoAmbigua: temResposta && !insatisfacao && FALHA_AMBIGUA.test(t) },
   };
 }
@@ -166,7 +167,7 @@ export function analiseIndisponivel({ texto = '', anexos = [], historicoChars = 
   const tokens = { fixo: fixo.segura, mensagem: msg.segura, historico: hist.segura, saida: 1200, reservaSaida: 1800, minimo: fixo.segura + msg.segura + 1800,
     desejado: fixo.segura + msg.segura + hist.segura + 1800, pedido: msg.media, custoEntrada: fixo.media + msg.media + hist.media, razaoSegura: RAZAO.denso.segura, densidade: 'denso' };
   return { falhou: true, tipos: ['indeterminado'], principal: 'indeterminado', precisao: [], insatisfacao: false, anterior: null, tokens, tokensEntrada: tokens.custoEntrada, tokensSaida: 1200,
-    sinais: { caracteres: String(texto || '').length, anexos: anexos.length, etapas: 0, criterios: 0, codigo: false, risco: false, explicitoSimples: false } };
+    sinais: { caracteres: String(texto || '').length, anexos: anexos.length, etapas: 0, criterios: 0, codigo: false, risco: false, qualidadeAlta: exigeAltaQualidade(texto), explicitoSimples: false } };
 }
 
 /**
@@ -178,11 +179,15 @@ export function analiseIndisponivel({ texto = '', anexos = [], historicoChars = 
  *    A preferência da empresa não mexe aqui: o mínimo que a tarefa pede não depende de orçamento.
  */
 export const DIM_CAPACIDADE = ['geral', 'raciocinio', 'programacao', 'precisao', 'leitura_longa'];
-const DIM_CLASSE = ['quick_win', 'nova_tentativa', 'continuidade'];
+const DIM_CLASSE = ['quick_win', 'nova_tentativa', 'continuidade', 'qualidade_entrega'];
 export function requisitosDe(a, { piso = null } = {}) {
   const dim = {}, motivo = {};
   const pedir = (d, n, m) => { if (n > (dim[d] || 0)) { dim[d] = n; motivo[d] = m; } };
   const s = a.sinais, tem = k => a.tipos.includes(k);
+  if (s.qualidadeAlta) {
+    pedir('geral', 3, 'qualidade_alta_exigida');
+    pedir('qualidade_entrega', 3, 'qualidade_alta_exigida');
+  }
   if (a.falhou) {
     pedir('geral', 2, 'analise_indisponivel');
   } else {
@@ -228,7 +233,7 @@ export function requisitosDe(a, { piso = null } = {}) {
   const capacidade = Object.fromEntries(DIM_CAPACIDADE.filter(d => dim[d]).map(d => [d, dim[d]]));
   const classeMinima = Math.max(0, ...DIM_CLASSE.map(d => dim[d] || 0));
   return {
-    nivel, classe: CLASSE_DO_NIVEL[nivel], dimensoes: dim, motivos: motivo, determinantes, capacidade, classeMinima,
+    nivel, classe: CLASSE_DO_NIVEL[nivel], dimensoes: dim, motivos: motivo, determinantes, capacidade, classeMinima, qualidadeExigida: !!s.qualidadeAlta,
     complexidade: nucleo >= 3 ? 'complexa' : nucleo === 2 ? 'intermediaria' : 'simples',
     janelaMinima: a.tokens.minimo, janelaDesejada: a.tokens.desejado,
   };
@@ -458,6 +463,9 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
     motivoEscolha = 'mais_capaz_permitido';
   } else return semModelo(null);
 
+  // Qualidade explicitamente exigida não aceita o fallback de menor capacidade.
+  // As permissões e as rotas de proteção continuam decidindo quem é elegível.
+  if (req.qualidadeExigida && escolhido.motivos.includes('capacidade_insuficiente')) return semModelo('qualidade_nao_disponivel');
   // Reserva de execução (outro modelo, se o escolhido falhar no fornecedor): só se passar pelas mesmas regras.
   let reserva = null, reservaDescartada = null;
   const idReserva = escolhido.m?.reserva;
@@ -525,6 +533,7 @@ export function orcamentoHistorico(analise, modelo) {
 // Textos da explicação: um por código. A explicação só usa códigos presentes na decisão.
 export const TEXTO = {
   tipo_classificacao: 'classificação', tipo_traducao: 'tradução', tipo_extracao: 'extração de informações', tipo_sintese: 'síntese', tipo_redacao: 'geração de texto',
+  qualidade_alta_exigida: 'entrega de alta qualidade exigida no pedido', qualidade_nao_disponivel: 'não há recurso autorizado que atenda ao padrão de qualidade solicitado',
   tipo_consulta: 'consulta simples', tipo_edicao: 'edição e formatação', tipo_analise: 'análise', tipo_programacao: 'programação', tipo_raciocinio: 'raciocínio',
   varias_etapas_ou_criterios: 'várias etapas ou critérios', raciocinio: 'raciocínio', raciocinio_multicriterio: 'raciocínio com vários critérios',
   programacao: 'programação', programacao_simples: 'programação simples', programacao_com_risco_ou_analise: 'código com análise ou riscos (segurança, concorrência, desempenho)',

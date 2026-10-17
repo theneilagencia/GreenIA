@@ -360,9 +360,9 @@ export { contraste };
 // ---- Orquestração: IA -> limpeza -> render -> conferência -> (correção) -----------------------------------------
 // Devolve { ok, design, render, falhas, codigos, custo, tentativas, motivo }. Nunca lança por falha da IA ou do
 // navegador: quem chama decide o motor clássico com o motivo.
-export async function projetarDesign({ chamar, plano, conteudo, tr, identidade, assets = {}, objetivo, publico, titulo, data, etapa = () => {} }) {
+export async function projetarDesign({ chamar, plano, conteudo, tr, identidade, assets = {}, objetivo, publico, titulo, data, etapa = () => {}, maxPaginas = MAX_PAGINAS_DESIGN }) {
   const paginas = paginasParaPrompt(plano, conteudo);
-  if (!paginas.length || paginas.length > MAX_PAGINAS_DESIGN) return { ok: false, motivo: 'paginas' };
+  if (!paginas.length || paginas.length > Math.min(60, Math.max(1, Number(maxPaginas) || MAX_PAGINAS_DESIGN))) return { ok: false, motivo: 'paginas' };
   const temAsset = { heroi: !!assets.heroi?.bytes, logo: !!assets.logo?.bytes };
   const extras = [titulo, data, identidade.empresa || '', ...plano.paginas.flatMap(p => [p.titulo || '', p.subtitulo || ''])];
   let custo = 0, tentativas = 0, ajusteFeito = null;

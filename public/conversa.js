@@ -251,7 +251,7 @@ function cartaoComPrevia({ previa, baixar, nome, detalhe }) {
 function arquivosPedidos(m, tabelas) {
   if (!servidor(m)) return '';
   if ((m.arquivos || []).length) return arquivosGerados(m);
-  if (/O arquivo (ajustado|no layout pedido) não foi gerado nesta resposta/.test(m.texto)) return '';
+  if (/O arquivo (?:(ajustado|no layout pedido) não foi gerado nesta resposta|com o acabamento solicitado não foi gerado)/.test(m.texto)) return '';
   const i = C.mensagens.indexOf(m), pedido = C.mensagens.slice(0, i).reverse().find(x => x.papel === 'user')?.texto || '';
   // Pedido "no mesmo layout" de um modelo: só vale o arquivo montado no layout (m.arquivos); nada genérico no lugar.
   if (MESMO_LAYOUT.test(pedido)) return '';
@@ -294,8 +294,9 @@ function htmlMensagem(m) {
   const anim = vistos.has(String(m.id)) || m.carregando ? '' : ' anim';
   if (!m.carregando) vistos.add(String(m.id));
   if (m.papel === 'user') {
+    if (C.editandoPrompt?.id === m.id) return `<div class="msg-eu"><div class="editor-pedido"><label for="editar-pedido">Editar pedido</label><textarea id="editar-pedido" rows="6" maxlength="20000">${esc(C.editandoPrompt.texto)}</textarea><p>A edição abre uma nova versão e preserva a conversa original. Executar novamente usa créditos conforme as regras da empresa.</p><button type="button" class="btn btn-linha" data-cancelar-edicao>Cancelar</button> <button type="button" class="btn btn-primario" data-salvar-edicao>Salvar e executar</button></div></div>`;
     // Pedido da pessoa: balão à direita (quebras de linha preservadas), anexos em etiquetas logo acima.
-    return `<div class="msg-eu${anim}">${(m.anexos || []).length ? `<div class="msg-eu-anexos">${m.anexos.map(a => `<span class="anexo-chip">${ICONE.doc} ${esc(a)}</span>`).join('')}</div>` : ''}<div class="bolha-eu">${esc(m.texto)}</div></div>`;
+    return `<div class="msg-eu${anim}">${(m.anexos || []).length ? `<div class="msg-eu-anexos">${m.anexos.map(a => `<span class="anexo-chip">${ICONE.doc} ${esc(a)}</span>`).join('')}</div>` : ''}<div class="bolha-eu">${esc(m.texto)}</div>${servidor(m) && !C.qw && !C.teste && !C.enviando && !/^\[Conteúdo processado e não guardado/.test(m.texto) ? `<button type="button" class="btn btn-linha btn-pequeno" data-editar-pedido="${m.id}" aria-label="Editar pedido">Editar</button>` : ''}</div>`;
   }
   if (m.papel === 'aviso' && /^Execução (dos testes|do código)/.test(m.texto) && m.texto.includes('\n')) { const [cab, ...resto] = m.texto.split('\n'); return `<div class="linha-aviso execucao-saida${anim}"><b>${esc(cab)}</b><pre>${esc(resto.join('\n'))}</pre></div>`; }
   if (m.papel === 'aviso') return `<div class="linha-aviso${anim}">${esc(m.texto)}${/habilitar no seu perfil/.test(m.texto) && C.conv ? ' <button type="button" class="btn btn-linha btn-pequeno" data-pedir-acesso>Solicitar acesso</button>' : ''}</div>`;
@@ -505,7 +506,17 @@ function ligar() {
   caixa.addEventListener('dragleave', ev => { if (!caixa.contains(ev.relatedTarget)) caixa.classList.remove('soltando'); });
   caixa.addEventListener('drop', ev => { if (!temArquivos(ev)) return; ev.preventDefault(); caixa.classList.remove('soltando'); adicionarArquivos([...ev.dataTransfer.files]); });
   $('entrada').addEventListener('paste', ev => { const fs = [...(ev.clipboardData?.files || [])]; if (fs.length) { ev.preventDefault(); adicionarArquivos(fs); } });
+  $('coluna').addEventListener('input', ev => { if (ev.target.id === 'editar-pedido' && C.editandoPrompt) C.editandoPrompt.texto = ev.target.value; });
   $('coluna').addEventListener('click', ev => {
+    const editar = ev.target.closest('[data-editar-pedido]');
+    if (editar && !C.enviando) {
+      const m = C.mensagens.find(m => String(m.id) === editar.dataset.editarPedido);
+      if (m) { C.editandoPrompt = { id: m.id, texto: m.texto }; desenharMensagens(); $('editar-pedido')?.focus(); }
+      return;
+    }
+    if (ev.target.closest('[data-cancelar-edicao]')) { C.editandoPrompt = null; desenharMensagens(); return; }
+    if (ev.target.closest('[data-salvar-edicao]')) { salvarEdicaoDoPedido(); return; }
+
     if (ev.target.closest('[data-resolver-pesquisa]')) resolverPesquisa();
     const melhorar = ev.target.closest('[data-melhorar-resultado]');
     if (melhorar) {
@@ -644,6 +655,26 @@ function avaliarNegativo() {
   fundo.querySelectorAll('[name=fb-valor]').forEach(r => { r.onchange = atualizar; });
   atualizar();
   (fundo.querySelector('[name=fb-valor]:checked') || fundo.querySelector('[name=fb-valor]')).focus();
+}
+
+async function salvarEdicaoDoPedido() {
+  const estado = C, edicao = C.editandoPrompt;
+  if (!edicao || C.enviando || C.salvandoEdicao) return;
+  const texto = edicao.texto.trim();
+  if (!texto) { toast('Escreva o pedido antes de executar.'); return; }
+  C.salvandoEdicao = true;
+  document.querySelector('[data-salvar-edicao]').disabled = true;
+  try {
+    const r = await api(`/api/conversas/${C.conv.id}/mensagens/${edicao.id}/editar`, { metodo: 'POST', corpo: {} });
+    if (C !== estado) return;
+    history.pushState(null, '', `#/c/${r.conversa.id}`);
+    await vistaConversa({ id: r.conversa.id, enviarAgora: { texto } });
+    await recarregarLateral();
+  } catch (e) {
+    toast(e.message || 'Não foi possível executar a versão editada.');
+  } finally {
+    if (C === estado) { C.salvandoEdicao = false; desenharMensagens(); }
+  }
 }
 
 async function garantirConversa() {

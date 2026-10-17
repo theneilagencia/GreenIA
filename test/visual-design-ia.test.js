@@ -316,3 +316,17 @@ test('QF-05 ajuste de contraste vence cor !important e fundo médio (tarja atrá
   assert.deepEqual(r.ajuste.codigos, ['contraste']);
   assert.match(r.design.paginas[0], /color: rgb\(\d+, \d+, \d+\) !important|color: #(111111|FFFFFF) !important/i);
 });
+
+test('alta qualidade: 13 slides mantêm design pela IA em quatro lotes e passam pela conferência visual', async () => {
+  const conteudo = analisarConteudo(Array.from({ length: 13 }, (_, k) => `### Tema ${k + 1}\n- Conteúdo validado do tema ${k + 1}.`).join('\n\n'), { titulo: 'Material final' });
+  const plano = { formato: '16:9', paginas: conteudo.secoes.map(s => ({ papel: 'conteudo', titulo: s.titulo, blocos: s.itens.map(it => ({ refs: [it.id] })) })) };
+  let chamadas = 0;
+  const r = await projetarDesign({
+    plano, conteudo, tr: { formato: '16:9' }, identidade: resolverIdentidade({}), objetivo: 'Crie uma apresentação de alta qualidade', titulo: 'Material final', data: '17/10/2026', maxPaginas: 60,
+    chamar: async messages => { chamadas++; return { texto: designFalso({ messages }), custo: 0.001 }; },
+  });
+  assert.equal(r.ok, true, JSON.stringify({ motivo: r.motivo, codigos: r.codigos }));
+  assert.equal(r.design.paginas.length, 13);
+  assert.equal(chamadas, 4, 'um lote por grupo de até quatro slides, sem refazer o trabalho inteiro');
+  assert.equal(r.custo, 0.004);
+});

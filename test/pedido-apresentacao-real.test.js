@@ -36,7 +36,7 @@ before(async () => {
     return 'Entendi: vou montar a apresentação da Rafisa no layout da Repet.\n\nO arquivo está pronto para download abaixo.\n\n## O que foi feito\n- Ajustes.';
   } });
   S = await subir({ ia: OR.ia });
-  salvarConfig(S.app.db, { dominios: ['exemplo.com.br'], acoesChat: { cpf: 'proteger' } });
+  salvarConfig(S.app.db, { dominios: ['exemplo.com.br'], acessoPerfis: { equilibrado: { todos: true }, avancado: { todos: true } }, acoesChat: { cpf: 'proteger' } });
   exec(S.app.db, 'update modelos set homologado = 0, homologacao = null, autorizacao_plataforma = null');   // como na empresa: sem recurso de sigilo
   ana = await S.cliente().entrar('ana@exemplo.com.br');
 });
@@ -131,7 +131,7 @@ test('pediu arquivo, recebe arquivo: slides dentro de bloco de código viram o P
 test('conversa sigilosa com recurso autorizado: o mesmo pedido entrega o PowerPoint para baixar', { skip: semNavegador }, async () => {
   const { POLITICA_SIGILO } = await import('../src/sigilo.js');
   salvarConfig(S.app.db, { [POLITICA_SIGILO]: true });
-  exec(S.app.db, "update modelos set liberado = 1, homologado = 1, homologacao = ? where id = 'anthropic/claude-haiku-4.5'", JSON.stringify({ fornecedor: 'anthropic', endpoint: 'anthropic', retencaoZero: true, semTreino: true }));
+  exec(S.app.db, "update modelos set liberado = 1, homologado = 1, homologacao = ? where id in ('anthropic/claude-haiku-4.5', 'anthropic/claude-sonnet-5')", JSON.stringify({ fornecedor: 'anthropic', endpoint: 'anthropic', retencaoZero: true, semTreino: true }));
   const conv = (await ana.post('/api/conversas', {})).dados.conversa;
   const r = await enviarMensagem(ana, conv.id, { texto: PEDIDO, anexos: anexos() });
   assert.equal(r.status, 200, JSON.stringify(r.erro || r.falha));
@@ -187,4 +187,14 @@ test('trava final: montagem com slides de conteúdo repetido não é entregue; a
   const resp = todos(S.app.db, "select texto from mensagens where conversa_id = ? and papel = 'assistant'", conv.id).at(-1).texto;
   assert.match(resp, /não foi gerado[\s\S]*conteúdo repetido/);
   assert.ok(OR.chamadas.length > antes);
+});
+
+test('pedido de gerar sem repetir o nome usa o PPTX da pessoa como conteúdo e o PDF apenas como design', { skip: semNavegador }, async () => {
+  const conv = (await ana.post('/api/conversas', {})).dados.conversa;
+  await enviarMensagem(ana, conv.id, { texto: 'Analise os materiais para preparar a próxima etapa.', anexos: anexos().slice(0, 2) });
+  const r = await enviarMensagem(ana, conv.id, { texto: 'Gere uma apresentação em PPTX a partir do material enviado.' });
+  assert.equal(r.status, 200, JSON.stringify(r.erro));
+  const a = r.fim?.arquivos?.[0];
+  assert.equal(a?.fonte, 'Apresentacao-Kickoff-Rafisa.pptx', JSON.stringify(a));
+  assert.equal(a.slides, 3, 'a quantidade vem do conteúdo da pessoa, não do modelo');
 });

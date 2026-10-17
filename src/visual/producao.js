@@ -5,6 +5,7 @@
 //   correção -> artefato pronto para exportar.
 // A capacidade não controla o Quick Win: ela só roda para os entregáveis que pedem visual, e um Quick Win pode ter
 // zero, um ou vários. Nada aqui decide modelo, sigilo ou permissão: isso vem da execução (conversas.js).
+import { exigeAltaQualidade } from '../../public/qualidade-entrega.js';
 import { createHash } from 'node:crypto';
 import { exec, json, um } from '../db.js';
 import { lerConfig } from '../config.js';
@@ -163,6 +164,7 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
   const visuais = entregaveisVisuais(op);
   if (!visuais.length) return null;
   const cfg = lerConfig(app.db);
+  const qualidadeAlta = governanca.qualidadeAlta === true || exigeAltaQualidade(espec?.objetivo || '');
   const t0 = Date.now();
   const custos = { plano_visual: 0, imagem: 0, render: 0 };
   const ms = { plano: 0, assets: 0, composicao: 0, conferencia: 0 };
@@ -244,7 +246,7 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
       if (assets.heroi?.dataUrl) { const d = decodificarDataUrl(assets.heroi.dataUrl); if (d) ativos.heroi = d; }
       if (identidade.logo?.dataUrl) { const d = decodificarDataUrl(identidade.logo.dataUrl); if (d) ativos.logo = d; }
       const formato = plano.formato;
-      const dz = await projetarDesign({ chamar: chamarDesign || chamar, plano, conteudo, tr: { ...tr, formato }, identidade, assets: ativos, objetivo: espec.objetivo, publico: visual.publico, titulo, data: opc.data, etapa });
+      const dz = await projetarDesign({ chamar: chamarDesign || chamar, plano, conteudo, tr: { ...tr, formato }, identidade, assets: ativos, objetivo: espec.objetivo, publico: visual.publico, titulo, data: opc.data, etapa, ...(qualidadeAlta ? { maxPaginas: 60 } : {}) });
       custos.plano_visual += dz.custo || 0;
       ms.composicao += Date.now() - c0;
       dzInfo = { tentativas: dz.tentativas ?? null, ajuste: dz.ajuste || null, ms: Date.now() - c0 };
@@ -261,6 +263,10 @@ export async function produzirVisuais(app, { pessoa, conv, qw, espec, resposta, 
       // Diagnóstico técnico curto (sem conteúdo da peça): o que impediu o design pela IA.
       detalheClassico = dz.erro ? String(dz.erro).replace(/https?:\/\/\S+/g, '[url]').slice(0, 160) : (dz.codigos || []).join(',') || null;
       app.log?.('design', `motor clássico: ${motivoClassico}${dz.codigos?.length ? ` (${dz.codigos.join(',')})` : ''}${dz.erro ? ` ${dz.erro}` : ''}`);
+    }
+    if (qualidadeAlta && !tr.imagemFinal) {
+      ignorados.push({ entregavel: e.id, motivo: 'qualidade_exigida_nao_atingida', causa: motivoClassico || sel.motivo || 'design_indisponivel' });
+      continue;
     }
     let r = produzirSemCorte({ plano, conteudo, identidade, tr, assets, exigidos, textosLivres: [titulo], opcoes: opc }, { formatoPedido: !!visual.formato && PEDE_FORMATO.test(`${espec?.objetivo || ''} ${qw?.descricao || ''}`) });
     // Diagrama sem formato pedido: a orientação da página segue o desenho (fluxo longo de cima para baixo cabe melhor

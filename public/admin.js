@@ -182,12 +182,15 @@ async function abaModelos() {
       catch (e) { falhar(e); }
       finally { await abaModelos(); }
   }; });
+  // Controles sem uma opção elegível podem aparecer vazios. Salvar outros ajustes não deve apagar o padrão já registrado.
+  const padroesIniciais = Object.fromEntries(['chat','homologado','rapido','equilibrado','avancado'].map(k => [k, $(`pd-${k}`).value || null]));
   $('cfg-modelos').onsubmit = async ev => {
     ev.preventDefault();
+    const padroesAlterados = Object.fromEntries(Object.keys(padroesIniciais).map(k => [k, $(`pd-${k}`).value || null]).filter(([k,v]) => v !== padroesIniciais[k]));
     const ac = p => ({ todos: $(`todos-${p}`).checked, grupos: marcados(`ac-g-${p}`), areas: marcados(`ac-a-${p}`) });
     try {
       await api('/api/admin/modelos-config', { metodo: 'PUT', corpo: {
-        padroes: { chat: $('pd-chat').value, homologado: $('pd-homologado').value || null, rapido: $('pd-rapido').value || null, equilibrado: $('pd-equilibrado').value || null, avancado: $('pd-avancado').value || null },
+        ...(Object.keys(padroesAlterados).length ? { padroes: padroesAlterados } : {}),
         acessoPerfis: { equilibrado: ac('equilibrado'), avancado: cfg.acessoPerfis.avancado },
         perfisQuickWin: [...document.querySelectorAll('input[name=perfis-qw]:checked')].map(i => i.value),
         exigirSemTreino: $('sem-treino').checked, automatico: $('automatico').checked } });

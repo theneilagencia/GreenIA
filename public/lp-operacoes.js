@@ -22,7 +22,7 @@ for (const demo of document.querySelectorAll('[data-op-demo]')) {
     demo.querySelector('.m-resultados-progresso i').style.width = concluido ? '33.333%' : '0%';
     demo.querySelector('.m-resultados-progresso p').textContent = concluido ? 'Os outros 2 trabalhos estão em andamento ou aguardando conferência' : 'Os 3 trabalhos ainda não têm conclusão verificada';
     const linha = demo.querySelector('.m-resultados-linha');
-    linha.querySelector('div>span').textContent = etapa === 0 ? '1 tentativa registrada' : '2 tentativas no mesmo trabalho';
+    linha.querySelector(':scope > div > span').textContent = etapa === 0 ? '1 tentativa registrada' : '2 tentativas no mesmo trabalho';
     const status = linha.querySelector('.m-resultados-status');
     status.textContent = ['Em preparação', 'Ajuste registrado', 'Concluído com verificação'][etapa];
     status.classList.toggle('pendente', !concluido);

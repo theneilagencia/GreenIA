@@ -130,18 +130,22 @@ export function opcoesDeModelo(db, cfg, pessoa, { qw = null, sigilosa = false } 
 }
 
 // Valida o modelo (ou a classe) pedido para um envio. Devolve o modelo técnico ou lança erro.
-export function modeloPermitido(db, cfg, pessoa, id, { qw = null, sigilosa = false, conversaId = null } = {}) {
+export function modeloPermitido(db, cfg, pessoa, id, { qw = null, sigilosa = false, conversaId = null, em } = {}) {
   let m = acharModelo(db, cfg, resolverClasse(db, cfg, id, { sigilosa }));
   if(id === 'classe:avancado') {
-    const disponiveis=lerModelos(db).filter(x=>x.perfil==='avancado'&&x.liberado&&x.noCatalogo&&(!sigilosa||x.homologado)&&acessoAdvanced(db,pessoa.id,x.id,conversaId));
-    if(!disponiveis.length)throw erro(403,'advanced_sem_autorizacao','Não há modelo Advanced disponível nesta autorização administrativa.');
+    if (!acessoAdvanced(db,pessoa.id,null,conversaId,em)) throw erro(403,'advanced_sem_autorizacao','Advanced exige autorização administrativa válida.');
+    const autorizados=lerModelos(db).filter(x=>x.perfil==='avancado'&&x.liberado&&x.noCatalogo&&acessoAdvanced(db,pessoa.id,x.id,conversaId,em));
+    if (sigilosa && autorizados.length && !autorizados.some(x=>x.homologado)) throw erro(409,'advanced_seguranca','Os recursos Advanced desta autorização não estão aprovados para os dados sigilosos deste trabalho. O administrador precisa revisar as rotas e as regras de tratamento dos dados.');
+    const disponiveis=autorizados.filter(x=>!sigilosa||x.homologado);
+    if(!disponiveis.length)throw erro(503,'advanced_indisponivel','Os recursos Advanced desta autorização estão indisponíveis para este trabalho. O administrador pode revisar a disponibilidade e as rotas autorizadas.');
     m=disponiveis.sort((a,b)=>(a.precoEntrada+a.precoSaida)-(b.precoEntrada+b.precoSaida))[0];
   }
+  if (m?.perfil === 'avancado' && !acessoAdvanced(db, pessoa.id, m.id, conversaId, em)) throw erro(403, 'advanced_sem_autorizacao', 'Advanced exige autorização administrativa válida.');
+  if (m?.perfil === 'avancado' && (!m.liberado || !m.noCatalogo)) throw erro(503,'advanced_indisponivel','Este recurso Advanced está indisponível. O administrador pode revisar sua disponibilidade ou autorizar uma alternativa adequada.');
   if (!m || !m.liberado) throw erro(403, 'modelo_nao_liberado', 'Esta classe de modelo não está disponível na empresa.');
-  if (m.perfil === 'avancado' && !acessoAdvanced(db, pessoa.id, m.id, conversaId)) throw erro(403, 'advanced_sem_autorizacao', 'Advanced exige autorização administrativa válida.');
   const garantia = sigilosa && homologadoPadrao(db, cfg)?.id === m.id;
   const doQw = qw && (id === qw.modelo || m.id === resolverClasse(db, cfg, qw.modelo, { sigilosa }));
-  const advancedPermitido = m.perfil === 'avancado' && !!acessoAdvanced(db,pessoa.id,m.id,conversaId);
+  const advancedPermitido = m.perfil === 'avancado' && !!acessoAdvanced(db,pessoa.id,m.id,conversaId,em);
   const ok = advancedPermitido || (qw ? doQw || (!!qw.pode_trocar && podeUsar(cfg, pessoa, m)) || garantia : podeUsar(cfg, pessoa, m) || garantia);
   if (!ok) throw erro(403, 'modelo_sem_acesso', 'Você não tem acesso a esta classe de modelo.');
   return m;
@@ -479,7 +483,7 @@ export function rotasModelos(app, r) {
       novo.roteamento = { ativo: corpo.roteamento.ativo !== undefined ? !!corpo.roteamento.ativo : cfg.roteamento?.ativo !== false, preferencia: pref };
     }
     for (const [k, id] of Object.entries(novo.padroes || {})) {
-      if (id && !acharModelo(app.db, { ...cfg, ...novo }, id)?.liberado) throw erro(400, 'padrao', `O padrão "${k}" precisa ser um modelo liberado.`);
+      if (id && id !== cfg.padroes[k] && !acharModelo(app.db, { ...cfg, ...novo }, id)?.liberado) throw erro(400, 'padrao', `O padrão "${k}" precisa ser um modelo liberado.`);
     }
     // Salvar os mesmos valores não é uma escolha pelo modo manual.
     // Compara objetos sem depender da ordem das propriedades do JSON.

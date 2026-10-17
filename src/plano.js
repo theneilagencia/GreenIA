@@ -137,7 +137,7 @@ export function emCreditos(v, chave) {
       if (CHAVES_PRECO.has(k) || /^(preco|price|pricing|margem|receita|lucro|conversao|ai_credit_base_cost|precosAlternativos)/i.test(k)) continue;
       if (/_usd$/i.test(k) || /Usd$/.test(k)) { out[k.replace(/_usd$/i,'_creditos').replace(/Usd$/,'Creditos')]=typeof x==='number'?x/CREDITO_USD:x; continue; }
       if ((['porChamada','estimativa','saldoDisponivel','reservado'].includes(k)||k==='limite'&&'validadeDias' in v) && typeof x==='number') { out[k]=x/CREDITO_USD; continue; }
-      if (k==='catalogo' && x && typeof x==='object') {const c={...x};delete c.entrada;delete c.saida;delete c.precosAlternativos;if(c.rotas)c.rotas=c.rotas.map(({entrada,saida,...rota})=>rota);out[k]=emCreditos(c);continue;}
+      if (k==='catalogo' && x && typeof x==='object' && !Array.isArray(x)) {const c={...x};delete c.entrada;delete c.saida;delete c.precosAlternativos;if(c.rotas)c.rotas=c.rotas.map(({entrada,saida,...rota})=>rota);out[k]=emCreditos(c);continue;}
       if (CHAVES_CUSTO.has(k)||/^custo[_A-Z]/.test(k)&&typeof x==='number') out[k] = x === null || x === undefined ? x : creditosDe(x);
       else if (k === 'aviso' && typeof x === 'string' && x.startsWith('Preço mudou')) out[k] = null;   // variação de preço: só o operador decide se avisa
       else if (k === 'detalhes' && typeof x === 'string') { try {const d=emCreditos(JSON.parse(x));if(d&&typeof d==='object'&&'custo' in d){d.creditos=d.custo;delete d.custo;}out[k]=JSON.stringify(d); } catch { out[k]=x; } }

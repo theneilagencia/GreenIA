@@ -519,6 +519,7 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
       guardrails: sigilosa && c.m.sigilo && !c.m.sigilo.elegivel ? c.m.sigilo.motivos : undefined };
   }
   function semModelo(causa) {
+    escolhido = null;
     const d = { modelo: null, modo, preferencia, requisitos: req, necessario: { nivel: req.nivel, classe: req.classe, motivos: req.determinantes }, politicas, motivoEscolha: null,
       fallback: { tipo: 'sem_modelo', causa, causas: [...new Set(candidatos.flatMap(c => c.motivos.filter(y => GOVERNANCA.includes(y))))] }, reserva: null, reservaDescartada: null,
       calibracao: { menorNivelSuficiente: null, nivelSelecionado: null, acimaDaMenorClasse: false, abaixoDoNecessario: false, motivo: null },

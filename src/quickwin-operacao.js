@@ -103,7 +103,15 @@ const PESQUISA_COMO_MATERIAL = new RegExp([
   '\\bpesquisas?\\s+(anexad[ao]s?|em anexo|enviad[ao]s?|recebid[ao]s?|interna|internas|ja feita|realizada|realizadas)\\b',
   '\\b(revis\\w*|corrij\\w*|corrig\\w*|leia|ler|resum\\w*|avali\\w*|analis\\w*|confir\\w*|melhor\\w*|formate|formatar|padroniz\\w*|traduz\\w*)\\s+(a|as|o|os|minha|nossa)?\\s*pesquisas?\\b',
 ].join('|'));
+// Mencionar uma ferramenta para proibi-la não é pedir essa ferramenta.
+export function proibePesquisaWeb(texto) {
+  const t = norm(texto);
+  return /\bsem\s+(?:fazer\s+|realizar\s+)?(?:pesquisas?|buscas?)\s+(?:na\s+(?:internet|web)|externas?|online)\b/.test(t)
+    || /\b(?:nao|nunca)\s+(?:pesquise|busque|procure)\s+(?:na\s+(?:internet|web)|online)\b/.test(t)
+    || /\b(?:sem\s+(?:(?:usar|acessar|consultar)\s+)?|(?:nao|nunca)\s+(?:use|utilize|acesse|consulte|usar|utilizar|acessar|consultar)\s+)(?:a\s+)?(?:internet|web|fontes\s+externas)\b/.test(t);
+}
 export function pedePesquisaWeb(texto) {
+  if (proibePesquisaWeb(texto)) return false;
   const t = norm(texto);
   // Atualidade é um requisito de pesquisa, mesmo quando a pessoa não sabe pedir uma ferramenta.
   if (/\b(?:temas|pautas|noticias)\s+(?:atuais|recentes)\b/.test(t)) return true;

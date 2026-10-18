@@ -49,7 +49,9 @@ async function pagina({ width, height }) {
 }
 const abrir = async (p, rota) => {
   await p.goto(`${S.base}/app#/${rota}`);
-  await p.waitForFunction(() => !document.querySelector('#principal')?.hasAttribute('aria-busy') && !document.querySelector('#conteudo > .esqueleto'));
+  // O main começa vazio e sem aria-busy: ausência de carregamento, sozinha, não prova tela pronta.
+  await p.waitForFunction(() => document.querySelector('#principal h1') && !document.querySelector('#principal')?.hasAttribute('aria-busy') && !document.querySelector('#conteudo > .esqueleto'));
+  await p.evaluate(() => document.fonts.ready);
   await p.waitForLoadState('networkidle'); await p.waitForTimeout(150);
 };
 

@@ -897,8 +897,8 @@ export function rotasConversas(app, r) {
     const origem = qwFixo ? 'quick_win' : automatico ? 'auto' : qw?.modelo && pedido === qw.modelo ? 'quick_win'
       : !roteamentoAtivo && (!escolhaSalva || escolhaSalva === AUTOMATICO || pedido === classePadrao) ? 'padrao' : 'pessoa';
     // Ferramenta da execução (pesquisa na internet): só se o Quick Win permite, a empresa liberou e o conteúdo
-    // deixa (o pedido sairia para o serviço de busca). Recusada, a execução segue sem pesquisa e o resultado fica
-    // parcial, com o motivo: nada é simulado.
+    // deixa (o pedido sairia para o serviço de busca). Recusada, a execução é
+    // bloqueada antes da inferência, sem substituir a pesquisa por conhecimento geral.
     const querPesquisa = execucaoQw && !!qw.espec.ferramentas_permitidas?.includes('pesquisa_web');
     const motivoSemPesquisa = !querPesquisa ? null : !cfg.pesquisaWeb?.ativa ? 'nao_liberada' : sigilosa ? 'sigilosa' : areaReforcada ? 'area_reforcada'
       : protegidos.length ? 'dados_protegidos' : plano?.fase === 'reserva' ? 'reserva_do_plano' : null;
@@ -1036,16 +1036,18 @@ export function rotasConversas(app, r) {
         VERSAO_ROTEADOR,Number(sigilosa),conv.teste,origem,'bloqueado',solicitado,solicitado?'bloqueado':null,codigo,
         requisitos.classe || 'avancado',JSON.stringify(requisitos),JSON.stringify((decisao?.candidatos || []).map(c=>({...c,status:c.status==='escolhido'?'excluido':c.status}))));
     };
-    if (pesquisaChat && !pesquisaChat.pode && exigePesquisa(texto)) {
-      const codigo = `pesquisa_${pesquisaChat.codigo}`;
+    const pesquisaBloqueada = pesquisa && !pesquisa.disponivel ? pesquisa
+      : pesquisaChat && !pesquisaChat.pode && exigePesquisa(texto) ? pesquisaChat : null;
+    if (pesquisaBloqueada) {
+      const codigo = `pesquisa_${pesquisaBloqueada.codigo}`;
       gravarBloqueioPrevio(codigo, { complexidade: analise.complexidade, classe: analise.classe, ferramenta: 'pesquisa_web' });
-      registrar(app, 'research.blocked', pessoa.id, { conversa: conv.id, motivo: pesquisaChat.codigo });
-      const proximo = pesquisaChat.codigo === 'nao_liberada'
+      registrar(app, 'research.blocked', pessoa.id, { conversa: conv.id, motivo: pesquisaBloqueada.codigo, ...(qw ? { quick_win: qw.id } : {}) });
+      const proximo = pesquisaBloqueada.codigo === 'nao_liberada'
         ? 'O administrador pode revisar esse acesso em Configurações › Políticas.'
-        : pesquisaChat.codigo === 'reserva_do_plano'
+        : pesquisaBloqueada.codigo === 'reserva_do_plano'
           ? 'O administrador pode conferir os créditos e os limites do plano.'
           : 'A pesquisa externa precisa respeitar a proteção deste conteúdo. Liberar um modelo não remove essa restrição.';
-      throw erro(409, codigo, `A pesquisa solicitada não foi iniciada porque ${MOTIVOS_PESQUISA[pesquisaChat.codigo]}. Nenhuma resposta baseada apenas em conhecimento geral foi gerada no lugar da pesquisa. ${proximo}`);
+      throw erro(409, codigo, `A pesquisa solicitada não foi iniciada porque ${MOTIVOS_PESQUISA[pesquisaBloqueada.codigo]}. Nenhuma resposta baseada apenas em conhecimento geral foi gerada no lugar da pesquisa. ${proximo}`);
     }
     const prepararAdvanced = (requisitos, decisao = null) => {
       gravarBloqueioPrevio('advanced_sem_autorizacao',requisitos,decisao);
@@ -1261,7 +1263,15 @@ export function rotasConversas(app, r) {
     const vidaResposta = setInterval(() => {
       if (!res.destroyed && !res.writableEnded) linha({ t: 'espera' });
     }, 15000);
-    res.once('close', () => clearInterval(vidaResposta));
+    const encerrarEspera = () => {
+      clearInterval(vidaResposta);
+      res.off('close', encerrarEspera);
+      res.off('finish', encerrarEspera);
+    };
+    // A saída das execuções programadas emite finish, sem uma conexão HTTP para
+    // emitir close. Encerrar só em close deixava um intervalo vivo por execução.
+    res.once('close', encerrarEspera);
+    res.once('finish', encerrarEspera);
     const rotaTela = { modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, complexidade: rota.requisitos.complexidade,
       explicacao: pessoa.admin ? rota.explicacao : explicarParaPessoa({ modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, politicas: rota.politicas, fallback: rota.fallback, sigilosa }),
       // A tela de uso (inclusive de quem administra) mostra sempre a simples; a técnica fica na Administração.

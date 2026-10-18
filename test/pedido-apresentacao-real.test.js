@@ -1,3 +1,4 @@
+import { autorizarAdvancedFalso } from './advanced-fixture.js';
 // O pedido real que falhou em produção: PowerPoint + PDF de outra apresentação como referência de layout + contrato
 // com CPF + proposta, com "o design/layout o mais próximo possível da apresentação X.pdf". Esperado: a apresentação
 // é montada no layout do PDF (arquivo para baixar), o CPF não sai para a IA, e a resposta nunca promete um arquivo
@@ -39,11 +40,13 @@ before(async () => {
   salvarConfig(S.app.db, { dominios: ['exemplo.com.br'], acessoPerfis: { equilibrado: { todos: true }, avancado: { todos: true } }, acoesChat: { cpf: 'proteger' } });
   exec(S.app.db, 'update modelos set homologado = 0, homologacao = null, autorizacao_plataforma = null');   // como na empresa: sem recurso de sigilo
   ana = await S.cliente().entrar('ana@exemplo.com.br');
+  const admin=await S.cliente().entrar('admin@exemplo.com.br');
+  await autorizarAdvancedFalso(S,admin,ana.pessoa,['anthropic/claude-sonnet-5']);
 });
 after(async () => { await S.fechar(); await OR.fechar(); });
 const anexos = () => [
   { nome: 'Apresentacao-Kickoff-Rafisa.pptx', base64: pptx('# Kickoff Rafisa\n\nAgenda\n\n# 07 · Papéis\n\nTexto\n\n# 09 · Escopo\n\nTexto', { titulo: 'Rafisa' }).toString('base64') },
-  { nome: 'Apresentacao-Kickoff-Repet.pdf', base64: pdfColorido().toString('base64') },
+  { nome: 'Apresentacao-Kickoff-Repet.pdf', papel:'REFERENCE', base64: pdfColorido().toString('base64') },
   { nome: 'Contrato_Rafisa_assinado.docx', base64: docx(`# Contrato\n\nContratante: Fulano de Tal, CPF ${CPF}.\n\nEscopo: diagnóstico com até seis visitas.`, { titulo: 'Contrato' }).toString('base64') },
 ];
 
@@ -112,11 +115,11 @@ test('pediu arquivo, recebe arquivo: slides dentro de bloco de código viram o P
   const conv = (await ana.post('/api/conversas', {})).dados.conversa;
   const r = await enviarMensagem(ana, conv.id, { texto: 'Os slides do kickoff em PowerPoint, com estes slides: abertura e escopo, por favor.' });
   assert.equal(r.status, 200);
-  const a = r.fim?.arquivos?.find(x => x.tipo === 'da_resposta');
+  const a = r.fim?.arquivos?.find(x => x.origem === 'resposta_materializada');
   assert.equal(a?.formato, 'pptx', JSON.stringify({ arquivos: r.fim?.arquivos, artefatos: r.fim?.artefatos?.map(x => x.tipo), etapas: r.eventos.filter(e => e.t === 'etapa') }));
   // Reaberta, a conversa mostra o arquivo (não depende da tela adivinhar o pedido).
   const d = (await ana.get(`/api/conversas/${conv.id}`)).dados;
-  assert.ok(JSON.stringify(d).includes('"da_resposta"'));
+  assert.ok(JSON.stringify(d).includes('"resposta_materializada"'));
   // O arquivo tem os slides (o bloco de código foi desembrulhado), não um slide de código.
   const b = await fetch(`${S.base}/api/conversas/${conv.id}/mensagens/${r.fim.id}/arquivo/pptx`, { headers: { cookie: ana.cookie } });
   assert.equal(b.status, 200);

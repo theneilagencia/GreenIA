@@ -1,0 +1,2149 @@
+TAP version 13
+# Subtest: checklist real e pendências por perfil; usuário comum sem ações administrativas
+ok 1 - checklist real e pendências por perfil; usuário comum sem ações administrativas
+  ---
+  duration_ms: 17304.084453
+  type: 'test'
+  ...
+# Subtest: conhecimento: responsável, validade, suspensão e histórico; falha preserva edição
+ok 2 - conhecimento: responsável, validade, suspensão e histórico; falha preserva edição
+  ---
+  duration_ms: 11101.294426
+  type: 'test'
+  ...
+# Subtest: filtros salvos retornam à consulta e ajuda fecha com Escape e devolve foco
+ok 3 - filtros salvos retornam à consulta e ajuda fecha com Escape e devolve foco
+  ---
+  duration_ms: 3410.689597
+  type: 'test'
+  ...
+# Subtest: revisão de acesso exige conferência e registra sem mudar papel
+ok 4 - revisão de acesso exige conferência e registra sem mudar papel
+  ---
+  duration_ms: 4048.28791
+  type: 'test'
+  ...
+# Subtest: comparação apresenta diferença de objetivo sem restaurar automaticamente; resultados acessíveis ao gestor
+ok 5 - comparação apresenta diferença de objetivo sem restaurar automaticamente; resultados acessíveis ao gestor
+  ---
+  duration_ms: 4353.965766
+  type: 'test'
+  ...
+# Subtest: auditoria apresenta autor e detalhe legível e permite salvar filtros
+ok 6 - auditoria apresenta autor e detalhe legível e permite salvar filtros
+  ---
+  duration_ms: 3134.167647
+  type: 'test'
+  ...
+# Subtest: layout e navegação em 320, 390, 768 e 1280 px, inclusive ajuda e revisão
+ok 7 - layout e navegação em 320, 390, 768 e 1280 px, inclusive ajuda e revisão
+  ---
+  duration_ms: 16835.011955
+  type: 'test'
+  ...
+# Subtest: detalhe da execução pertence à conversa privada e distingue conferência de ação externa
+ok 8 - detalhe da execução pertence à conversa privada e distingue conferência de ação externa
+  ---
+  duration_ms: 2032.59356
+  type: 'test'
+  ...
+# Subtest: pendência de integração abre o detalhe correto em vez da lista geral
+ok 9 - pendência de integração abre o detalhe correto em vez da lista geral
+  ---
+  duration_ms: 3469.482494
+  type: 'test'
+  ...
+# Subtest: envio falha sem confirmar registro; tentativa segura, recusa e expiração preservam o pedido
+ok 10 - envio falha sem confirmar registro; tentativa segura, recusa e expiração preservam o pedido
+  ---
+  duration_ms: 20058.263883
+  type: 'test'
+  ...
+# Subtest: UI + servidor: pedido → solicitação → aprovação → notificação → retomada explícita
+ok 11 - UI + servidor: pedido → solicitação → aprovação → notificação → retomada explícita
+  ---
+  duration_ms: 16524.75642
+  type: 'test'
+  ...
+# Subtest: alternativa de apresentação fica em texto e mantém a liberação pendente após executar e reabrir
+ok 12 - alternativa de apresentação fica em texto e mantém a liberação pendente após executar e reabrir
+  ---
+  duration_ms: 7739.12436
+  type: 'test'
+  ...
+# Subtest: PDF: cor de destaque do desenho (sem preto, cinza nem branco) e fonte sem o prefixo de subconjunto
+ok 13 - PDF: cor de destaque do desenho (sem preto, cinza nem branco) e fonte sem o prefixo de subconjunto
+  ---
+  duration_ms: 526.985492
+  type: 'test'
+  ...
+# Subtest: PPTX e DOCX: cores de destaque e fontes do tema
+ok 14 - PPTX e DOCX: cores de destaque e fontes do tema
+  ---
+  duration_ms: 16.023658
+  type: 'test'
+  ...
+# Subtest: anexo: o estilo vem junto do texto; falha na leitura de estilo não impede o texto
+ok 15 - anexo: o estilo vem junto do texto; falha na leitura de estilo não impede o texto
+  ---
+  duration_ms: 298.179352
+  type: 'test'
+  ...
+# Subtest: montagem do arquivo: cartão de andamento à vista e nenhuma promessa de "pronto" antes do arquivo
+ok 16 - montagem do arquivo: cartão de andamento à vista e nenhuma promessa de "pronto" antes do arquivo
+  ---
+  duration_ms: 17485.452253
+  type: 'test'
+  ...
+# Subtest: resposta em texto corrido, sem ícone nem moldura; pedido num balão à direita com quebras de linha
+ok 17 - resposta em texto corrido, sem ícone nem moldura; pedido num balão à direita com quebras de linha
+  ---
+  duration_ms: 5676.558875
+  type: 'test'
+  ...
+# Subtest: linha de ações: ícones com nome e dica; selo de simulação na mesma linha; nenhum botão de texto
+ok 18 - linha de ações: ícones com nome e dica; selo de simulação na mesma linha; nenhum botão de texto
+  ---
+  duration_ms: 3987.186214
+  type: 'test'
+  ...
+# Subtest: na última resposta as ações ficam à vista; nas anteriores aparecem ao passar o mouse ou com o foco
+ok 19 - na última resposta as ações ficam à vista; nas anteriores aparecem ao passar o mouse ou com o foco
+  ---
+  duration_ms: 7502.050544
+  type: 'test'
+  ...
+# Subtest: copiar: copia o texto da resposta, mostra o "ok" no botão e anuncia
+ok 20 - copiar: copia o texto da resposta, mostra o "ok" no botão e anuncia
+  ---
+  duration_ms: 6366.987913
+  type: 'test'
+  ...
+# Subtest: 👍 registra "serviu" e fica marcado; 👎 abre um diálogo com "Serviu com ajustes" e "Não serviu"
+ok 21 - 👍 registra "serviu" e fica marcado; 👎 abre um diálogo com "Serviu com ajustes" e "Não serviu"
+  ---
+  duration_ms: 7456.50932
+  type: 'test'
+  ...
+# Subtest: Detalhes: painel com o nível e a simulação; Esc fecha e devolve o foco
+ok 22 - Detalhes: painel com o nível e a simulação; Esc fecha e devolve o foco
+  ---
+  duration_ms: 2020.310853
+  type: 'test'
+  ...
+# Subtest: gerar de novo troca a última resposta pelo servidor (sem duplicar o pedido)
+ok 23 - gerar de novo troca a última resposta pelo servidor (sem duplicar o pedido)
+  ---
+  duration_ms: 2691.578066
+  type: 'test'
+  ...
+# Subtest: download da tabela como cartão de anexo (ícone, nome e tipo) e bloco de código com "Copiar código"
+ok 24 - download da tabela como cartão de anexo (ícone, nome e tipo) e bloco de código com "Copiar código"
+  ---
+  duration_ms: 4213.487722
+  type: 'test'
+  ...
+# Subtest: pedido de PowerPoint ou Word: o arquivo aparece como cartão de anexo logo abaixo da resposta
+ok 25 - pedido de PowerPoint ou Word: o arquivo aparece como cartão de anexo logo abaixo da resposta
+  ---
+  duration_ms: 6684.86127
+  type: 'test'
+  ...
+# Subtest: enquanto a resposta não chega: três pontos discretos, sem ícone
+ok 26 - enquanto a resposta não chega: três pontos discretos, sem ícone
+  ---
+  duration_ms: 3534.590709
+  type: 'test'
+  ...
+# Subtest: celular (390 px): ações da última resposta à vista, alvos de 44 px e sem rolagem horizontal
+ok 27 - celular (390 px): ações da última resposta à vista, alvos de 44 px e sem rolagem horizontal
+  ---
+  duration_ms: 4446.852188
+  type: 'test'
+  ...
+# Subtest: tema escuro: ícones, selo de simulação, cartão de download e texto com contraste suficiente
+ok 28 - tema escuro: ícones, selo de simulação, cartão de download e texto com contraste suficiente
+  ---
+  duration_ms: 2219.107381
+  type: 'test'
+  ...
+# Subtest: histórico completo na lateral, agrupado por data: Hoje, Ontem, Últimos 7 dias, Últimos 30 dias, mês/ano
+ok 29 - histórico completo na lateral, agrupado por data: Hoje, Ontem, Últimos 7 dias, Últimos 30 dias, mês/ano
+  ---
+  duration_ms: 11335.924629
+  type: 'test'
+  ...
+# Subtest: Buscar (Ctrl K e o botão da lateral) acha conversas pelo título, inclusive as que não estão carregadas
+ok 30 - Buscar (Ctrl K e o botão da lateral) acha conversas pelo título, inclusive as que não estão carregadas
+  ---
+  duration_ms: 4272.121531
+  type: 'test'
+  ...
+# Subtest: topo mínimo: só o título (h1 único); sem email, Sair, Ajuda ou trilha no topo
+ok 31 - topo mínimo: só o título (h1 único); sem email, Sair, Ajuda ou trilha no topo
+  ---
+  duration_ms: 6029.748428
+  type: 'test'
+  ...
+# Subtest: título da conversa com "…": Renomear muda o título no topo e na lateral
+ok 32 - título da conversa com "…": Renomear muda o título no topo e na lateral
+  ---
+  duration_ms: 4108.792974
+  type: 'test'
+  ...
+# Subtest: lateral recolhível no computador: trilho de ícones, nome acessível, aria-expanded e lembrada ao recarregar
+ok 33 - lateral recolhível no computador: trilho de ícones, nome acessível, aria-expanded e lembrada ao recarregar
+  ---
+  duration_ms: 9427.18237
+  type: 'test'
+  ...
+# Subtest: menu da conta: itens, teclado (setas, Home, End, Esc) e cada item funciona
+ok 34 - menu da conta: itens, teclado (setas, Home, End, Esc) e cada item funciona
+  ---
+  duration_ms: 12482.343171
+  type: 'test'
+  ...
+# Subtest: Administração no menu da conta para quem administra: troca de contexto nos dois sentidos
+ok 35 - Administração no menu da conta para quem administra: troca de contexto nos dois sentidos
+  ---
+  duration_ms: 9799.868295
+  type: 'test'
+  ...
+# Subtest: celular 390 px (claro): menu, título e Nova conversa no topo; gaveta com histórico e conta; sem rolagem horizontal
+ok 36 - celular 390 px (claro): menu, título e Nova conversa no topo; gaveta com histórico e conta; sem rolagem horizontal
+  ---
+  duration_ms: 11863.677512
+  type: 'test'
+  ...
+# Subtest: celular 390 px (escuro): menu, título e Nova conversa no topo; gaveta com histórico e conta; sem rolagem horizontal
+ok 37 - celular 390 px (escuro): menu, título e Nova conversa no topo; gaveta com histórico e conta; sem rolagem horizontal
+  ---
+  duration_ms: 6735.045282
+  type: 'test'
+  ...
+# Subtest: 1920 e 820 px, claro e escuro: lateral, topo e conta sem rolagem horizontal
+ok 38 - 1920 e 820 px, claro e escuro: lateral, topo e conta sem rolagem horizontal
+  ---
+  duration_ms: 12567.024429
+  type: 'test'
+  ...
+# Subtest: imagem e PDF escaneado pelo anexo: lidos e processados; segredo em imagem bloqueado; sem texto, aviso técnico; guardar = não
+ok 39 - imagem e PDF escaneado pelo anexo: lidos e processados; segredo em imagem bloqueado; sem texto, aviso técnico; guardar = não
+  ---
+  duration_ms: 32710.783446
+  type: 'test'
+  ...
+# Subtest: admin: a Administração mostra os recursos sem o provedor; a tela de uso não mostra detalhe técnico
+ok 40 - admin: a Administração mostra os recursos sem o provedor; a tela de uso não mostra detalhe técnico
+  ---
+  duration_ms: 11726.411821
+  type: 'test'
+  ...
+# Subtest: uma caixa só: "+" e enviar dentro dela, sem botões de anexo soltos acima
+ok 41 - uma caixa só: "+" e enviar dentro dela, sem botões de anexo soltos acima
+  ---
+  duration_ms: 5117.209206
+  type: 'test'
+  ...
+# Subtest: menu "+": abre, navega pelo teclado, Esc fecha e devolve o foco; link entra como anexo
+ok 42 - menu "+": abre, navega pelo teclado, Esc fecha e devolve o foco; link entra como anexo
+  ---
+  duration_ms: 3652.517942
+  type: 'test'
+  ...
+# Subtest: colar um arquivo no campo anexa, como nos assistentes de chat
+ok 43 - colar um arquivo no campo anexa, como nos assistentes de chat
+  ---
+  duration_ms: 2163.247908
+  type: 'test'
+  ...
+# Subtest: rodar os testes: a área isolada executa e a saída real aparece na conversa; o botão repete
+ok 44 - rodar os testes: a área isolada executa e a saída real aparece na conversa; o botão repete
+  ---
+  duration_ms: 9036.255087
+  type: 'test'
+  ...
+# Subtest: publicar site pelo botão: endereço público isolado (o script do site roda, sem acesso à GreenIA); despublicar tira do ar
+ok 45 - publicar site pelo botão: endereço público isolado (o script do site roda, sem acesso à GreenIA); despublicar tira do ar
+  ---
+  duration_ms: 8856.153117
+  type: 'test'
+  ...
+# Subtest: admin liga as integrações para a empresa toda em Configurações; o menu aparece; desligar esconde de novo
+ok 46 - admin liga as integrações para a empresa toda em Configurações; o menu aparece; desligar esconde de novo
+  ---
+  duration_ms: 9320.2278
+  type: 'test'
+  ...
+# Subtest: histórico: busca, menu, renomear, cancelamento e exclusão individual e total no celular
+ok 47 - histórico: busca, menu, renomear, cancelamento e exclusão individual e total no celular
+  ---
+  duration_ms: 20550.640961
+  type: 'test'
+  ...
+# Subtest: histórico: falha de exclusão preserva a conversa; ação da conversa aberta e acesso pela lateral
+ok 48 - histórico: falha de exclusão preserva a conversa; ação da conversa aberta e acesso pela lateral
+  ---
+  duration_ms: 13460.094387
+  type: 'test'
+  ...
+# Subtest: console: prévia ao lado atualiza enquanto a pessoa digita, sem salvar; salvar desligado até mudar algo
+ok 49 - console: prévia ao lado atualiza enquanto a pessoa digita, sem salvar; salvar desligado até mudar algo
+  ---
+  duration_ms: 8430.298278
+  type: 'test'
+  ...
+# Subtest: administração: prévia ao lado atualiza enquanto a pessoa digita, sem salvar; salvar desligado até mudar algo
+ok 50 - administração: prévia ao lado atualiza enquanto a pessoa digita, sem salvar; salvar desligado até mudar algo
+  ---
+  duration_ms: 8367.471128
+  type: 'test'
+  ...
+# Subtest: seções: todas fechadas ao entrar, uma aberta por vez, resumo de uma linha e selo "Oculta" quando a seção some
+ok 51 - seções: todas fechadas ao entrar, uma aberta por vez, resumo de uma linha e selo "Oculta" quando a seção some
+  ---
+  duration_ms: 8633.237686
+  type: 'test'
+  ...
+# Subtest: "Mais ações": página no ar, busca e compartilhamento, voltar para rascunho e restaurar o modelo, com confirmação
+ok 52 - "Mais ações": página no ar, busca e compartilhamento, voltar para rascunho e restaurar o modelo, com confirmação
+  ---
+  duration_ms: 7943.199138
+  type: 'test'
+  ...
+# Subtest: celular: "Ver como fica" abre a prévia na tela inteira, Esc fecha e o foco volta
+ok 53 - celular: "Ver como fica" abre a prévia na tela inteira, Esc fecha e o foco volta
+  ---
+  duration_ms: 10904.247638
+  type: 'test'
+  ...
+# Subtest: console: seis abas, Marca e endereço com três subabas e os endereços antigos levando à subaba certa sem rastro
+ok 54 - console: seis abas, Marca e endereço com três subabas e os endereços antigos levando à subaba certa sem rastro
+  ---
+  duration_ms: 3578.678894
+  type: 'test'
+  ...
+# Subtest: console: permissões concedidas gravam ao ligar ou desligar, com "Salvo" e volta ao que era se o servidor recusar
+ok 55 - console: permissões concedidas gravam ao ligar ou desligar, com "Salvo" e volta ao que era se o servidor recusar
+  ---
+  duration_ms: 2258.834893
+  type: 'test'
+  ...
+# Subtest: administração sem a página liberada: editor travado, sem ações, prévia do que está salvo
+ok 56 - administração sem a página liberada: editor travado, sem ações, prévia do que está salvo
+  ---
+  duration_ms: 4288.755018
+  type: 'test'
+  ...
+# Subtest: metas em 1366 px: uma ação principal (nenhuma nas permissões), controles na primeira vista, um aviso no máximo
+ok 57 - metas em 1366 px: uma ação principal (nenhuma nas permissões), controles na primeira vista, um aviso no máximo
+  ---
+  duration_ms: 18816.594757
+  type: 'test'
+  ...
+# Subtest: metas em 390 px: uma ação principal (nenhuma nas permissões), controles na primeira vista, um aviso no máximo
+ok 58 - metas em 390 px: uma ação principal (nenhuma nas permissões), controles na primeira vista, um aviso no máximo
+  ---
+  duration_ms: 15838.681322
+  type: 'test'
+  ...
+# Subtest: durante a geração: progresso visível, Markdown formatado e nenhuma promessa de download
+ok 59 - durante a geração: progresso visível, Markdown formatado e nenhuma promessa de download
+  ---
+  duration_ms: 4550.363995
+  type: 'test'
+  ...
+# Subtest: conexão sem evento final: informa a interrupção e libera novo pedido
+ok 60 - conexão sem evento final: informa a interrupção e libera novo pedido
+  ---
+  duration_ms: 2458.050725
+  type: 'test'
+  ...
+# Subtest: Interromper cancela no servidor e permite enviar o próximo pedido
+ok 61 - Interromper cancela no servidor e permite enviar o próximo pedido
+  ---
+  duration_ms: 2776.956423
+  type: 'test'
+  ...
+# Subtest: conversa reaberta em execução mantém Interromper disponível
+ok 62 - conversa reaberta em execução mantém Interromper disponível
+  ---
+  duration_ms: 3173.275497
+  type: 'test'
+  ...
+# Subtest: editar pedido: cancelar preserva texto; salvar executa em nova conversa
+ok 63 - editar pedido: cancelar preserva texto; salvar executa em nova conversa
+  ---
+  duration_ms: 5968.982687
+  type: 'test'
+  ...
+# Subtest: login → chat → quick win
+ok 64 - login → chat → quick win
+  ---
+  duration_ms: 15891.102361
+  type: 'test'
+  ...
+# Subtest: 360 px: sem rolagem horizontal, menu abre a lateral
+ok 65 - 360 px: sem rolagem horizontal, menu abre a lateral
+  ---
+  duration_ms: 9477.044616
+  type: 'test'
+  ...
+# Subtest: quem gerencia: medição e decisão; reportar problema; painel do admin com todas as abas
+ok 66 - quem gerencia: medição e decisão; reportar problema; painel do admin com todas as abas
+  ---
+  duration_ms: 18079.902245
+  type: 'test'
+  ...
+# Subtest: criação (1280px): Fontes separadas dos entregáveis; link lido, arquivo enviado, papel trocado; conversa com link e papel do anexo
+ok 67 - criação (1280px): Fontes separadas dos entregáveis; link lido, arquivo enviado, papel trocado; conversa com link e papel do anexo
+  ---
+  duration_ms: 11013.230855
+  type: 'test'
+  ...
+# Subtest: criação (390px): Fontes separadas dos entregáveis; link lido, arquivo enviado, papel trocado; conversa com link e papel do anexo
+ok 68 - criação (390px): Fontes separadas dos entregáveis; link lido, arquivo enviado, papel trocado; conversa com link e papel do anexo
+  ---
+  duration_ms: 9337.142525
+  type: 'test'
+  ...
+# Subtest: aviso de configuração com link: "Liberar a pesquisa na internet" leva a Políticas com o campo em destaque
+ok 69 - aviso de configuração com link: "Liberar a pesquisa na internet" leva a Políticas com o campo em destaque
+  ---
+  duration_ms: 10815.481508
+  type: 'test'
+  ...
+# Subtest: proteção reforçada: usuário comum recebe causa, impacto e relato existente; servidor impede alteração da área
+ok 70 - proteção reforçada: usuário comum recebe causa, impacto e relato existente; servidor impede alteração da área
+  ---
+  duration_ms: 9111.453697
+  type: 'test'
+  ...
+# Subtest: recomendações são padrão e persistem após salvar, navegar e recarregar
+ok 71 - recomendações são padrão e persistem após salvar, navegar e recarregar
+  ---
+  duration_ms: 14067.530909
+  type: 'test'
+  ...
+# Subtest: uso real: PDF e PPTX com dados pessoais processam em área reforçada; histórico, bloqueios e retenção após recarregar
+ok 72 - uso real: PDF e PPTX com dados pessoais processam em área reforçada; histórico, bloqueios e retenção após recarregar
+  ---
+  duration_ms: 10377.319782
+  type: 'test'
+  ...
+# Subtest: admin da empresa: vê o que cada recurso pode receber, sem o provedor; as políticas oferecem as três ações e a retenção
+ok 73 - admin da empresa: vê o que cada recurso pode receber, sem o provedor; as políticas oferecem as três ações e a retenção
+  ---
+  duration_ms: 5618.083457
+  type: 'test'
+  ...
+# Subtest: tela: Quick Win pede a integração; assistente de 8 passos cria, testa, aprova e publica; credencial não volta; Quick Win passa a ✓
+ok 74 - tela: Quick Win pede a integração; assistente de 8 passos cria, testa, aprova e publica; credencial não volta; Quick Win passa a ✓
+  ---
+  duration_ms: 23640.419949
+  type: 'test'
+  ...
+# Subtest: A (só leitura) e B (escrita com aprovação): leitura vira material; escrita espera aprovação, grava uma vez a entrada aprovada
+ok 75 - A (só leitura) e B (escrita com aprovação): leitura vira material; escrita espera aprovação, grava uma vez a entrada aprovada
+  ---
+  duration_ms: 14508.34909
+  type: 'test'
+  ...
+# Subtest: C credencial inválida, D tempo esgotado, E resposta fora do esquema: o teste reprova e a integração não publica
+ok 76 - C credencial inválida, D tempo esgotado, E resposta fora do esquema: o teste reprova e a integração não publica
+  ---
+  duration_ms: 3796.012552
+  type: 'test'
+  ...
+# Subtest: F 503 repetível: leitura repete com segurança e conclui; G irreversível: negado pela política, nada apagado
+ok 77 - F 503 repetível: leitura repete com segurança e conclui; G irreversível: negado pela política, nada apagado
+  ---
+  duration_ms: 253.014662
+  type: 'test'
+  ...
+# Subtest: H: outra pessoa não abre o plano nem a aprovação de quem pediu; sem permissão, nada da administração de integrações
+ok 78 - H: outra pessoa não abre o plano nem a aprovação de quem pediu; sem permissão, nada da administração de integrações
+  ---
+  duration_ms: 163.408678
+  type: 'test'
+  ...
+# Subtest: interface privada: 29 telas em 1280px, hierarquia, controles e conteúdo contido
+ok 79 - interface privada: 29 telas em 1280px, hierarquia, controles e conteúdo contido
+  ---
+  duration_ms: 57102.784447
+  type: 'test'
+  ...
+# Subtest: interface privada: 29 telas em 390px, hierarquia, controles e conteúdo contido
+ok 80 - interface privada: 29 telas em 390px, hierarquia, controles e conteúdo contido
+  ---
+  duration_ms: 48642.322302
+  type: 'test'
+  ...
+# Subtest: interface privada: 29 telas em 320px, hierarquia, controles e conteúdo contido
+ok 81 - interface privada: 29 telas em 320px, hierarquia, controles e conteúdo contido
+  ---
+  duration_ms: 46155.751063
+  type: 'test'
+  ...
+# Subtest: estado de erro e diálogo: mensagem legível, recuperação e foco por teclado
+ok 82 - estado de erro e diálogo: mensagem legível, recuperação e foco por teclado
+  ---
+  duration_ms: 5956.346553
+  type: 'test'
+  ...
+# Subtest: troca rápida de telas: resposta lenta não deixa conteúdo de outra rota
+ok 83 - troca rápida de telas: resposta lenta não deixa conteúdo de outra rota
+  ---
+  duration_ms: 924.663686
+  type: 'test'
+  ...
+# Subtest: console da operadora: nove telas com a mesma escala em desktop e celular
+ok 84 - console da operadora: nove telas com a mesma escala em desktop e celular
+  ---
+  duration_ms: 23172.194831
+  type: 'test'
+  ...
+# Subtest: espera orientada e falha de preparação permitem repetir ou voltar sem perder o objetivo
+ok 85 - espera orientada e falha de preparação permitem repetir ou voltar sem perder o objetivo
+  ---
+  duration_ms: 9146.224047
+  type: 'test'
+  ...
+# Subtest: erro de tela conserva a rota e tentar novamente abre o mesmo trabalho
+ok 86 - erro de tela conserva a rota e tentar novamente abre o mesmo trabalho
+  ---
+  duration_ms: 8285.291895
+  type: 'test'
+  ...
+# Subtest: ações visíveis, sugestões que só preenchem a caixa e configuração com cancelamento preservam controles
+ok 87 - ações visíveis, sugestões que só preenchem a caixa e configuração com cancelamento preservam controles
+  ---
+  duration_ms: 7417.595377
+  type: 'test'
+  ...
+# Subtest: registro histórico de bloqueio fica fora da contagem de pendências
+ok 88 - registro histórico de bloqueio fica fora da contagem de pendências
+  ---
+  duration_ms: 7136.95219
+  type: 'test'
+  ...
+# Subtest: navegar entre biblioteca e detalhe não repete confirmação nem gravação de Quick Win
+ok 89 - navegar entre biblioteca e detalhe não repete confirmação nem gravação de Quick Win
+  ---
+  duration_ms: 14374.968858
+  type: 'test'
+  ...
+# Subtest: 0 conversas: histórico completo por data (de 50 em 50), "Ver todas" com conversas, atalhos visíveis (A, B, C, D)
+ok 90 - 0 conversas: histórico completo por data (de 50 em 50), "Ver todas" com conversas, atalhos visíveis (A, B, C, D)
+  ---
+  duration_ms: 5922.983523
+  type: 'test'
+  ...
+# Subtest: 1 conversas: histórico completo por data (de 50 em 50), "Ver todas" com conversas, atalhos visíveis (A, B, C, D)
+ok 91 - 1 conversas: histórico completo por data (de 50 em 50), "Ver todas" com conversas, atalhos visíveis (A, B, C, D)
+  ---
+  duration_ms: 3982.82288
+  type: 'test'
+  ...
+# Subtest: 5 conversas: histórico completo por data (de 50 em 50), "Ver todas" com conversas, atalhos visíveis (A, B, C, D)
+ok 92 - 5 conversas: histórico completo por data (de 50 em 50), "Ver todas" com conversas, atalhos visíveis (A, B, C, D)
+  ---
+  duration_ms: 4895.628468
+  type: 'test'
+  ...
+# Subtest: 10 conversas: histórico completo por data (de 50 em 50), "Ver todas" com conversas, atalhos visíveis (A, B, C, D)
+ok 93 - 10 conversas: histórico completo por data (de 50 em 50), "Ver todas" com conversas, atalhos visíveis (A, B, C, D)
+  ---
+  duration_ms: 3615.676065
+  type: 'test'
+  ...
+# Subtest: 50 conversas: histórico completo por data (de 50 em 50), "Ver todas" com conversas, atalhos visíveis (A, B, C, D)
+ok 94 - 50 conversas: histórico completo por data (de 50 em 50), "Ver todas" com conversas, atalhos visíveis (A, B, C, D)
+  ---
+  duration_ms: 5604.389052
+  type: 'test'
+  ...
+# Subtest: 100 conversas: histórico completo por data (de 50 em 50), "Ver todas" com conversas, atalhos visíveis (A, B, C, D)
+ok 95 - 100 conversas: histórico completo por data (de 50 em 50), "Ver todas" com conversas, atalhos visíveis (A, B, C, D)
+  ---
+  duration_ms: 7018.763929
+  type: 'test'
+  ...
+# Subtest: mais de 200 conversas: "Mostrar mais" busca a próxima página no servidor
+ok 96 - mais de 200 conversas: "Mostrar mais" busca a próxima página no servidor
+  ---
+  duration_ms: 1679.378374
+  type: 'test'
+  ...
+# Subtest: "Ver todas" leva à lista completa existente; títulos longos numa linha, com o título completo no tooltip (C, I)
+ok 97 - "Ver todas" leva à lista completa existente; títulos longos numa linha, com o título completo no tooltip (C, I)
+  ---
+  duration_ms: 2841.939111
+  type: 'test'
+  ...
+# Subtest: estado ativo: só o lugar atual (Nova conversa, a conversa aberta); Quick Wins em todas as rotas filhas; Conhecimento (E, F, G)
+ok 98 - estado ativo: só o lugar atual (Nova conversa, a conversa aberta); Quick Wins em todas as rotas filhas; Conhecimento (E, F, G)
+  ---
+  duration_ms: 4418.23078
+  type: 'test'
+  ...
+# Subtest: estado ativo acompanha o clique mesmo com a tela ainda carregando (rede lenta)
+ok 99 - estado ativo acompanha o clique mesmo com a tela ainda carregando (rede lenta)
+  ---
+  duration_ms: 1785.019917
+  type: 'test'
+  ...
+# Subtest: Pendências: atalho só com o que resolver (com a contagem); o endereço vale sempre
+ok 100 - Pendências: atalho só com o que resolver (com a contagem); o endereço vale sempre
+  ---
+  duration_ms: 12605.446102
+  type: 'test'
+  ...
+# Subtest: Administração: uma entrada só (no menu da conta), só para quem tem permissão, e leva à administração (H)
+ok 101 - Administração: uma entrada só (no menu da conta), só para quem tem permissão, e leva à administração (H)
+  ---
+  duration_ms: 4515.669616
+  type: 'test'
+  ...
+# Subtest: teclado: os itens são alcançáveis por Tab com foco visível
+ok 102 - teclado: os itens são alcançáveis por Tab com foco visível
+  ---
+  duration_ms: 2778.850318
+  type: 'test'
+  ...
+# Subtest: celular/tablet 320, 390 e 768px com 100 conversas: menu com a mesma hierarquia, Quick Wins acessível, alvos de toque e sem rolagem horizontal (J)
+ok 103 - celular/tablet 320, 390 e 768px com 100 conversas: menu com a mesma hierarquia, Quick Wins acessível, alvos de toque e sem rolagem horizontal (J)
+  ---
+  duration_ms: 6481.187471
+  type: 'test'
+  ...
+# Subtest: tela baixa (320x568), admin com 100 conversas: atalhos, conta (com a Administração) e "Ver todas" à vista sem rolar
+ok 104 - tela baixa (320x568), admin com 100 conversas: atalhos, conta (com a Administração) e "Ver todas" à vista sem rolar
+  ---
+  duration_ms: 5386.232155
+  type: 'test'
+  ...
+# Subtest: histórico real com back/forward cache não restaura conteúdo privado após logout
+ok 105 - histórico real com back/forward cache não restaura conteúdo privado após logout
+  ---
+  duration_ms: 6241.88808
+  type: 'test'
+  ...
+# Subtest: falha ao abrir ambiente apresenta recuperação e preserva mensagem escapada
+ok 106 - falha ao abrir ambiente apresenta recuperação e preserva mensagem escapada
+  ---
+  duration_ms: 3808.031678
+  type: 'test'
+  ...
+# Subtest: aceitar: contato real, origem, hash e uma conversão; sucesso visual não dispara duplicata
+ok 107 - aceitar: contato real, origem, hash e uma conversão; sucesso visual não dispara duplicata
+  ---
+  duration_ms: 5082.931997
+  type: 'test'
+  ...
+# Subtest: recusar no celular: nenhum SDK, clique publicitário ou conversão; formulário funciona e banner fecha
+ok 108 - recusar no celular: nenhum SDK, clique publicitário ou conversão; formulário funciona e banner fecha
+  ---
+  duration_ms: 4876.065781
+  type: 'test'
+  ...
+# Subtest: armadilha recebe sucesso visual sem conversão nem novo contato
+ok 109 - armadilha recebe sucesso visual sem conversão nem novo contato
+  ---
+  duration_ms: 3030.048005
+  type: 'test'
+  ...
+# Subtest: revogar preserva campos, limpa cookies próprios e impede novos eventos
+ok 110 - revogar preserva campos, limpa cookies próprios e impede novos eventos
+  ---
+  duration_ms: 7805.548997
+  type: 'test'
+  ...
+# Subtest: armazenamento indisponível e falha do SDK não impedem o pedido comercial
+ok 111 - armazenamento indisponível e falha do SDK não impedem o pedido comercial
+  ---
+  duration_ms: 10880.430677
+  type: 'test'
+  ...
+# Subtest: erro de servidor não exibe sucesso nem emite evento de conversão
+ok 112 - erro de servidor não exibe sucesso nem emite evento de conversão
+  ---
+  duration_ms: 3277.360554
+  type: 'test'
+  ...
+# Subtest: confirmação de contato da LP mantém contraste legível no celular
+ok 113 - confirmação de contato da LP mantém contraste legível no celular
+  ---
+  duration_ms: 4935.487853
+  type: 'test'
+  ...
+# Subtest: LP: exemplo finito, pausa, etapas manuais e nenhum efeito externo
+ok 114 - LP: exemplo finito, pausa, etapas manuais e nenhum efeito externo
+  ---
+  duration_ms: 13621.345968
+  type: 'test'
+  ...
+# Subtest: LP: redução de movimento, leitura no celular e formulário com tentativa recuperável
+ok 115 - LP: redução de movimento, leitura no celular e formulário com tentativa recuperável
+  ---
+  duration_ms: 16557.549207
+  type: 'test'
+  ...
+# Subtest: LP operações: animações finitas, controles, saída da tela e nenhum efeito externo
+ok 116 - LP operações: animações finitas, controles, saída da tela e nenhum efeito externo
+  ---
+  duration_ms: 24042.40882
+  type: 'test'
+  ...
+# Subtest: LP operações: movimento reduzido, teclado e etapas legíveis de 320 a 1280 pixels
+ok 117 - LP operações: movimento reduzido, teclado e etapas legíveis de 320 a 1280 pixels
+  ---
+  duration_ms: 14719.865237
+  type: 'test'
+  ...
+# Subtest: ambiente da empresa: login, uso e administração sem a marca da plataforma
+ok 118 - ambiente da empresa: login, uso e administração sem a marca da plataforma
+  ---
+  duration_ms: 15034.84612
+  type: 'test'
+  ...
+# Subtest: o console da plataforma continua com a marca da plataforma
+ok 119 - o console da plataforma continua com a marca da plataforma
+  ---
+  duration_ms: 818.105666
+  type: 'test'
+  ...
+# Subtest: configuração: erro preserva ajustes, salvar persiste e desativação exige confirmação
+ok 120 - configuração: erro preserva ajustes, salvar persiste e desativação exige confirmação
+  ---
+  duration_ms: 8489.699738
+  type: 'test'
+  ...
+# Subtest: escolha automática explica atividades; consumo é opcional e não muda ao apenas navegar
+ok 121 - escolha automática explica atividades; consumo é opcional e não muda ao apenas navegar
+  ---
+  duration_ms: 1953.395167
+  type: 'test'
+  ...
+# Subtest: histórico de modelos apresenta campos legíveis e fornecedor em detalhes
+ok 122 - histórico de modelos apresenta campos legíveis e fornecedor em detalhes
+  ---
+  duration_ms: 2087.277186
+  type: 'test'
+  ...
+# Subtest: falha de leitura permite tentar novamente sem alteração de configuração
+ok 123 - falha de leitura permite tentar novamente sem alteração de configuração
+  ---
+  duration_ms: 4080.564232
+  type: 'test'
+  ...
+# Subtest: falha tardia de leitura não substitui a tela escolhida após navegação
+ok 124 - falha tardia de leitura não substitui a tela escolhida após navegação
+  ---
+  duration_ms: 3474.173345
+  type: 'test'
+  ...
+# Subtest: guia: quatro passos para usuário, progresso retomável, conclusão e ajuda reaberta; conta diferente não herda conclusão
+ok 125 - guia: quatro passos para usuário, progresso retomável, conclusão e ajuda reaberta; conta diferente não herda conclusão
+  ---
+  duration_ms: 10036.012235
+  type: 'test'
+  ...
+# Subtest: guia por perfil: gestora de base vê orientação de gestão; admin vê configuração; o guia sai da nova conversa sem alterar acesso
+ok 126 - guia por perfil: gestora de base vê orientação de gestão; admin vê configuração; o guia sai da nova conversa sem alterar acesso
+  ---
+  duration_ms: 4283.147443
+  type: 'test'
+  ...
+# Subtest: biblioteca: usuário só vê sua área e documentos comuns; filtros sem acentos e revisão não revelam bases alheias
+ok 127 - biblioteca: usuário só vê sua área e documentos comuns; filtros sem acentos e revisão não revelam bases alheias
+  ---
+  duration_ms: 2924.205793
+  type: 'test'
+  ...
+# Subtest: gestão restrita: bases autorizadas, confirmação do envio, rede falha preserva arquivo, repetição grava uma vez
+ok 128 - gestão restrita: bases autorizadas, confirmação do envio, rede falha preserva arquivo, repetição grava uma vez
+  ---
+  duration_ms: 4508.409286
+  type: 'test'
+  ...
+# Subtest: edição, substituição e revisão preservam a base; falha de rede mantém alterações; acesso à outra base continua recusado
+ok 129 - edição, substituição e revisão preservam a base; falha de rede mantém alterações; acesso à outra base continua recusado
+  ---
+  duration_ms: 4619.397248
+  type: 'test'
+  ...
+# Subtest: biblioteca: filtros não descartam envio; saída não salva exige confirmação; Escape preserva edição quando descartada a saída
+ok 130 - biblioteca: filtros não descartam envio; saída não salva exige confirmação; Escape preserva edição quando descartada a saída
+  ---
+  duration_ms: 4441.600737
+  type: 'test'
+  ...
+# Subtest: biblioteca e guia: 320, 390, 768 e 1280 px sem transbordamento, erros JavaScript ou acesso perdido
+ok 131 - biblioteca e guia: 320, 390, 768 e 1280 px sem transbordamento, erros JavaScript ou acesso perdido
+  ---
+  duration_ms: 9984.002574
+  type: 'test'
+  ...
+# Subtest: biblioteca grande: paginação preserva contagem e filtro; atualizar após revogar gestão remove ações
+ok 132 - biblioteca grande: paginação preserva contagem e filtro; atualizar após revogar gestão remove ações
+  ---
+  duration_ms: 3313.902902
+  type: 'test'
+  ...
+# Subtest: remover documento: cancelar preserva o arquivo; confirmar remove somente o documento escolhido
+ok 133 - remover documento: cancelar preserva o arquivo; confirmar remove somente o documento escolhido
+  ---
+  duration_ms: 4706.580295
+  type: 'test'
+  ...
+# Subtest: leigo: resultado → conferir → erro recuperável → confirmar → histórico → corrigir → recarregar
+ok 134 - leigo: resultado → conferir → erro recuperável → confirmar → histórico → corrigir → recarregar
+  ---
+  duration_ms: 15195.824443
+  type: 'test'
+  ...
+# Subtest: processo pronto cria rascunho com campos definidos e obriga teste/publicação
+ok 135 - processo pronto cria rascunho com campos definidos e obriga teste/publicação
+  ---
+  duration_ms: 6344.528097
+  type: 'test'
+  ...
+# Subtest: 320/390/768/1280px: resultados do processo e conferência legíveis, foco, busca, escopo e retirada
+ok 136 - 320/390/768/1280px: resultados do processo e conferência legíveis, foco, busca, escopo e retirada
+  ---
+  duration_ms: 13880.314398
+  type: 'test'
+  ...
+# Subtest: paginação pelo link persiste após recarga e ajuda explica os resultados do processo
+ok 137 - paginação pelo link persiste após recarga e ajuda explica os resultados do processo
+  ---
+  duration_ms: 11956.387387
+  type: 'test'
+  ...
+# Subtest: QA profundo UX: conflito real entre abas conserva preenchimento e impede sobrescrever correção
+ok 138 - QA profundo UX: conflito real entre abas conserva preenchimento e impede sobrescrever correção
+  ---
+  duration_ms: 7950.182683
+  type: 'test'
+  ...
+# Subtest: QA profundo UX: acrescentar e remover itens conserva dados, foco e confirmação humana
+ok 139 - QA profundo UX: acrescentar e remover itens conserva dados, foco e confirmação humana
+  ---
+  duration_ms: 7396.937916
+  type: 'test'
+  ...
+# Subtest: QA profundo UX: busca local conserva indicadores e explica contratação da integração contínua
+ok 140 - QA profundo UX: busca local conserva indicadores e explica contratação da integração contínua
+  ---
+  duration_ms: 6796.118794
+  type: 'test'
+  ...
+# Subtest: comparação do refinamento resolve a pesquisa na área exata sem perder o resultado
+ok 141 - comparação do refinamento resolve a pesquisa na área exata sem perder o resultado
+  ---
+  duration_ms: 12186.865736
+  type: 'test'
+  ...
+# Subtest: conversa comum explica bloqueio atual, abre a área exata, confirma alcance e preserva o pedido
+ok 142 - conversa comum explica bloqueio atual, abre a área exata, confirma alcance e preserva o pedido
+  ---
+  duration_ms: 23069.832715
+  type: 'test'
+  ...
+# Subtest: pessoa muda o comportamento pelo refinamento: sugerir → esperar escolha → escrever, sem editar campos técnicos
+ok 143 - pessoa muda o comportamento pelo refinamento: sugerir → esperar escolha → escrever, sem editar campos técnicos
+  ---
+  duration_ms: 8923.398597
+  type: 'test'
+  ...
+# Subtest: salvar processo sem avançar atualiza etapas e pesquisa; falha conserva orientação e não salva plano antigo
+ok 144 - salvar processo sem avançar atualiza etapas e pesquisa; falha conserva orientação e não salva plano antigo
+  ---
+  duration_ms: 10391.564649
+  type: 'test'
+  ...
+# Subtest: planos: margem total no pior caso com status, preço mínimo, Capacity Pack e premissas; editor com prévia e trava do piso
+ok 145 - planos: margem total no pior caso com status, preço mínimo, Capacity Pack e premissas; editor com prévia e trava do piso
+  ---
+  duration_ms: 5167.927905
+  type: 'test'
+  ...
+# Subtest: empresa: libera Capacity Packs por quantidade; créditos e valor calculados no servidor
+ok 146 - empresa: libera Capacity Packs por quantidade; créditos e valor calculados no servidor
+  ---
+  duration_ms: 1486.373161
+  type: 'test'
+  ...
+# Subtest: admin vê os conjuntos e alternativas por nível; perfil comum continua com escolhas simples
+ok 147 - admin vê os conjuntos e alternativas por nível; perfil comum continua com escolhas simples
+  ---
+  duration_ms: 8068.204848
+  type: 'test'
+  ...
+# Subtest: Rápido, Equilibrado, Avançado e Automático executam pelo roteador e conservam o nível escolhido
+ok 148 - Rápido, Equilibrado, Avançado e Automático executam pelo roteador e conservam o nível escolhido
+  ---
+  duration_ms: 10892.047856
+  type: 'test'
+  ...
+# Subtest: conversa vazia: saudação com o primeiro nome; caixa no centro no computador e no pé no celular (como o app do ChatGPT)
+ok 149 - conversa vazia: saudação com o primeiro nome; caixa no centro no computador e no pé no celular (como o app do ChatGPT)
+  ---
+  duration_ms: 6123.166795
+  type: 'test'
+  ...
+# Subtest: sugestões preenchem a caixa sem enviar; texto já escrito pede confirmação e os anexos ficam
+ok 150 - sugestões preenchem a caixa sem enviar; texto já escrito pede confirmação e os anexos ficam
+  ---
+  duration_ms: 7557.612466
+  type: 'test'
+  ...
+# Subtest: tarefas prontas: até 3 Quick Wins publicados para a pessoa, com "Ver todos"; some quando não há nenhum
+ok 151 - tarefas prontas: até 3 Quick Wins publicados para a pessoa, com "Ver todos"; some quando não há nenhum
+  ---
+  duration_ms: 4261.662993
+  type: 'test'
+  ...
+# Subtest: nível e "Dados sigilosos" ficam na barra da caixa; ligar pede confirmação e cancelar mantém desligado
+ok 152 - nível e "Dados sigilosos" ficam na barra da caixa; ligar pede confirmação e cancelar mantém desligado
+  ---
+  duration_ms: 9073.710533
+  type: 'test'
+  ...
+# Subtest: Quick Win: a conversa vazia mostra o Quick Win e a caixa no centro, sem a linha de tarefas prontas
+ok 153 - Quick Win: a conversa vazia mostra o Quick Win e a caixa no centro, sem a linha de tarefas prontas
+  ---
+  duration_ms: 6681.223785
+  type: 'test'
+  ...
+# Subtest: lateral do admin: "Administração" aparece uma vez só (no menu da conta)
+ok 154 - lateral do admin: "Administração" aparece uma vez só (no menu da conta)
+  ---
+  duration_ms: 4845.438906
+  type: 'test'
+  ...
+# Subtest: tema claro e escuro: a primeira tela usa as cores do tema, com texto legível e sem rolagem horizontal
+ok 155 - tema claro e escuro: a primeira tela usa as cores do tema, com texto legível e sem rolagem horizontal
+  ---
+  duration_ms: 7860.852241
+  type: 'test'
+  ...
+# Subtest: artefato visual: cartão com miniatura real, visualizador multipágina, PDF e PNG baixados, edição em nova versão
+ok 156 - artefato visual: cartão com miniatura real, visualizador multipágina, PDF e PNG baixados, edição em nova versão
+  ---
+  duration_ms: 19233.121543
+  type: 'test'
+  ...
+# Subtest: celular (390px): cartão e visualizador sem rolagem horizontal, página inteira visível
+ok 157 - celular (390px): cartão e visualizador sem rolagem horizontal, página inteira visível
+  ---
+  duration_ms: 14617.706365
+  type: 'test'
+  ...
+# Subtest: caminho claro em 1366 px: uma ação principal, poucos alvos, no máximo um aviso e nenhuma explicação recolhida
+not ok 158 - caminho claro em 1366 px: uma ação principal, poucos alvos, no máximo um aviso e nenhuma explicação recolhida
+  ---
+  duration_ms: 13700.014486
+  type: 'test'
+  location: '/workspace/scratch/563dce0749ad/GreenIA/e2e/qa-caminho-admin.test.js:74:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + [
+    +   'visao-geral: 0 ações principais na primeira vista (esperado 1) []'
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'visao-geral: 0 ações principais na primeira vista (esperado 1) []'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/scratch/563dce0749ad/GreenIA/e2e/qa-caminho-admin.test.js:87:12)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: caminho claro em 390 px: uma ação principal, poucos alvos, no máximo um aviso e nenhuma explicação recolhida
+ok 159 - caminho claro em 390 px: uma ação principal, poucos alvos, no máximo um aviso e nenhuma explicação recolhida
+  ---
+  duration_ms: 17053.138772
+  type: 'test'
+  ...
+# Subtest: menu da Administração curto, sem caixa de explicação, e endereços antigos que levam ao lugar novo com o motivo
+ok 160 - menu da Administração curto, sem caixa de explicação, e endereços antigos que levam ao lugar novo com o motivo
+  ---
+  duration_ms: 6006.930309
+  type: 'test'
+  ...
+# Subtest: Visão geral: o próximo passo no alto, com um botão; a lista de passos recolhida até a pessoa pedir
+ok 161 - Visão geral: o próximo passo no alto, com um botão; a lista de passos recolhida até a pessoa pedir
+  ---
+  duration_ms: 2110.611691
+  type: 'test'
+  ...
+# Subtest: Atividade: filtros atrás de Filtrar; um registro por vez no painel lateral, por clique ou teclado
+ok 162 - Atividade: filtros atrás de Filtrar; um registro por vez no painel lateral, por clique ou teclado
+  ---
+  duration_ms: 5388.352341
+  type: 'test'
+  ...
+# Subtest: Modelos: decisões na aba principal, catálogo técnico em aba própria com o modelo no painel, que salva na hora
+ok 163 - Modelos: decisões na aba principal, catálogo técnico em aba própria com o modelo no painel, que salva na hora
+  ---
+  duration_ms: 6272.151508
+  type: 'test'
+  ...
+# Subtest: Políticas e Configurações: o raro em "Mais opções", link direto abre o caminho até o campo, um bloco aberto por vez
+ok 164 - Políticas e Configurações: o raro em "Mais opções", link direto abre o caminho até o campo, um bloco aberto por vez
+  ---
+  duration_ms: 6693.054364
+  type: 'test'
+  ...
+# Subtest: Ajuda: as explicações que saíram das telas ficam na Ajuda de cada tela, com "Saiba mais"
+ok 165 - Ajuda: as explicações que saíram das telas ficam na Ajuda de cada tela, com "Saiba mais"
+  ---
+  duration_ms: 15634.099273
+  type: 'test'
+  ...
+# Subtest: Pessoas: filtros e busca recolhidos em lista curta; com "Revisão pendente", registrar a revisão é a ação principal
+ok 166 - Pessoas: filtros e busca recolhidos em lista curta; com "Revisão pendente", registrar a revisão é a ação principal
+  ---
+  duration_ms: 5280.504946
+  type: 'test'
+  ...
+# Subtest: metas do caminho claro em 1366 px: uma ação principal, poucos controles, um aviso no máximo
+ok 167 - metas do caminho claro em 1366 px: uma ação principal, poucos controles, um aviso no máximo
+  ---
+  duration_ms: 15846.146626
+  type: 'test'
+  ...
+# Subtest: metas do caminho claro em 390 px: uma ação principal, poucos controles, um aviso no máximo
+ok 168 - metas do caminho claro em 390 px: uma ação principal, poucos controles, um aviso no máximo
+  ---
+  duration_ms: 15602.811253
+  type: 'test'
+  ...
+# Subtest: Resumo: ações raras em "Mais ações" (teclado e Esc), dados cadastrais em modal e encerrar à parte
+ok 169 - Resumo: ações raras em "Mais ações" (teclado e Esc), dados cadastrais em modal e encerrar à parte
+  ---
+  duration_ms: 4359.806711
+  type: 'test'
+  ...
+# Subtest: "Saiba mais" abre a ajuda da tela com a explicação que saiu da primeira vista
+ok 170 - "Saiba mais" abre a ajuda da tela com a explicação que saiu da primeira vista
+  ---
+  duration_ms: 2293.325145
+  type: 'test'
+  ...
+# Subtest: Uso, Marca e Configurações: ajustes raros em modal, bloqueios da marca sob pedido e três abas
+ok 171 - Uso, Marca e Configurações: ajustes raros em modal, bloqueios da marca sob pedido e três abas
+  ---
+  duration_ms: 6359.311626
+  type: 'test'
+  ...
+# Subtest: Usuários da empresa: adicionar pela ação principal, alterar perfil numa só ação por linha
+ok 172 - Usuários da empresa: adicionar pela ação principal, alterar perfil numa só ação por linha
+  ---
+  duration_ms: 4362.32288
+  type: 'test'
+  ...
+# Subtest: Resumo: endereço e banco longos ficam dentro do próprio cartão; "1 cadastrada" no singular
+ok 173 - Resumo: endereço e banco longos ficam dentro do próprio cartão; "1 cadastrada" no singular
+  ---
+  duration_ms: 9409.334615
+  type: 'test'
+  ...
+# Subtest: quem gerencia: cada tela de Quick Win tem um caminho claro, a 1366 e 390 px
+ok 174 - quem gerencia: cada tela de Quick Win tem um caminho claro, a 1366 e 390 px
+  ---
+  duration_ms: 38942.617958
+  type: 'test'
+  ...
+# Subtest: quem só usa: biblioteca, página, usar e agendamentos com um caminho claro, a 1366 e 390 px
+ok 175 - quem só usa: biblioteca, página, usar e agendamentos com um caminho claro, a 1366 e 390 px
+  ---
+  duration_ms: 11985.665777
+  type: 'test'
+  ...
+# Subtest: biblioteca: a lista vem primeiro; criar é um botão que abre os caminhos; busca só em lista longa
+ok 176 - biblioteca: a lista vem primeiro; criar é um botão que abre os caminhos; busca só em lista longa
+  ---
+  duration_ms: 7400.155379
+  type: 'test'
+  ...
+# Subtest: página do Quick Win: o que saiu da primeira vista continua alcançável (Mais ações, Detalhes, Ajuda)
+ok 177 - página do Quick Win: o que saiu da primeira vista continua alcançável (Mais ações, Detalhes, Ajuda)
+  ---
+  duration_ms: 5420.217211
+  type: 'test'
+  ...
+# Subtest: fluxos: criar, testar, publicar, usar e agendar continuam funcionando
+ok 178 - fluxos: criar, testar, publicar, usar e agendar continuam funcionando
+  ---
+  duration_ms: 43801.936123
+  type: 'test'
+  ...
+# Subtest: Conversas (1366px): "Nova conversa" é a única ação principal; lista curta sem busca; retenção na Ajuda
+ok 179 - Conversas (1366px): "Nova conversa" é a única ação principal; lista curta sem busca; retenção na Ajuda
+  ---
+  duration_ms: 4082.896702
+  type: 'test'
+  ...
+# Subtest: Conversa aberta (1366px): tela de leitura, sem ação principal nem explicação; política e guarda na Ajuda
+ok 180 - Conversa aberta (1366px): tela de leitura, sem ação principal nem explicação; política e guarda na Ajuda
+  ---
+  duration_ms: 2687.09315
+  type: 'test'
+  ...
+# Subtest: Conhecimento, quem consulta (1366px): busca à vista, filtros fechados, nada recolhido; explicações na Ajuda
+ok 181 - Conhecimento, quem consulta (1366px): busca à vista, filtros fechados, nada recolhido; explicações na Ajuda
+  ---
+  duration_ms: 3316.240063
+  type: 'test'
+  ...
+# Subtest: Conhecimento, quem gerencia (1366px): "Enviar documento" é a ação principal nas duas visões; troca discreta; um aviso
+ok 182 - Conhecimento, quem gerencia (1366px): "Enviar documento" é a ação principal nas duas visões; troca discreta; um aviso
+  ---
+  duration_ms: 5609.616308
+  type: 'test'
+  ...
+# Subtest: Pendências (1366px): a primeira pendência é a ação principal; filtros atrás de "Filtrar"
+ok 183 - Pendências (1366px): a primeira pendência é a ação principal; filtros atrás de "Filtrar"
+  ---
+  duration_ms: 6304.018603
+  type: 'test'
+  ...
+# Subtest: Primeiros passos (1366px): "Próximo passo" à vista como única ação principal; o guia avança
+ok 184 - Primeiros passos (1366px): "Próximo passo" à vista como única ação principal; o guia avança
+  ---
+  duration_ms: 4737.022126
+  type: 'test'
+  ...
+# Subtest: Conversas (390px): "Nova conversa" é a única ação principal; lista curta sem busca; retenção na Ajuda
+ok 185 - Conversas (390px): "Nova conversa" é a única ação principal; lista curta sem busca; retenção na Ajuda
+  ---
+  duration_ms: 5887.313873
+  type: 'test'
+  ...
+# Subtest: Conversa aberta (390px): tela de leitura, sem ação principal nem explicação; política e guarda na Ajuda
+ok 186 - Conversa aberta (390px): tela de leitura, sem ação principal nem explicação; política e guarda na Ajuda
+  ---
+  duration_ms: 3440.281334
+  type: 'test'
+  ...
+# Subtest: Conhecimento, quem consulta (390px): busca à vista, filtros fechados, nada recolhido; explicações na Ajuda
+ok 187 - Conhecimento, quem consulta (390px): busca à vista, filtros fechados, nada recolhido; explicações na Ajuda
+  ---
+  duration_ms: 6043.160091
+  type: 'test'
+  ...
+# Subtest: Conhecimento, quem gerencia (390px): "Enviar documento" é a ação principal nas duas visões; troca discreta; um aviso
+ok 188 - Conhecimento, quem gerencia (390px): "Enviar documento" é a ação principal nas duas visões; troca discreta; um aviso
+  ---
+  duration_ms: 6425.661558
+  type: 'test'
+  ...
+# Subtest: Pendências (390px): a primeira pendência é a ação principal; filtros atrás de "Filtrar"
+ok 189 - Pendências (390px): a primeira pendência é a ação principal; filtros atrás de "Filtrar"
+  ---
+  duration_ms: 6326.303386
+  type: 'test'
+  ...
+# Subtest: Primeiros passos (390px): "Próximo passo" à vista como única ação principal; o guia avança
+ok 190 - Primeiros passos (390px): "Próximo passo" à vista como única ação principal; o guia avança
+  ---
+  duration_ms: 2898.411758
+  type: 'test'
+  ...
+# Subtest: Conversas: com a lista longa, busca e filtro aparecem e funcionam
+ok 191 - Conversas: com a lista longa, busca e filtro aparecem e funcionam
+  ---
+  duration_ms: 2696.135206
+  type: 'test'
+  ...
+# Subtest: Lateral de quem usa: "Nova conversa" discreta, destacada só quando é o lugar atual; selo só com revisão pendente
+ok 192 - Lateral de quem usa: "Nova conversa" discreta, destacada só quando é o lugar atual; selo só com revisão pendente
+  ---
+  duration_ms: 3707.235636
+  type: 'test'
+  ...
+# Subtest: administração em 1920 px: cartões alinhados, sem texto cortado e sem rolagem horizontal
+ok 193 - administração em 1920 px: cartões alinhados, sem texto cortado e sem rolagem horizontal
+  ---
+  duration_ms: 26283.283933
+  type: 'test'
+  ...
+# Subtest: administração em 1366 px: cartões alinhados, sem texto cortado e sem rolagem horizontal
+ok 194 - administração em 1366 px: cartões alinhados, sem texto cortado e sem rolagem horizontal
+  ---
+  duration_ms: 16382.081199
+  type: 'test'
+  ...
+# Subtest: administração em 390 px: cartões alinhados, sem texto cortado e sem rolagem horizontal
+ok 195 - administração em 390 px: cartões alinhados, sem texto cortado e sem rolagem horizontal
+  ---
+  duration_ms: 16733.904237
+  type: 'test'
+  ...
+# Subtest: páginas públicas: cartões alinhados, sem texto cortado e sem rolagem horizontal
+ok 196 - páginas públicas: cartões alinhados, sem texto cortado e sem rolagem horizontal
+  ---
+  duration_ms: 160935.718111
+  type: 'test'
+  ...
+# Subtest: console da plataforma: cartões e indicadores alinhados, sem texto cortado e sem rolagem horizontal
+ok 197 - console da plataforma: cartões e indicadores alinhados, sem texto cortado e sem rolagem horizontal
+  ---
+  duration_ms: 53068.346867
+  type: 'test'
+  ...
+# Subtest: console do operador: indicadores alinhados, cabeçalho na coluna do conteúdo e sem rolagem horizontal
+ok 198 - console do operador: indicadores alinhados, cabeçalho na coluna do conteúdo e sem rolagem horizontal
+  ---
+  duration_ms: 2095.071096
+  type: 'test'
+  ...
+# Subtest: console da plataforma: título e ação do cabeçalho alinhados à coluna do conteúdo em tela larga
+ok 199 - console da plataforma: título e ação do cabeçalho alinhados à coluna do conteúdo em tela larga
+  ---
+  duration_ms: 3990.606835
+  type: 'test'
+  ...
+# Subtest: quem gerencia: telas de Quick Win alinhadas em 1920, 1366 e 390 px
+ok 200 - quem gerencia: telas de Quick Win alinhadas em 1920, 1366 e 390 px
+  ---
+  duration_ms: 52879.328986
+  type: 'test'
+  ...
+# Subtest: quem só usa: biblioteca, página, usar e agendamentos alinhados em 1920, 1366 e 390 px
+ok 201 - quem só usa: biblioteca, página, usar e agendamentos alinhados em 1920, 1366 e 390 px
+  ---
+  duration_ms: 18942.812873
+  type: 'test'
+  ...
+# Subtest: o cabeçalho de Agendamentos cabe no celular e a biblioteca curta não mostra busca
+ok 202 - o cabeçalho de Agendamentos cabe no celular e a biblioteca curta não mostra busca
+  ---
+  duration_ms: 1789.207128
+  type: 'test'
+  ...
+# Subtest: telas de uso em 1920 px: cartões alinhados e da mesma altura, sem texto cortado, sem rolagem horizontal
+ok 203 - telas de uso em 1920 px: cartões alinhados e da mesma altura, sem texto cortado, sem rolagem horizontal
+  ---
+  duration_ms: 13214.583707
+  type: 'test'
+  ...
+# Subtest: telas de uso em 1366 px: cartões alinhados e da mesma altura, sem texto cortado, sem rolagem horizontal
+ok 204 - telas de uso em 1366 px: cartões alinhados e da mesma altura, sem texto cortado, sem rolagem horizontal
+  ---
+  duration_ms: 8528.933545
+  type: 'test'
+  ...
+# Subtest: telas de uso em 390 px: cartões alinhados e da mesma altura, sem texto cortado, sem rolagem horizontal
+ok 205 - telas de uso em 390 px: cartões alinhados e da mesma altura, sem texto cortado, sem rolagem horizontal
+  ---
+  duration_ms: 19722.488433
+  type: 'test'
+  ...
+# Subtest: o título longo da conversa aparece inteiro (até 2 linhas) no cabeçalho e na lateral, com o título completo no title
+ok 206 - o título longo da conversa aparece inteiro (até 2 linhas) no cabeçalho e na lateral, com o título completo no title
+  ---
+  duration_ms: 2678.639588
+  type: 'test'
+  ...
+# Subtest: Perfis: permissões e perfis do sistema sem "role", "landing page" nem "quick wins" em minúsculas
+ok 207 - Perfis: permissões e perfis do sistema sem "role", "landing page" nem "quick wins" em minúsculas
+  ---
+  duration_ms: 1380.537237
+  type: 'test'
+  ...
+# Subtest: Atividade: o detalhe mostra o estado do Quick Win em texto, não o código
+ok 208 - Atividade: o detalhe mostra o estado do Quick Win em texto, não o código
+  ---
+  duration_ms: 1269.470765
+  type: 'test'
+  ...
+# Subtest: Marca: sem cor secundária salva, seletor, campo e prévia mostram o mesmo padrão (não a cor principal)
+ok 209 - Marca: sem cor secundária salva, seletor, campo e prévia mostram o mesmo padrão (não a cor principal)
+  ---
+  duration_ms: 2768.741462
+  type: 'test'
+  ...
+# Subtest: Tema escuro: Enviar desabilitado tem fundo neutro e texto apagado
+ok 210 - Tema escuro: Enviar desabilitado tem fundo neutro e texto apagado
+  ---
+  duration_ms: 1401.753443
+  type: 'test'
+  ...
+# Subtest: Console: na página de apresentação, a situação é um selo só e as ações do cabeçalho ficam na mesma linha e centradas
+ok 211 - Console: na página de apresentação, a situação é um selo só e as ações do cabeçalho ficam na mesma linha e centradas
+  ---
+  duration_ms: 3494.964071
+  type: 'test'
+  ...
+# Subtest: Quick Wins: cada seção da biblioteca tem um nome próprio (sem id repetido entre "Publicados" e "Em preparo")
+ok 212 - Quick Wins: cada seção da biblioteca tem um nome próprio (sem id repetido entre "Publicados" e "Em preparo")
+  ---
+  duration_ms: 3200.153226
+  type: 'test'
+  ...
+# Subtest: Áreas com rolagem própria alcançáveis pelo teclado; página de vendas sem área lateral dentro de outra região
+ok 213 - Áreas com rolagem própria alcançáveis pelo teclado; página de vendas sem área lateral dentro de outra região
+  ---
+  duration_ms: 3423.868301
+  type: 'test'
+  ...
+# Subtest: Sair do envio de documento com dados pendentes: modal da plataforma; "Sair sem salvar" segue para o destino
+ok 214 - Sair do envio de documento com dados pendentes: modal da plataforma; "Sair sem salvar" segue para o destino
+  ---
+  duration_ms: 5538.348446
+  type: 'test'
+  ...
+# Subtest: QA-G01/G03: título no celular e sigilo operáveis por teclado com área de toque real
+ok 215 - QA-G01/G03: título no celular e sigilo operáveis por teclado com área de toque real
+  ---
+  duration_ms: 9793.360971
+  type: 'test'
+  ...
+# Subtest: QA-G02: editores da empresa e do console têm rótulos únicos persistentes e mantêm dados
+ok 216 - QA-G02: editores da empresa e do console têm rótulos únicos persistentes e mantêm dados
+  ---
+  duration_ms: 8524.481608
+  type: 'test'
+  ...
+# Subtest: CSS: os dois blocos do escuro (Automático e Escuro escolhido) têm os mesmos valores; as páginas seguem o tema
+ok 217 - CSS: os dois blocos do escuro (Automático e Escuro escolhido) têm os mesmos valores; as páginas seguem o tema
+  ---
+  duration_ms: 865.570984
+  type: 'test'
+  ...
+# Subtest: escuro do sistema: fundo escuro, contraste AA e sem rolagem lateral (1366 e 390 px)
+ok 218 - escuro do sistema: fundo escuro, contraste AA e sem rolagem lateral (1366 e 390 px)
+  ---
+  duration_ms: 15210.199173
+  type: 'test'
+  ...
+# Subtest: claro continua claro, com contraste AA e sem rolagem lateral
+ok 219 - claro continua claro, com contraste AA e sem rolagem lateral
+  ---
+  duration_ms: 17716.780834
+  type: 'test'
+  ...
+# Subtest: a escolha guardada no app vale nas páginas públicas: Escuro no sistema claro e Claro no sistema escuro
+ok 220 - a escolha guardada no app vale nas páginas públicas: Escuro no sistema claro e Claro no sistema escuro
+  ---
+  duration_ms: 7992.316707
+  type: 'test'
+  ...
+# Subtest: página da empresa no escuro: botões na cor da empresa com texto branco; destaques no tom clareado
+ok 221 - página da empresa no escuro: botões na cor da empresa com texto branco; destaques no tom clareado
+  ---
+  duration_ms: 1129.036464
+  type: 'test'
+  ...
+# Subtest: M32/A16: menu de admin curto (até nove itens), com ícones únicos e o mesmo texto do título de cada tela
+ok 222 - M32/A16: menu de admin curto (até nove itens), com ícones únicos e o mesmo texto do título de cada tela
+  ---
+  duration_ms: 10376.455901
+  type: 'test'
+  ...
+# Subtest: A16/M37: "Perfil" com os mesmos valores na lista, no detalhe e no convite, e um só Convidar, que abre o painel de convite
+ok 223 - A16/M37: "Perfil" com os mesmos valores na lista, no detalhe e no convite, e um só Convidar, que abre o painel de convite
+  ---
+  duration_ms: 2820.503575
+  type: 'test'
+  ...
+# Subtest: M2/M3: remover pessoa é ação de perigo com confirmação própria, que diz o nome e a consequência
+ok 224 - M2/M3: remover pessoa é ação de perigo com confirmação própria, que diz o nome e a consequência
+  ---
+  duration_ms: 4247.544451
+  type: 'test'
+  ...
+# Subtest: A23: formulário alterado avisa antes de sair; continuar editando mantém a tela e o que foi digitado
+ok 225 - A23: formulário alterado avisa antes de sair; continuar editando mantém a tela e o que foi digitado
+  ---
+  duration_ms: 3302.849817
+  type: 'test'
+  ...
+# Subtest: A17/M28/B11: Uso com mês em português, planilha e "—" no tempo sem dados
+ok 226 - A17/M28/B11: Uso com mês em português, planilha e "—" no tempo sem dados
+  ---
+  duration_ms: 1880.130395
+  type: 'test'
+  ...
+# Subtest: A25/M31/B13: Visão geral começa pelo próximo passo da preparação (mesma fonte), com a lista completa recolhida
+ok 227 - A25/M31/B13: Visão geral começa pelo próximo passo da preparação (mesma fonte), com a lista completa recolhida
+  ---
+  duration_ms: 2166.335014
+  type: 'test'
+  ...
+# Subtest: A18: alerta de homologado explica a causa exata quando o modelo não está liberado para todos
+ok 228 - A18: alerta de homologado explica a causa exata quando o modelo não está liberado para todos
+  ---
+  duration_ms: 211.547109
+  type: 'test'
+  ...
+# Subtest: A19/M29/M28: Políticas com Ligado/Desligado, efeito ao vivo e "Não enviar" visível no celular
+ok 229 - A19/M29/M28: Políticas com Ligado/Desligado, efeito ao vivo e "Não enviar" visível no celular
+  ---
+  duration_ms: 1681.550096
+  type: 'test'
+  ...
+# Subtest: A20/M34: Perfis no celular: permissões cabem na tela e o selo "Sistema" não quebra
+ok 230 - A20/M34: Perfis no celular: permissões cabem na tela e o selo "Sistema" não quebra
+  ---
+  duration_ms: 1858.798656
+  type: 'test'
+  ...
+# Subtest: M35/M36/M28: página de apresentação com seções fechadas (só o botão no título), restaurar em "Mais ações" com confirmação e envio em português
+ok 231 - M35/M36/M28: página de apresentação com seções fechadas (só o botão no título), restaurar em "Mais ações" com confirmação e envio em português
+  ---
+  duration_ms: 3728.083715
+  type: 'test'
+  ...
+# Subtest: M39/A26/B2: Atividade sem códigos internos, registro aberto no painel, problemas numa aba e hierarquia de títulos nas telas
+ok 232 - M39/A26/B2: Atividade sem códigos internos, registro aberto no painel, problemas numa aba e hierarquia de títulos nas telas
+  ---
+  duration_ms: 6405.266791
+  type: 'test'
+  ...
+# Subtest: M40/M38/B10: texto da política com prévia ao lado; Quem cria Quick Wins com escopos e busca; atalhos sob "?"
+ok 233 - M40/M38/B10: texto da política com prévia ao lado; Quem cria Quick Wins com escopos e busca; atalhos sob "?"
+  ---
+  duration_ms: 5225.955928
+  type: 'test'
+  ...
+# Subtest: B14: login do console tem saída para quem não é operador e volta ao site
+ok 234 - B14: login do console tem saída para quem não é operador e volta ao site
+  ---
+  duration_ms: 2283.780141
+  type: 'test'
+  ...
+# Subtest: A27: auditoria em português, sem código de ação, chave em inglês ou "null"; troca de plano com antes → depois
+ok 235 - A27: auditoria em português, sem código de ação, chave em inglês ou "null"; troca de plano com antes → depois
+  ---
+  duration_ms: 4322.57869
+  type: 'test'
+  ...
+# Subtest: A28/B15: ambiente mostra o estado real da IA (três estados) e o tamanho em pt-BR
+ok 236 - A28/B15: ambiente mostra o estado real da IA (três estados) e o tamanho em pt-BR
+  ---
+  duration_ms: 636.627092
+  type: 'test'
+  ...
+# Subtest: M2/M3/M45: remover pessoa e bloquear conta pedem confirmação no modal, com nome e ação de perigo; conta separada do acesso
+ok 237 - M2/M3/M45: remover pessoa e bloquear conta pedem confirmação no modal, com nome e ação de perigo; conta separada do acesso
+  ---
+  duration_ms: 3011.445379
+  type: 'test'
+  ...
+# Subtest: M46: alterar plano mostra de → para (créditos e preço) e só aplica depois da confirmação
+ok 238 - M46: alterar plano mostra de → para (créditos e preço) e só aplica depois da confirmação
+  ---
+  duration_ms: 2966.707367
+  type: 'test'
+  ...
+# Subtest: M2/M3: exclusão definitiva é ação de perigo no modal, liberada só com o identificador
+ok 239 - M2/M3: exclusão definitiva é ação de perigo no modal, liberada só com o identificador
+  ---
+  duration_ms: 2142.511747
+  type: 'test'
+  ...
+# Subtest: M44/M50/B2: termos do glossário, bloqueios da marca só na aba Marca, h2 depois do h1 e colunas nomeadas
+ok 240 - M44/M50/B2: termos do glossário, bloqueios da marca só na aba Marca, h2 depois do h1 e colunas nomeadas
+  ---
+  duration_ms: 4878.263353
+  type: 'test'
+  ...
+# Subtest: B19: campos do console com rótulo visível; exemplos ficam no texto de ajuda
+ok 241 - B19: campos do console com rótulo visível; exemplos ficam no texto de ajuda
+  ---
+  duration_ms: 1555.64601
+  type: 'test'
+  ...
+# Subtest: M42: selos de status em uma linha na tabela de planos
+ok 242 - M42: selos de status em uma linha na tabela de planos
+  ---
+  duration_ms: 772.429864
+  type: 'test'
+  ...
+# Subtest: M43/M34: no celular, abas da empresa visíveis, valores técnicos dentro do cartão e valor composto num bloco
+ok 243 - M43/M34: no celular, abas da empresa visíveis, valores técnicos dentro do cartão e valor composto num bloco
+  ---
+  duration_ms: 1167.187678
+  type: 'test'
+  ...
+# Subtest: M13: "Gerar de novo" na última resposta troca a resposta, sem duplicar o pedido
+ok 244 - M13: "Gerar de novo" na última resposta troca a resposta, sem duplicar o pedido
+  ---
+  duration_ms: 3742.61324
+  type: 'test'
+  ...
+# Subtest: M13: erro ao gerar de novo é explicado e a resposta anterior volta
+ok 245 - M13: erro ao gerar de novo é explicado e a resposta anterior volta
+  ---
+  duration_ms: 1194.559385
+  type: 'test'
+  ...
+# Subtest: M13: no celular, "Gerar de novo" tem 44 px de altura
+ok 246 - M13: no celular, "Gerar de novo" tem 44 px de altura
+  ---
+  duration_ms: 1543.831469
+  type: 'test'
+  ...
+# Subtest: M17: quem só consulta abre o documento num painel acessível; Esc fecha e devolve o foco
+ok 247 - M17: quem só consulta abre o documento num painel acessível; Esc fecha e devolve o foco
+  ---
+  duration_ms: 3494.284427
+  type: 'test'
+  ...
+# Subtest: M17: no celular, "Abrir" tem 44 px e o painel cabe na tela
+ok 248 - M17: no celular, "Abrir" tem 44 px e o painel cabe na tela
+  ---
+  duration_ms: 2330.619961
+  type: 'test'
+  ...
+# Subtest: C1: Encerramentos sem ambientes mostra a mensagem, não o HTML do componente
+ok 249 - C1: Encerramentos sem ambientes mostra a mensagem, não o HTML do componente
+  ---
+  duration_ms: 2316.131915
+  type: 'test'
+  ...
+# Subtest: C2: encerrar ambiente é ação de perigo, separada, com data da exclusão e confirmação pelo identificador
+ok 250 - C2: encerrar ambiente é ação de perigo, separada, com data da exclusão e confirmação pelo identificador
+  ---
+  duration_ms: 1482.123446
+  type: 'test'
+  ...
+# Subtest: A1/A2: lateral com ações compactas, título com a largura e foco visível na lista de conversas
+ok 251 - A1/A2: lateral com ações compactas, título com a largura e foco visível na lista de conversas
+  ---
+  duration_ms: 1878.422206
+  type: 'test'
+  ...
+# Subtest: C3: no celular, a conversa deixa área de leitura, também com o teclado aberto
+ok 252 - C3: no celular, a conversa deixa área de leitura, também com o teclado aberto
+  ---
+  duration_ms: 2544.198128
+  type: 'test'
+  ...
+# Subtest: C4/C5: Quick Win do formato anterior tem caminho para publicar e as telas explicam o que falta
+ok 253 - C4/C5: Quick Win do formato anterior tem caminho para publicar e as telas explicam o que falta
+  ---
+  duration_ms: 1403.060098
+  type: 'test'
+  ...
+# Subtest: Recusa de tela da administração explica o próximo passo e não prende o Voltar
+ok 254 - Recusa de tela da administração explica o próximo passo e não prende o Voltar
+  ---
+  duration_ms: 1044.019023
+  type: 'test'
+  ...
+# Subtest: A24: Integrações desligadas explicam onde ligar, sem levar a outra tela
+ok 255 - A24: Integrações desligadas explicam onde ligar, sem levar a outra tela
+  ---
+  duration_ms: 3439.236628
+  type: 'test'
+  ...
+# Subtest: conversa: substituir o pedido já escrito pede confirmação no modal (sugestão da conversa vazia e Melhorar resultado)
+ok 256 - conversa: substituir o pedido já escrito pede confirmação no modal (sugestão da conversa vazia e Melhorar resultado)
+  ---
+  duration_ms: 14079.175528
+  type: 'test'
+  ...
+# Subtest: refinar: trocar a orientação escrita pelos pontos da conferência pede confirmação
+ok 257 - refinar: trocar a orientação escrita pelos pontos da conferência pede confirmação
+  ---
+  duration_ms: 3120.656273
+  type: 'test'
+  ...
+# Subtest: Quick Win: arquivar, restaurar, renomear e excluir execução, voltar versão — tudo no modal, cancelar não grava
+ok 258 - Quick Win: arquivar, restaurar, renomear e excluir execução, voltar versão — tudo no modal, cancelar não grava
+  ---
+  duration_ms: 11009.446112
+  type: 'test'
+  ...
+# Subtest: Conhecimento: suspender, marcar revisado e remover documento no modal; cancelar não grava
+ok 259 - Conhecimento: suspender, marcar revisado e remover documento no modal; cancelar não grava
+  ---
+  duration_ms: 4725.879246
+  type: 'test'
+  ...
+# Subtest: Integrações: revogar pede confirmação de perigo no modal; cancelar mantém a integração
+ok 260 - Integrações: revogar pede confirmação de perigo no modal; cancelar mantém a integração
+  ---
+  duration_ms: 1642.538796
+  type: 'test'
+  ...
+# Subtest: operador: liberar Capacity Packs confirma no modal com a quantidade no botão; cancelar não libera
+ok 261 - operador: liberar Capacity Packs confirma no modal com a quantidade no botão; cancelar não libera
+  ---
+  duration_ms: 1343.129193
+  type: 'test'
+  ...
+# Subtest: M22: quem gerencia o Quick Win compara por nível; o nome técnico do modelo fica com quem administra
+ok 262 - M22: quem gerencia o Quick Win compara por nível; o nome técnico do modelo fica com quem administra
+  ---
+  duration_ms: 11348.696591
+  type: 'test'
+  ...
+# Subtest: M36: a prévia mostra o que está em edição, sem salvar: ao lado do editor e em nova aba (painel da empresa e console)
+ok 263 - M36: a prévia mostra o que está em edição, sem salvar: ao lado do editor e em nova aba (painel da empresa e console)
+  ---
+  duration_ms: 13798.29335
+  type: 'test'
+  ...
+# Subtest: M28: De/Até da Atividade em dd/mm/aaaa num navegador em inglês, com o mesmo valor ISO para a API
+ok 264 - M28: De/Até da Atividade em dd/mm/aaaa num navegador em inglês, com o mesmo valor ISO para a API
+  ---
+  duration_ms: 2576.591048
+  type: 'test'
+  ...
+# Subtest: M28: datas de antes e depois do Quick Win em dd/mm/aaaa, gravadas em ISO
+ok 265 - M28: datas de antes e depois do Quick Win em dd/mm/aaaa, gravadas em ISO
+  ---
+  duration_ms: 1486.008664
+  type: 'test'
+  ...
+# Subtest: B13: a mesma largura de conteúdo nas telas de gestão; formulários na largura de leitura
+ok 266 - B13: a mesma largura de conteúdo nas telas de gestão; formulários na largura de leitura
+  ---
+  duration_ms: 4450.146827
+  type: 'test'
+  ...
+# Subtest: A13/M28: registros do processo falam em "resultados do processo" e o prazo vai em dd/mm/aaaa
+ok 267 - A13/M28: registros do processo falam em "resultados do processo" e o prazo vai em dd/mm/aaaa
+  ---
+  duration_ms: 8743.627573
+  type: 'test'
+  ...
+# Subtest: menu com "Pessoas" (Acessos do suporte numa aba de Atividade); abas com tablist e teclado; lista única com perfil, áreas, grupos e revisão
+ok 268 - menu com "Pessoas" (Acessos do suporte numa aba de Atividade); abas com tablist e teclado; lista única com perfil, áreas, grupos e revisão
+  ---
+  duration_ms: 6762.497173
+  type: 'test'
+  ...
+# Subtest: detalhe da pessoa: perfil, situação, áreas (responsável e base), grupos, Quick Wins e revisão; Esc fecha e devolve o foco
+ok 269 - detalhe da pessoa: perfil, situação, áreas (responsável e base), grupos, Quick Wins e revisão; Esc fecha e devolve o foco
+  ---
+  duration_ms: 2592.830299
+  type: 'test'
+  ...
+# Subtest: pelo detalhe: trocar o perfil, registrar a revisão e cancelar a remoção, sempre no modal próprio
+ok 270 - pelo detalhe: trocar o perfil, registrar a revisão e cancelar a remoção, sempre no modal próprio
+  ---
+  duration_ms: 5010.075731
+  type: 'test'
+  ...
+# Subtest: abas por permissão: Gestor vê Pessoas, Áreas e Grupos, só para consulta; Leitor não vê a tela
+ok 271 - abas por permissão: Gestor vê Pessoas, Áreas e Grupos, só para consulta; Leitor não vê a tela
+  ---
+  duration_ms: 3469.201276
+  type: 'test'
+  ...
+# Subtest: endereços antigos levam à aba equivalente, sem rastro no histórico
+ok 272 - endereços antigos levam à aba equivalente, sem rastro no histórico
+  ---
+  duration_ms: 3758.037218
+  type: 'test'
+  ...
+# Subtest: celular: abas cabem e quebram linha, painel em tela cheia com Fechar, alvos de 44 px e sem rolagem lateral
+ok 273 - celular: abas cabem e quebram linha, painel em tela cheia com Fechar, alvos de 44 px e sem rolagem lateral
+  ---
+  duration_ms: 2904.780747
+  type: 'test'
+  ...
+# Subtest: instalação única: a tela Pessoas funciona com as pessoas da instalação e as abas que existem lá
+ok 274 - instalação única: a tela Pessoas funciona com as pessoas da instalação e as abas que existem lá
+  ---
+  duration_ms: 3020.864895
+  type: 'test'
+  ...
+# Subtest: A7: endereço inexistente mostra página em pt-BR, legível no celular, com marca e caminhos de saída
+ok 275 - A7: endereço inexistente mostra página em pt-BR, legível no celular, com marca e caminhos de saída
+  ---
+  duration_ms: 2586.328395
+  type: 'test'
+  ...
+# Subtest: A8: no celular, "Entrar" fica no topo e o menu compacto leva às seções (fecha ao escolher e com Esc)
+ok 276 - A8: no celular, "Entrar" fica no topo e o menu compacto leva às seções (fecha ao escolher e com Esc)
+  ---
+  duration_ms: 4180.351371
+  type: 'test'
+  ...
+# Subtest: B16/B17: "a GreenIA" na página de vendas; na impressão nenhum bloco fica esperando a rolagem
+ok 277 - B16/B17: "a GreenIA" na página de vendas; na impressão nenhum bloco fica esperando a rolagem
+  ---
+  duration_ms: 1531.290493
+  type: 'test'
+  ...
+# Subtest: B18: "Encontrar ambiente" mostra o exemplo de endereço no formato real da plataforma
+ok 278 - B18: "Encontrar ambiente" mostra o exemplo de endereço no formato real da plataforma
+  ---
+  duration_ms: 358.511438
+  type: 'test'
+  ...
+# Subtest: M47: política no ambiente da empresa, com texto próprio e título da aba sem número solto
+ok 279 - M47: política no ambiente da empresa, com texto próprio e título da aba sem número solto
+  ---
+  duration_ms: 363.294048
+  type: 'test'
+  ...
+# Subtest: M48: Termos e Privacidade com índice de âncoras, contato clicável e rodapé
+ok 280 - M48: Termos e Privacidade com índice de âncoras, contato clicável e rodapé
+  ---
+  duration_ms: 2324.648925
+  type: 'test'
+  ...
+# Subtest: M49/B2: páginas públicas com contraste de 4,5:1, texto de 12 px ou mais e títulos sem pular nível
+ok 281 - M49/B2: páginas públicas com contraste de 4,5:1, texto de 12 px ou mais e títulos sem pular nível
+  ---
+  duration_ms: 13329.545463
+  type: 'test'
+  ...
+# Subtest: A12: Agendados vazio diz por que não dá para agendar e leva à ação que resolve
+ok 282 - A12: Agendados vazio diz por que não dá para agendar e leva à ação que resolve
+  ---
+  duration_ms: 2913.645638
+  type: 'test'
+  ...
+# Subtest: M8/M9/B8: quem só usa vê o que está publicado, sem "Em preparo", menus de uma opção nem filtros salvos
+ok 283 - M8/M9/B8: quem só usa vê o que está publicado, sem "Em preparo", menus de uma opção nem filtros salvos
+  ---
+  duration_ms: 1237.642816
+  type: 'test'
+  ...
+# Subtest: A21: no celular, as ações da biblioteca ficam inteiras, sem quebrar palavras
+ok 284 - A21: no celular, as ações da biblioteca ficam inteiras, sem quebrar palavras
+  ---
+  duration_ms: 2248.130375
+  type: 'test'
+  ...
+# Subtest: M6/M10/A13/B5: página do Quick Win com o nome no h1, uma trilha, uso antes da gestão e Resultados agrupados
+ok 285 - M6/M10/A13/B5: página do Quick Win com o nome no h1, uma trilha, uso antes da gestão e Resultados agrupados
+  ---
+  duration_ms: 1404.366151
+  type: 'test'
+  ...
+# Subtest: M20/M21: decisão sem opção marcada, motivo obrigatório, descarte confirmado; variação com sentido em pt-BR
+ok 286 - M20/M21: decisão sem opção marcada, motivo obrigatório, descarte confirmado; variação com sentido em pt-BR
+  ---
+  duration_ms: 2707.320348
+  type: 'test'
+  ...
+# Subtest: A14/M19/M23/M24/M41: configurar em seções, estado informado, erro no campo, cor acessível e barra curta no celular
+ok 287 - A14/M19/M23/M24/M41: configurar em seções, estado informado, erro no campo, cor acessível e barra curta no celular
+  ---
+  duration_ms: 2225.480153
+  type: 'test'
+  ...
+# Subtest: M11/M26: usar e testar no formato anterior mostram o que enviar, sugestões à vista e as próximas ações
+ok 288 - M11/M26: usar e testar no formato anterior mostram o que enviar, sugestões à vista e as próximas ações
+  ---
+  duration_ms: 2912.658887
+  type: 'test'
+  ...
+# Subtest: A15: escolher um modelo mostra a prévia e não cria nada; o assistente abre preenchido
+ok 289 - A15: escolher um modelo mostra a prévia e não cria nada; o assistente abre preenchido
+  ---
+  duration_ms: 2399.797684
+  type: 'test'
+  ...
+# Subtest: M25: o assistente abre pela pergunta principal e mostra Publicar como etapa
+ok 290 - M25: o assistente abre pela pergunta principal e mostra Publicar como etapa
+  ---
+  duration_ms: 645.915177
+  type: 'test'
+  ...
+# Subtest: padrão Automático: segue o esquema do sistema, sem data-tema
+ok 291 - padrão Automático: segue o esquema do sistema, sem data-tema
+  ---
+  duration_ms: 2983.673351
+  type: 'test'
+  ...
+# Subtest: escolher Escuro e Claro na Ajuda vale ao recarregar; Automático volta a seguir o sistema
+ok 292 - escolher Escuro e Claro na Ajuda vale ao recarregar; Automático volta a seguir o sistema
+  ---
+  duration_ms: 3248.46375
+  type: 'test'
+  ...
+# Subtest: console: Aparência no menu da conta (pé da lateral), com a mesma escolha guardada
+ok 293 - console: Aparência no menu da conta (pé da lateral), com a mesma escolha guardada
+  ---
+  duration_ms: 1427.815527
+  type: 'test'
+  ...
+# Subtest: tema escuro: telas principais sem contraste insuficiente e sem rolagem horizontal (desktop e celular)
+ok 294 - tema escuro: telas principais sem contraste insuficiente e sem rolagem horizontal (desktop e celular)
+  ---
+  duration_ms: 14691.496736
+  type: 'test'
+  ...
+# Subtest: tema escuro com a cor da empresa: botão e links legíveis e a Ajuda aberta também passa
+ok 295 - tema escuro com a cor da empresa: botão e links legíveis e a Ajuda aberta também passa
+  ---
+  duration_ms: 1668.523238
+  type: 'test'
+  ...
+# Subtest: M18: o simulador responde no formato pedido, de forma determinística, sem aviso de simulação no corpo
+ok 296 - M18: o simulador responde no formato pedido, de forma determinística, sem aviso de simulação no corpo
+  ---
+  duration_ms: 809.043621
+  type: 'test'
+  ...
+# Subtest: A4/B7: no celular, Nova conversa abre com a saudação e a caixa de mensagem à vista
+ok 297 - A4/B7: no celular, Nova conversa abre com a saudação e a caixa de mensagem à vista
+  ---
+  duration_ms: 1243.819836
+  type: 'test'
+  ...
+# Subtest: B4: na lateral, só o lugar atual fica ativo
+ok 298 - B4: na lateral, só o lugar atual fica ativo
+  ---
+  duration_ms: 2192.182721
+  type: 'test'
+  ...
+# Subtest: M4/M5/B6: ajuda num lugar só (menu da conta, com o guia dentro); menu do celular com Fechar e a conta (nome, email e Sair)
+ok 299 - M4/M5/B6: ajuda num lugar só (menu da conta, com o guia dentro); menu do celular com Fechar e a conta (nome, email e Sair)
+  ---
+  duration_ms: 3889.048781
+  type: 'test'
+  ...
+# Subtest: A5/M2: "Dados sigilosos" fica na caixa, avisa que é definitivo ao ligar e, ligado, explica por que não desliga
+ok 300 - A5/M2: "Dados sigilosos" fica na caixa, avisa que é definitivo ao ligar e, ligado, explica por que não desliga
+  ---
+  duration_ms: 4333.628366
+  type: 'test'
+  ...
+# Subtest: M12/M13/M14/M18: ações num "⋯", ações da resposta em ícones com nome, informação técnica em "Detalhes", 👍/👎 ao pé e selo de simulação fora da resposta
+ok 301 - M12/M13/M14/M18: ações num "⋯", ações da resposta em ícones com nome, informação técnica em "Detalhes", 👍/👎 ao pé e selo de simulação fora da resposta
+  ---
+  duration_ms: 2276.027932
+  type: 'test'
+  ...
+# Subtest: A6: quem usa um Quick Win não vê o estado interno; textos sem "caso"
+ok 302 - A6: quem usa um Quick Win não vê o estado interno; textos sem "caso"
+  ---
+  duration_ms: 919.236864
+  type: 'test'
+  ...
+# Subtest: M3: "Excluir todas" é ação de perigo, longe de "Nova conversa"
+ok 303 - M3: "Excluir todas" é ação de perigo, longe de "Nova conversa"
+  ---
+  duration_ms: 735.295786
+  type: 'test'
+  ...
+# Subtest: M15: guia com passos nomeados, "Voltar" desabilitado visível e o caminho de volta ao guia
+ok 304 - M15: guia com passos nomeados, "Voltar" desabilitado visível e o caminho de volta ao guia
+  ---
+  duration_ms: 660.319881
+  type: 'test'
+  ...
+# Subtest: M16: Pendências vazia sem aba única nem filtros; hora sem segundos
+ok 305 - M16: Pendências vazia sem aba única nem filtros; hora sem segundos
+  ---
+  duration_ms: 590.233457
+  type: 'test'
+  ...
+# Subtest: M17: Conhecimento para quem só consulta: seletor sem corte e sem informação de gestão
+ok 306 - M17: Conhecimento para quem só consulta: seletor sem corte e sem informação de gestão
+  ---
+  duration_ms: 1709.753668
+  type: 'test'
+  ...
+# Subtest: contrato: entendimento do trabalho, edição, sugestão aceita, entregáveis, teste real e um cartão por entregável
+ok 307 - contrato: entendimento do trabalho, edição, sugestão aceita, entregáveis, teste real e um cartão por entregável
+  ---
+  duration_ms: 9112.498589
+  type: 'test'
+  ...
+# Subtest: Quick Win antigo: "Atualizar para Quick Win inteligente" mostra a estrutura como sugestão; nada muda sem aceitar
+ok 308 - Quick Win antigo: "Atualizar para Quick Win inteligente" mostra a estrutura como sugestão; nada muda sem aceitar
+  ---
+  duration_ms: 8735.609725
+  type: 'test'
+  ...
+# Subtest: celular (390px): entendimento, entregáveis e resultado sem rolagem horizontal
+ok 309 - celular (390px): entendimento, entregáveis e resultado sem rolagem horizontal
+  ---
+  duration_ms: 7956.704524
+  type: 'test'
+  ...
+# Subtest: pessoa define o nome na criação e o rascunho mantém nome e objetivo após recarregar
+ok 310 - pessoa define o nome na criação e o rascunho mantém nome e objetivo após recarregar
+  ---
+  duration_ms: 5651.194738
+  type: 'test'
+  ...
+# Subtest: editar nome tem cancelamento e recuperação, persiste para a equipe e preserva publicação, agenda e histórico
+ok 311 - editar nome tem cancelamento e recuperação, persiste para a equipe e preserva publicação, agenda e histórico
+  ---
+  duration_ms: 16845.70061
+  type: 'test'
+  ...
+# Subtest: operação de conteúdo: peças por canal, pesquisa, exemplo contextual, resultado por canal com fontes, pausa e retomada
+ok 312 - operação de conteúdo: peças por canal, pesquisa, exemplo contextual, resultado por canal com fontes, pausa e retomada
+  ---
+  duration_ms: 9399.270915
+  type: 'test'
+  ...
+# Subtest: excluir: só quem gere vê a ação; modal pede o nome; histórico preservado; nenhum alerta do navegador
+ok 313 - excluir: só quem gere vê a ação; modal pede o nome; histórico preservado; nenhum alerta do navegador
+  ---
+  duration_ms: 12296.880019
+  type: 'test'
+  ...
+# Subtest: celular: etapa de entregas e resultado por canal sem rolagem horizontal; quem só usa não vê "Excluir"
+ok 314 - celular: etapa de entregas e resultado por canal sem rolagem horizontal; quem só usa não vê "Excluir"
+  ---
+  duration_ms: 12973.521245
+  type: 'test'
+  ...
+# Subtest: resultado modular: um cartão por entregável e CSV de cada tabela (UTF-8, acentos e números intactos)
+ok 315 - resultado modular: um cartão por entregável e CSV de cada tabela (UTF-8, acentos e números intactos)
+  ---
+  duration_ms: 10653.149118
+  type: 'test'
+  ...
+# Subtest: largura 320px: plano, materiais, sugestões, lacunas, entregáveis e resultado sem rolagem horizontal
+ok 316 - largura 320px: plano, materiais, sugestões, lacunas, entregáveis e resultado sem rolagem horizontal
+  ---
+  duration_ms: 10118.596517
+  type: 'test'
+  ...
+# Subtest: largura 390px: plano, materiais, sugestões, lacunas, entregáveis e resultado sem rolagem horizontal
+ok 317 - largura 390px: plano, materiais, sugestões, lacunas, entregáveis e resultado sem rolagem horizontal
+  ---
+  duration_ms: 6460.544
+  type: 'test'
+  ...
+# Subtest: largura 768px: plano, materiais, sugestões, lacunas, entregáveis e resultado sem rolagem horizontal
+ok 318 - largura 768px: plano, materiais, sugestões, lacunas, entregáveis e resultado sem rolagem horizontal
+  ---
+  duration_ms: 5923.190644
+  type: 'test'
+  ...
+# Subtest: largura 1280px: plano, materiais, sugestões, lacunas, entregáveis e resultado sem rolagem horizontal
+ok 319 - largura 1280px: plano, materiais, sugestões, lacunas, entregáveis e resultado sem rolagem horizontal
+  ---
+  duration_ms: 5874.948476
+  type: 'test'
+  ...
+# Subtest: pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revisar → publicar → usar → conversar → nova execução
+ok 320 - pessoa leiga: biblioteca vazia → ensinar em 5 etapas → testar → revisar → publicar → usar → conversar → nova execução
+  ---
+  duration_ms: 16558.468893
+  type: 'test'
+  ...
+# Subtest: etapas: voltar e avançar sem perder nada; exemplo; conferência parcial (◐) e pontos para revisar
+ok 321 - etapas: voltar e avançar sem perder nada; exemplo; conferência parcial (◐) e pontos para revisar
+  ---
+  duration_ms: 14626.467505
+  type: 'test'
+  ...
+# Subtest: celular: progresso compacto na criação; colega usa pela biblioteca, sem rolagem horizontal
+ok 322 - celular: progresso compacto na criação; colega usa pela biblioteca, sem rolagem horizontal
+  ---
+  duration_ms: 9904.691381
+  type: 'test'
+  ...
+# Subtest: editar um Quick Win publicado cria a próxima versão sem mexer na publicada; versões e restauração
+ok 323 - editar um Quick Win publicado cria a próxima versão sem mexer na publicada; versões e restauração
+  ---
+  duration_ms: 6398.42471
+  type: 'test'
+  ...
+# Subtest: colunas do objetivo: uma estruturação por objetivo, revisão e ajuste manual soberano, falha sem inventar
+ok 324 - colunas do objetivo: uma estruturação por objetivo, revisão e ajuste manual soberano, falha sem inventar
+  ---
+  duration_ms: 14655.975331
+  type: 'test'
+  ...
+# Subtest: concorrência: resposta atrasada não vale para outro objetivo, não desenha etapa abandonada e não vence a mais nova
+ok 325 - concorrência: resposta atrasada não vale para outro objetivo, não desenha etapa abandonada e não vence a mais nova
+  ---
+  duration_ms: 20021.33782
+  type: 'test'
+  ...
+# Subtest: a revisão não reaproveita a conferência em memória depois de mudar uma fonte
+ok 326 - a revisão não reaproveita a conferência em memória depois de mudar uma fonte
+  ---
+  duration_ms: 2144.64304
+  type: 'test'
+  ...
+# Subtest: refinamento guiado no celular: aprovar campos, preservar versão e governança, repetir arquivo e comparar
+ok 327 - refinamento guiado no celular: aprovar campos, preservar versão e governança, repetir arquivo e comparar
+  ---
+  duration_ms: 10690.72695
+  type: 'test'
+  ...
+# Subtest: auditoria: aprovação de tabela exclusiva atualiza contrato, repete material e remove extras
+ok 328 - auditoria: aprovação de tabela exclusiva atualiza contrato, repete material e remove extras
+  ---
+  duration_ms: 4026.50327
+  type: 'test'
+  ...
+# Subtest: detalhe publicado: nome junto ao título, ação principal à direita (abaixo no celular) e edição contida em todas as larguras
+ok 329 - detalhe publicado: nome junto ao título, ação principal à direita (abaixo no celular) e edição contida em todas as larguras
+  ---
+  duration_ms: 14236.997441
+  type: 'test'
+  ...
+# Subtest: criador sem administração prepara conexão, define pessoas e limites, retoma rascunho no celular
+ok 330 - criador sem administração prepara conexão, define pessoas e limites, retoma rascunho no celular
+  ---
+  duration_ms: 8215.742317
+  type: 'test'
+  ...
+# Subtest: agendar pela página do Quick Win (lista sem menus por linha) e o menu "Mais ações" fica por cima do conteúdo
+ok 331 - agendar pela página do Quick Win (lista sem menus por linha) e o menu "Mais ações" fica por cima do conteúdo
+  ---
+  duration_ms: 11187.405218
+  type: 'test'
+  ...
+# Subtest: programação simples confere e ativa, funciona após fechar aba e cabe no celular
+ok 332 - programação simples confere e ativa, funciona após fechar aba e cabe no celular
+  ---
+  duration_ms: 10074.461288
+  type: 'test'
+  ...
+# Subtest: agendamento em processamento orienta a espera e só oferece resultado após concluir
+ok 333 - agendamento em processamento orienta a espera e só oferece resultado após concluir
+  ---
+  duration_ms: 13351.401878
+  type: 'test'
+  ...
+# Subtest: alerta real → refinar o caso exato; melhoria não envia, não publica e conserva texto após erro
+ok 334 - alerta real → refinar o caso exato; melhoria não envia, não publica e conserva texto após erro
+  ---
+  duration_ms: 7760.388327
+  type: 'test'
+  ...
+# Subtest: Uso e resultados: conferência explícita, persistência, exportação e layout móvel
+ok 335 - Uso e resultados: conferência explícita, persistência, exportação e layout móvel
+  ---
+  duration_ms: 4184.457581
+  type: 'test'
+  ...
+# Subtest: empresa: gestor acompanha sem ver conteúdo e filtros refletem no histórico e exportação
+ok 336 - empresa: gestor acompanha sem ver conteúdo e filtros refletem no histórico e exportação
+  ---
+  duration_ms: 1602.735895
+  type: 'test'
+  ...
+# Subtest: falha de leitura permite tentar novamente e não apresenta zero como resultado
+ok 337 - falha de leitura permite tentar novamente e não apresenta zero como resultado
+  ---
+  duration_ms: 1530.526987
+  type: 'test'
+  ...
+# Subtest: fechar o carregamento não reabre o detalhe quando a resposta chega depois
+ok 338 - fechar o carregamento não reabre o detalhe quando a resposta chega depois
+  ---
+  duration_ms: 1748.727332
+  type: 'test'
+  ...
+# Subtest: Visão geral: o próximo passo é aprovar os modelos sugeridos e leva ao cartão de Políticas, não ao catálogo técnico
+ok 339 - Visão geral: o próximo passo é aprovar os modelos sugeridos e leva ao cartão de Políticas, não ao catálogo técnico
+  ---
+  duration_ms: 2837.313311
+  type: 'test'
+  ...
+# Subtest: Políticas: cartão calmo com 2 modelos de fabricantes diferentes, motivos simples e um botão principal; detalhes técnicos no painel
+ok 340 - Políticas: cartão calmo com 2 modelos de fabricantes diferentes, motivos simples e um botão principal; detalhes técnicos no painel
+  ---
+  duration_ms: 2038.790793
+  type: 'test'
+  ...
+# Subtest: Aprovar a sugestão: confirmação no modal da plataforma → 2 modelos aprovados (API, banco, registro) → pronto, e o aviso some
+ok 341 - Aprovar a sugestão: confirmação no modal da plataforma → 2 modelos aprovados (API, banco, registro) → pronto, e o aviso some
+  ---
+  duration_ms: 33609.53739
+  type: 'test'
+  ...
+# Subtest: Modelos: sugestão por nível em palavras simples; "Usar a sugestão" quando difere e "já segue" depois
+ok 342 - Modelos: sugestão por nível em palavras simples; "Usar a sugestão" quando difere e "já segue" depois
+  ---
+  duration_ms: 2903.047461
+  type: 'test'
+  ...
+# Subtest: quem não administra modelos não chama a API da sugestão
+ok 343 - quem não administra modelos não chama a API da sugestão
+  ---
+  duration_ms: 20.699761
+  type: 'test'
+  ...
+# Subtest: tema escuro e celular (390 px): o cartão cabe, sem rolagem lateral, com contraste e botão de 44 px
+ok 344 - tema escuro e celular (390 px): o cartão cabe, sem rolagem lateral, com contraste e botão de 44 px
+  ---
+  duration_ms: 7541.789424
+  type: 'test'
+  ...
+# Subtest: login: reenvio invalida o código anterior; limite do servidor continua valendo; código mais recente entra
+ok 345 - login: reenvio invalida o código anterior; limite do servidor continua valendo; código mais recente entra
+  ---
+  duration_ms: 8014.342183
+  type: 'test'
+  ...
+# Subtest: entrada e navegação: um centro só (saudação e caixa); salto evita mudar a rota
+ok 346 - entrada e navegação: um centro só (saudação e caixa); salto evita mudar a rota
+  ---
+  duration_ms: 151.133852
+  type: 'test'
+  ...
+# Subtest: rascunho: objetivo e processo salvos ao continuar são retomados após recarga; saída protege alterações não salvas
+ok 347 - rascunho: objetivo e processo salvos ao continuar são retomados após recarga; saída protege alterações não salvas
+  ---
+  duration_ms: 2734.390515
+  type: 'test'
+  ...
+# Subtest: falha de rede ao salvar preserva o objetivo e permite repetir sem duplicar o rascunho
+ok 348 - falha de rede ao salvar preserva o objetivo e permite repetir sem duplicar o rascunho
+  ---
+  duration_ms: 833.300504
+  type: 'test'
+  ...
+# Subtest: fontes: papel tem explicação acessível; URL inválida fica junto ao campo e não perde o formulário
+ok 349 - fontes: papel tem explicação acessível; URL inválida fica junto ao campo e não perde o formulário
+  ---
+  duration_ms: 1103.250611
+  type: 'test'
+  ...
+# Subtest: busca encontra nomes sem acento e arquivados; restauração conserva histórico e não publica automaticamente
+ok 350 - busca encontra nomes sem acento e arquivados; restauração conserva histórico e não publica automaticamente
+  ---
+  duration_ms: 4717.126485
+  type: 'test'
+  ...
+# Subtest: diálogos: Tab permanece no modal, Escape devolve foco e não fica associado ao diálogo fechado
+ok 351 - diálogos: Tab permanece no modal, Escape devolve foco e não fica associado ao diálogo fechado
+  ---
+  duration_ms: 1257.817292
+  type: 'test'
+  ...
+# Subtest: mobile: menu tem foco contido, Escape fecha e restaura aria-expanded; principais precedem recentes
+ok 352 - mobile: menu tem foco contido, Escape fecha e restaura aria-expanded; principais precedem recentes
+  ---
+  duration_ms: 379.331227
+  type: 'test'
+  ...
+# Subtest: logout: falha de rede não afirma sucesso; aviso persiste e pode ser fechado; saída confirmada impede voltar à área privada
+ok 353 - logout: falha de rede não afirma sucesso; aviso persiste e pode ser fechado; saída confirmada impede voltar à área privada
+  ---
+  duration_ms: 3875.731435
+  type: 'test'
+  ...
+1..353
+# tests 353
+# suites 0
+# pass 352
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 777510.302376

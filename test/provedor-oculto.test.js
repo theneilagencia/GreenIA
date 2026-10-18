@@ -31,6 +31,36 @@ test('filtro de saída: substitui o nome, a URL, a chave e o identificador do pr
   assert.equal(textoSemProvedor('texto comum'), 'texto comum');
 });
 
+test('fontes externas preservam URL exata mesmo quando caminho, consulta ou domínio citam o provedor', () => {
+  const urls = ['https://github.com/OpenRouterTeam/docs/blob/main/README.md',
+    'https://revista.exemplo/openrouter/auto?tema=OpenRouter#OpenRouter',
+    'https://openrouter.ai.exemplo/artigo', 'https://noticias.exemplo/open-router'];
+  for (const url of urls) {
+    assert.equal(textoSemProvedor(url), url);
+    assert.equal(textoSemProvedor(`Fonte: [documentação](${url})`), `Fonte: [documentação](${url})`);
+    assert.deepEqual(semProvedor({ fontes: [{ url, titulo: 'OpenRouter em análise' }] }),
+      { fontes: [{ url, titulo: 'serviço de IA em análise' }] });
+  }
+  assert.doesNotMatch(textoSemProvedor('Falha em https://OPENROUTER.ai/api/v1/chat e OpenRouter respondeu 502'), PROVEDOR);
+});
+
+test('citação externa conserva o endereço no resultado e ao reabrir o histórico', async () => {
+  const url = 'https://github.com/OpenRouterTeam/docs/blob/main/README.md';
+  const provedor = await openRouterFalso({ fontes: [{ url, titulo: 'Documentação oficial' }] });
+  const s = await subir({ ia: provedor.ia });
+  try {
+    salvarConfig(s.app.db, { dominios: ['exemplo.com.br'], pesquisaWeb: { ativa: true } });
+    const cli = await s.cliente().entrar('admin@exemplo.com.br');
+    const conv = (await cli.post('/api/conversas', {})).dados.conversa;
+    const r = await enviarMensagem(cli, conv.id, { texto: 'Pesquise as novidades recentes de IA.' });
+    assert.equal(r.status, 200, JSON.stringify(r.erro));
+    assert.ok(provedor.chamadas.some(b => b.plugins?.some(p => p.id === 'web')));
+    assert.ok(r.fim.fontes.some(f => f.url === url), JSON.stringify(r.fim.fontes));
+    const historico = (await cli.get(`/api/conversas/${conv.id}`)).dados;
+    assert.ok(historico.mensagens.some(m => m.fontes?.some(f => f.url === url)), JSON.stringify(historico.mensagens));
+  } finally { await s.fechar(); await provedor.fechar(); }
+});
+
 test('código das páginas da empresa não contém o nome do provedor (só o painel global e o console do operador)', () => {
   const raiz = new URL('../public/', import.meta.url).pathname;
   // Painel global, console do operador e os documentos legais da plataforma (que precisam nomear os fornecedores).

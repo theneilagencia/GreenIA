@@ -1,3 +1,4 @@
+import { autorizarAdvancedFalso } from './advanced-fixture.js';
 // Design pela IA (diretora de arte): o HTML/CSS da IA é dado (limpo: sem script, evento ou recurso externo), é
 // composto num Chromium isolado (JavaScript desligado, rede bloqueada) e conferido nos pixels e no DOM; falhou, uma
 // correção; falhou de novo, motor clássico. Prévia, PDF, PNG/JPG, edição sem IA, restauração e acesso pela API.
@@ -351,6 +352,8 @@ test('refatore o PPTX premium: fluxo completo entrega PowerPoint do design, não
   const { pptx, MIMES } = await import('../src/escritorio.js');
   const { previaDoPptx } = await import('../src/previa-pptx.js');
   salvarConfig(S.app.db, { acessoPerfis: { equilibrado: { todos:true }, avancado:{ todos:true } } });
+  const admin=await S.cliente().entrar('admin@exemplo.com.br');
+  await autorizarAdvancedFalso(S,admin,ana.pessoa,['anthropic/claude-sonnet-5']);
   const chamadas = OR.chamadas.length;
   OR.responder = b => {
     const sis = texto(b.messages[0].content);

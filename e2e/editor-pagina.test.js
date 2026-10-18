@@ -1,7 +1,7 @@
 // Editor da página de apresentação (console e administração da empresa) no padrão dos construtores do Claude e do
 // ChatGPT: seções fechadas com resumo, uma aberta por vez, prévia ao vivo ao lado sem salvar, "Ver como fica" no
 // celular, ações raras em "Mais ações" e o salvar desligado ("Sem alterações") até algo mudar. No console, a empresa
-// tem cinco abas (Marca e endereço com subabas, endereços antigos continuam valendo) e as permissões concedidas
+// tem seis abas (Marca e endereço com subabas, endereços antigos continuam valendo) e as permissões concedidas
 // gravam na hora, voltando ao que eram se o servidor recusar. Dados fictícios.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -68,7 +68,10 @@ for (const [onde, ehConsole] of [['console', true], ['administração', false]])
     await p.getByRole('button', { name: 'Abrir a prévia em nova aba' }).waitFor();
     await p.waitForFunction(t => document.getElementById('ld-previa-quadro')?.contentDocument?.getElementById('ld-titulo')?.textContent === t, antes.content.titulo);
     // A prévia montada não deixa a página "carregando" para sempre (as outras suítes esperam a rede ficar parada).
-    await p.waitForLoadState('networkidle', { timeout: 10000 });
+    await p.waitForFunction(()=>document.getElementById('ld-previa-quadro')?.contentDocument?.readyState==='complete');
+    const inicioPrevia=await p.locator('#ld-previa-quadro').evaluate(f=>f.contentWindow.performance.timeOrigin);
+    await p.waitForTimeout(300);
+    assert.equal(await p.locator('#ld-previa-quadro').evaluate(f=>f.contentWindow.performance.timeOrigin),inicioPrevia,'a prévia não reinicia a navegação em laço');
     // Sem alterações: o salvar está desligado e diz por quê; "Ver como fica" não aparece em tela larga.
     const salvar = p.locator('[data-acao="salvar"][form="form-landing"]');
     assert.equal(await salvar.isDisabled(), true);
@@ -237,11 +240,11 @@ test('celular: "Ver como fica" abre a prévia na tela inteira, Esc fecha e o foc
   }
 });
 
-test('console: cinco abas, Marca e endereço com três subabas e os endereços antigos levando à subaba certa sem rastro', async () => {
+test('console: seis abas, Marca e endereço com três subabas e os endereços antigos levando à subaba certa sem rastro', async () => {
   const p = await pagina(ops);
   await p.goto(rotaConsole('resumo'));
   await p.locator('.subnav a').first().waitFor();
-  assert.deepEqual(await p.locator('nav.subnav:not(.subnav-2) a').allInnerTexts(), ['Resumo', 'Usuários', 'Marca e endereço', 'Permissões', 'Auditoria']);
+  assert.deepEqual(await p.locator('nav.subnav:not(.subnav-2) a').allInnerTexts(), ['Resumo', 'Usuários', 'Uso e resultados', 'Marca e endereço', 'Permissões', 'Auditoria']);
   assert.equal(await p.locator('.subnav-2').count(), 0);
   await p.getByRole('link', { name: 'Marca e endereço' }).click();
   await p.locator('#form-marca').waitFor();
@@ -320,12 +323,12 @@ test('administração sem a página liberada: editor travado, sem ações, prév
 });
 
 // Metas do caminho claro nas três telas desta mudança: [ações principais, controles na primeira vista]. Permissões
-// ficam em 12. Página de apresentação: no console, trilha + 5 abas + 3 subabas + "Mais ações" + salvar + "Abrir em
-// nova aba" já somam 12 antes das sete seções (fechadas, uma linha cada); na administração, 3 abas + "Mais ações" +
+// ficam em 13, incluindo a aba Uso e resultados. Página de apresentação: no console, trilha + 6 abas + 3 subabas + "Mais ações" + salvar + "Abrir em
+// nova aba" já somam 13 antes das sete seções (fechadas, uma linha cada); na administração, 3 abas + "Mais ações" +
 // salvar + a prévia (ou "Ver como fica" e o menu no celular) + sete seções.
 const METAS = {
-  1366: { 'console/página de apresentação': [1, 19], 'console/permissões': [0, 12], 'admin/página de apresentação': [1, 13] },
-  390: { 'console/página de apresentação': [1, 19], 'console/permissões': [0, 12], 'admin/página de apresentação': [1, 14] },
+  1366: { 'console/página de apresentação': [1, 20], 'console/permissões': [0, 13], 'admin/página de apresentação': [1, 13] },
+  390: { 'console/página de apresentação': [1, 20], 'console/permissões': [0, 13], 'admin/página de apresentação': [1, 14] },
 };
 for (const [width, height] of [[1366, 768], [390, 844]]) {
   test(`metas em ${width} px: uma ação principal (nenhuma nas permissões), controles na primeira vista, um aviso no máximo`, async () => {

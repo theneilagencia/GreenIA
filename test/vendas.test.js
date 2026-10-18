@@ -30,7 +30,7 @@ test('a página não promete o que não existe nem mostra custo de fornecedor', 
   assert.match(v, /href="#contato">Solicitar demonstração</);
   // Prumo Discovery: convite, nunca requisito (endereço e pergunta da revisão comercial 331cb66, LP-REV-20261011-002).
   assert.match(v, /href="https:\/\/www\.theneil\.com\.br\/prumo-discovery\.html"/);
-  assert.match(v, /Preciso fazer o Prumo Discovery para usar a GreenIA\?<\/summary><p>Não\./);
+  assert.match(v,/O uso da plataforma é contratado por assinatura mensal/);
   assert.doesNotMatch(v, /(?:exige|requer|precisa d[eo]|obrigat[óo]ri\w*|só funciona com)[^.<]{0,40}Prumo|Prumo[^.<]{0,40}(?:obrigat[óo]ri|exigid|requisito)/i);
   for (const proibido of [/\bSSO\b/, /\bSCIM\b/, /\bSLA\b/, /0,01/, /por token/i, /OpenRouter/]) assert.doesNotMatch(v, proibido);
   // Títulos sem ponto final.
@@ -75,6 +75,6 @@ test('a LP mantém a demonstração e condições de integração com uma estrut
   assert.doesNotMatch(v, /\b(?:O|o|no|ao|do|pelo) GreenIA\b/);
   assert.doesNotMatch(v, /cartões ao lado/);
   // Integração é projeto à parte e não vem ativada (revisão comercial 331cb66, LP-REV-20261011-001 e 003).
-  assert.match(v, /Ela não vem ativada na assinatura/);
+  assert.match(v,/Na operação real, essa integração é um projeto contratado à parte com a TheNeil/);
   assert.match(v, /A consulta exige conexão ativa, ação disponível e permissão de uso/);
 });

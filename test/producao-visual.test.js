@@ -418,7 +418,7 @@ test('"no mesmo layout" do material enviado: a peça e o PowerPoint seguem as co
   const conv = (await ana.post('/api/conversas', {})).dados.conversa;
   // Material em PPTX (o PDF vira modelo de layout exato, em modelo-pdf.test.js): estilo pelo tema do arquivo.
   const { pptx } = await import('../src/escritorio.js');
-  await enviarMensagem(ana, conv.id, { texto: 'analise o material', anexos: [{ nome: 'Apresentacao-Kickoff.pptx', base64: pptx('## Kickoff\n- Objetivo', { cor: '#C8102E', fonte: 'Montserrat' }).toString('base64') }] });
+  await enviarMensagem(ana, conv.id, { texto: 'analise o material', anexos: [{ nome: 'Apresentacao-Kickoff.pptx', base64: pptx('## Kickoff\n- Objetivo', { cor: '#C8102E', fonte: 'Inter' }).toString('base64') }] });
   const r = await enviarMensagem(ana, conv.id, { texto: 'quero uma versão pronta da apresentação, em PPTX, seguindo o mesmo layout (mesmas fontes e cores)' });
   assert.equal(r.status, 200, JSON.stringify(r.erro));
   const a = r.fim.artefatos?.[0];
@@ -428,8 +428,20 @@ test('"no mesmo layout" do material enviado: a peça e o PowerPoint seguem as co
   assert.equal(id.origem['cores.primaria'], 'inferida');
   const resp = (await ana.get(`/api/conversas/${conv.id}`)).dados.mensagens.filter(m => m.papel === 'assistant').at(-1);
   const pp = await fetch(`${S.base}/api/conversas/${conv.id}/mensagens/${resp.id}/arquivo/pptx`, { headers: { cookie: ana.cookie } });
-  assert.equal(pp.status, 200);
+  assert.equal(pp.status, 200, await pp.clone().text());
   const z = deszipar(Buffer.from(await pp.arrayBuffer()));
-  assert.match(z.get('ppt/theme/theme1.xml'), /<a:latin typeface="Montserrat"\/>/);
+  assert.match([...z].filter(([n])=>/^ppt\/slides\/slide\d+\.xml$/.test(n)).map(([,x])=>x).join('\n'), /<a:latin typeface="Inter(?:-[^"]+)?"\/>/);
   assert.match(z.get('ppt/slides/slide2.xml'), /C8102E/);
+});
+
+
+test('mesmas fontes: fonte indisponível pede referência PDF antes de inferência ou consumo',async()=>{
+ const {pptx}=await import('../src/escritorio.js');
+ const conv=(await ana.post('/api/conversas',{})).dados.conversa;
+ const anexo={nome:'modelo.pptx',base64:pptx('## Modelo\nConteúdo de teste',{fonte:'Montserrat'}).toString('base64')};
+ const n=OR.chamadas.length;
+ const r=await enviarMensagem(ana,conv.id,{texto:'Quero uma apresentação em PPTX com as mesmas fontes e cores',anexos:[anexo]});
+ assert.equal(r.status,409);assert.equal(r.erro.erro,'fonte_layout_indisponivel');assert.match(r.erro.mensagem,/PDF/);
+ assert.equal(OR.chamadas.length,n);assert.equal(todos(S.app.db,'select * from uso where conversa_id=?',conv.id).length,0);
+ assert.equal(todos(S.app.db,'select * from arquivos_gerados where conversa_id=?',conv.id).length,0);
 });

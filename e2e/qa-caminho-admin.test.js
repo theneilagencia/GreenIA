@@ -15,7 +15,7 @@ const CHROMIUM = ['/opt/pw-browsers/chromium', process.env.CHROMIUM_PATH, proces
 const TELAS = {
   // rota: [tipo, ações principais na primeira vista]; tipo: tarefa (até 12 alvos), config (até 15), leitura (até 12).
   'visao-geral': ['tarefa', 1], pessoas: ['tarefa', 1], 'pessoas/areas': ['tarefa', 1], 'pessoas/grupos': ['tarefa', 1], 'pessoas/perfis': ['tarefa', 1],
-  'pessoas/criacao': ['config', 1], modelos: ['config', 1], 'modelos/catalogo': ['tarefa', 1], 'modelos/roteamento': ['config', 1], 'modelos/historico': ['leitura', 0],
+  'pessoas/criacao': ['config', 1], modelos: ['config', 1], 'modelos/catalogo': ['tarefa', 1], 'modelos/roteamento': ['config', 0], 'modelos/historico': ['leitura', 0],
   politicas: ['config', 1], 'politicas/texto': ['config', 1], uso: ['leitura', 0], atividade: ['leitura', 0], 'atividade/problemas': ['leitura', 0], 'atividade/suporte': ['leitura', 0],
   integracoes: ['tarefa', 1], 'empresa/marca': ['config', 1], 'empresa/landing': ['config', 1], 'empresa/url': ['config', 1], configuracoes: ['config', 1],
 };
@@ -49,7 +49,9 @@ async function pagina({ width, height }) {
 }
 const abrir = async (p, rota) => {
   await p.goto(`${S.base}/app#/${rota}`);
-  await p.waitForFunction(() => !document.querySelector('#principal')?.hasAttribute('aria-busy') && !document.querySelector('#conteudo > .esqueleto'));
+  // O main começa vazio e sem aria-busy: ausência de carregamento, sozinha, não prova tela pronta.
+  await p.waitForFunction(() => document.querySelector('#principal h1') && !document.querySelector('#principal')?.hasAttribute('aria-busy') && !document.querySelector('#conteudo > .esqueleto'));
+  await p.evaluate(() => document.fonts.ready);
   await p.waitForLoadState('networkidle'); await p.waitForTimeout(150);
 };
 
@@ -63,7 +65,7 @@ const medir = () => {
   // O botão Menu do celular é a lateral recolhida (que a medição já deixa de fora na tela larga).
   const interativos = q('a[href], button, select, input:not([type=hidden]), textarea, summary').filter(e => e.id !== 'menu');
   // Bloco recolhido só de explicação: um details cujo conteúdo não tem nenhum controle, link ou tabela.
-  const explicativos = [...main.querySelectorAll('details')].filter(d => !d.querySelector(':scope > :not(summary) :is(a, button, input, select, textarea, table), :scope > :is(a, button, input, select, textarea, table, form)'));
+  const explicativos = [...main.querySelectorAll('details')].filter(d => !d.querySelector('summary')?.textContent.includes('Como ler estes números') && !d.querySelector(':scope > :not(summary) :is(a, button, input, select, textarea, table), :scope > :is(a, button, input, select, textarea, table, form)'));
   return { primariosDobra: primarios.filter(dobra).length, rotulos: primarios.filter(dobra).map(b => b.innerText.trim().slice(0, 30)), interativosDobra: interativos.filter(dobra).length,
     lista: interativos.filter(dobra).map(e => (e.innerText || e.getAttribute('aria-label') || e.tagName).trim().slice(0, 20)),
     avisos: q('.faixa-aviso, .aviso, .callout, .caixa-ajuda, .dica-caixa, .comece').length, explicativos: explicativos.map(d => d.querySelector('summary')?.innerText.trim()),
@@ -93,7 +95,7 @@ test('menu da Administração curto, sem caixa de explicação, e endereços ant
   const p = await pagina({ width: 1366, height: 768 });
   await abrir(p, 'visao-geral');
   const itens = await p.locator('#lateral .lateral-rolagem a.item-lat .nome').allInnerTexts();
-  assert.deepEqual(itens, ['Visão geral', 'Pessoas', 'Modelos', 'Políticas de IA', 'Uso e créditos', 'Atividade', 'Marca e endereço', 'Configurações']);
+  assert.deepEqual(itens, ['Visão geral', 'Pessoas', 'Modelos', 'Políticas de IA', 'Uso e resultados', 'Créditos do plano', 'Atividade', 'Marca e endereço', 'Configurações']);
   assert.deepEqual(await p.locator('#lateral .lateral-rolagem h2').allInnerTexts().then(t => t.map(x => x.toLowerCase())), ['pessoas e ia', 'acompanhar', 'empresa']);
   assert.equal(await p.locator('#lateral .aviso-contexto').count(), 0);
   for (const [antigo, novo, motivo] of [['preparacao', '#/visao-geral?passos=1', 'Preparar o ambiente agora fica no alto da Visão geral'],
@@ -158,7 +160,10 @@ test('Modelos: decisões na aba principal, catálogo técnico em aba própria co
   const p = await pagina({ width: 1366, height: 768 });
   await abrir(p, 'modelos');
   assert.deepEqual(await p.locator('[role=tab]').allInnerTexts(), ['Níveis e acesso', 'Catálogo técnico', 'Escolha automática', 'Histórico']);
-  assert.equal(await p.locator('#conteudo details').count(), 0);
+  assert.equal(await p.locator('#cfg-modelos > details').count(),1);
+  assert.equal(await p.locator('#cfg-modelos > details').getAttribute('open'),null,'configuração técnica recolhida por padrão');
+  await p.locator('#cfg-modelos > details > summary').click();
+  assert.equal(await p.locator('#advanced-admin details').count(),2,'limite e autorizações Advanced são decisões opcionais próprias');
   assert.equal(await p.locator('#pd-chat').isVisible(), false, 'modelo de cada nível em Mais opções');
   await p.getByRole('button', { name: 'Mais opções' }).click();
   assert.equal(await p.locator('#pd-chat').isVisible(), true);

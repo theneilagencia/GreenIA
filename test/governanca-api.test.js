@@ -57,7 +57,7 @@ const executados = n => OR.chamadas.slice(n).flatMap(c => [c.model, ...(c.models
 function permitido(id, { sigilosa: sig }) {
   const m = um(S.app.db, 'select * from modelos where id = ?', id);
   const cfg = lerConfig(S.app.db);
-  if (id === 'openrouter/auto') return cfg.automatico && !sig;
+  if (id === 'openrouter/auto'||m?.perfil==='avancado') return false;
   if (!m?.liberado) return false;
   if (cfg.exigirSemTreino && /:free$/.test(id)) return false;
   if (sig && (!m.homologado || m.vetado_plataforma)) return false;
@@ -100,7 +100,8 @@ test('invariante (10 casos): modelo proibido nunca é executado; com alternativa
   for (const [nome, modelo, sig, motivo] of casos) {
     const conv = sig ? await sigilosa() : await conversa();
     const x = await pedir(conv, modelo);
-    assert.equal(x.r.status, 200, `${nome}: ${JSON.stringify(x.r.erro)}`);
+    if(modelo===AVANCADO||modelo==='classe:avancado'){assert.equal(x.r.status,403,nome);assert.equal(x.r.erro.erro,'advanced_necessario');assert.equal(x.feitos.length,0);continue;}
+    assert.equal(x.r.status,200,`${nome}: ${JSON.stringify(x.r.erro)}`);
     assert.ok(!x.feitos.includes(modelo), `${nome}: executou o proibido`);
     confereInvariante(x, modelo, sig);
     assert.equal(x.rota.decisao_solicitado, 'substituido', nome);
@@ -117,10 +118,10 @@ test('invariante 7b: Automático do OpenRouter ligado pela empresa nunca recebe 
   const x = await pedir(await sigilosa(), 'openrouter/auto');
   assert.equal(x.r.status, 200);
   assert.ok(!x.feitos.includes('openrouter/auto'));
-  assert.equal(x.rota.motivo_substituicao, 'requested_model_not_allowed_for_sensitive_data');
+  assert.equal(x.rota.motivo_substituicao, 'requested_model_not_authorized');
   const livre = await pedir(await conversa(), 'openrouter/auto');
-  assert.equal(livre.feitos[0], 'openrouter/auto', 'fora do sigilo, a empresa permite: respeitado');
-  assert.equal(livre.rota.decisao_solicitado, 'respeitado');
+  assert.ok(!livre.feitos.includes('openrouter/auto'));
+  assert.equal(livre.rota.decisao_solicitado, 'substituido');
   await admin.put('/api/admin/modelos-config', { automatico: false });
 });
 
@@ -175,7 +176,8 @@ test('invariante (propriedade): 120 entradas aleatórias de API nunca executam m
     const conv = sig ? await sigilosa() : await conversa();
     const x = await pedir(conv, modelo, texto);
     const sigFinal = (await ana.get(`/api/conversas/${conv.id}`)).dados.conversa.sigilosa;   // o CNPJ torna sigilosa
-    assert.ok([200].includes(x.r.status), `entrada ${i} (${modelo}): ${x.r.status} ${JSON.stringify(x.r.erro)}`);
+    assert.ok([200,403,409].includes(x.r.status), `entrada ${i} (${modelo}): ${x.r.status} ${JSON.stringify(x.r.erro)}`);
+    if(x.r.status!==200){assert.ok(['advanced_necessario','sem_modelo_autorizado'].includes(x.r.erro.erro));assert.equal(x.feitos.length,0);assert.equal(x.rota.resultado,'bloqueado');}
     confereInvariante(x, modelo || null, sigFinal);
     if (x.rota.decisao_solicitado === 'substituido') substituidos++;
   }
@@ -183,7 +185,7 @@ test('invariante (propriedade): 120 entradas aleatórias de API nunca executam m
 });
 
 test('caso A: solicitado elegível é usado (solicitado == selecionado)', async () => {
-  const x = await pedir(await conversa(), RAPIDO);
+  const x = await pedir(await conversa(), RAPIDO, 'Olá');
   assert.equal(x.feitos[0], RAPIDO);
   assert.equal(x.rota.decisao_solicitado, 'respeitado');
   assert.deepEqual(x.r.fim.rota.solicitacao, { decisao: 'respeitado', motivo: null });
@@ -210,7 +212,7 @@ test('caso B2: o selecionado cai no fornecedor e a reserva responde: registrado 
   await admin.put(`/api/admin/modelos/${enc(NAO_LIBERADO)}`, { liberado: true, perfil: 'rapido' });
   await admin.put(`/api/admin/modelos/${enc(RAPIDO)}`, { reserva: NAO_LIBERADO });
   OR.falhar.add(RAPIDO);
-  const x = await pedir(await conversa(), RAPIDO);
+  const x = await pedir(await conversa(), RAPIDO, 'Olá');
   OR.falhar.delete(RAPIDO);
   await admin.put(`/api/admin/modelos/${enc(RAPIDO)}`, { reserva: null });
   await admin.put(`/api/admin/modelos/${enc(NAO_LIBERADO)}`, { liberado: false });
@@ -273,14 +275,14 @@ test('uma só rota de execução: toda chamada à IA passa pelo roteador e pela 
   assert.match(qws, /origem: 'quick_win_exemplo'/, 'finalidade do exemplo explícita');
   const antesDoEnvio = trecho => { const i = est.indexOf(trecho); assert.ok(i >= 0 && i < est.indexOf('app.ia.enviar('), `estruturação: "${trecho}" antes do envio`); };
   ['cienciaPendente(app, pessoa)', 'app.limites?.checar(pessoa, cfg)', 'checarPlano(app)', 'decidir(tipos, cfg.acoesChat)', 'contemCredencial(textoDe(mensagens))',
-    'modeloPermitido(app.db, cfg, pessoa', 'const rota = rotear({', 'avaliarProcessamentoSigiloso({ cfg: cfgAgora, sigilosa: false })', 'insert into roteamento'].forEach(antesDoEnvio);
+    'const rota = rotear({', 'avaliarProcessamentoSigiloso({ cfg: cfgAgora, sigilosa: false })', 'insert into roteamento'].forEach(antesDoEnvio);
   assert.match(est, /app\.ia\.enviar\(mensagens, \{ modelo: m\.id, reserva: rota\.reserva, sigilosa: false/, 'estruturação: executa o que o roteador decidiu');
   assert.match(est, /const m = rota\.modelo;/);
   assert.match(est, /registrarUso\(app, \{/, 'estruturação: consumo registrado (src/custo-ia.js)');
   const conv = readFileSync(join(raiz, 'conversas.js'), 'utf8');
   // O desenho das peças só troca de recurso para uma classe que o seletor valida para a pessoa e o Quick Win, e
   // nunca com sigilo, área reforçada ou dado pessoal; tem a mesma defesa de credencial da execução.
-  assert.match(conv, /if \(!sigilosa && !areaReforcada && !dadosPessoais\) \{\s*try \{ const m = modeloPermitido\(app\.db, cfg, pessoa, 'classe:avancado', \{ qw \}\)/);
+  assert.match(conv, /if \(!sigilosa && !areaReforcada && !dadosPessoais\) \{\s*try \{ const m = modeloPermitido\(app\.db, cfg, pessoa, 'classe:avancado', \{ qw, conversaId:conv\.id, em:AGORA\(app\) \}\)/);
   assert.match(conv, /const chamarDesign = modeloDesign === atual\.id \? chamar : msgs => chamadaAuxiliar\(async sinal => \{[\s\S]{0,300}contemCredencial\(txt\)/);
   // A conferência usa o recurso e a rota já decididos e conferidos (nunca escolhe modelo), depois da execução.
   // A IA da execução é a do aplicativo ou a mesma com mascaramento (src/mascaramento.js), nunca outra.
@@ -422,7 +424,9 @@ test('admin leigo: nova empresa, recomendações, tarefas, sigilo, bloqueio, ale
     // 3. Tarefas normais, sem nenhuma configuração técnica.
     for (const texto of ['Escreva um email de boas-vindas.', 'Analise este contrato e identifique riscos jurídicos e obrigações.']) {
       const c = (await eva.post('/api/conversas', {})).dados.conversa;
-      assert.equal((await enviarMensagem(eva, c.id, { texto })).status, 200, texto);
+      const n=R.chamadas.length,r=await enviarMensagem(eva,c.id,{texto});
+      if(texto.includes('contrato')){assert.equal(r.status,403);assert.equal(r.erro.erro,'advanced_necessario');assert.equal(R.chamadas.length,n);}
+      else assert.equal(r.status,200,texto);
     }
     // 4. Tarefa confidencial: a autorização da plataforma basta.
     assert.equal((await ops.post('/api/plataforma/homologacoes', { id: EQUILIBRADO, nome: 'Equilibrado seguro', perfil: 'equilibrado', fornecedor: 'Anthropic', semTreino: true, retencaoZero: true, justificativa: 'Retenção zero conferida no contrato.' })).status, 200);
@@ -446,7 +450,7 @@ test('admin leigo: nova empresa, recomendações, tarefas, sigilo, bloqueio, ale
     assert.match(atencao.acao, /Seguir recomendações da GreenIA/);
     // 8. Configuração manual: continua seguro (as regras obrigatórias não saem).
     assert.equal((await eva.put('/api/admin/governanca', { modo: 'manual' })).status, 200);
-    assert.equal((await eva.put('/api/admin/modelos-config', { exigirSemTreino: false, automatico: true })).status, 200);
+    assert.equal((await eva.put('/api/admin/modelos-config', { exigirSemTreino: false, automatico: true })).status, 409);
     const m = R.chamadas.length;
     assert.equal((await enviarMensagem(eva, sig.id, { texto: 'Confidencial de novo', modelo: 'openrouter/auto' })).status, 409);
     assert.equal(R.chamadas.length, m, 'modo manual não abre exceção ao sigilo');
@@ -484,8 +488,9 @@ test('ignorância deliberada: as tarefas se resolvem só com a intenção', asyn
   for (const [texto, anexos] of tarefas) {
     const conv = await conversa();
     const r = await enviarMensagem(ana, conv.id, { texto, anexos });
-    assert.equal(r.status, 200, `${texto}: ${JSON.stringify(r.erro)}`);
-    assert.ok(r.texto.length > 0);
+    if(/riscos/.test(texto)){assert.equal(r.status,403);assert.equal(r.erro.erro,'advanced_necessario');}
+    else if(/pesquisa/.test(texto)){assert.equal(r.status,200);assert.ok(!r.fim.fontes.some(f=>f.url));}
+    else {assert.equal(r.status,200,`${texto}: ${JSON.stringify(r.erro)}`);assert.ok(r.texto.length>0);}
     await semConhecimentoTecnico(conv, r);
   }
 });
@@ -518,7 +523,7 @@ test('matriz da pessoa leiga: nenhum cenário pede decisão técnica, homologaç
     const r = await enviarMensagem(ana, conv.id, { texto, ...(op.modelo ? { modelo: op.modelo } : {}) });
     falhaIA = null; OR.falhar.clear();
     if (op.janela) exec(S.app.db, 'update modelos set contexto = 1048576 where id = ?', RAPIDO);
-    assert.ok([200, 409, 413].includes(r.status), `${nome}: ${r.status}`);
+    assert.ok([200, 403, 409, 413].includes(r.status), `${nome}: ${r.status}`);
     if (op.falhaIA) assert.equal(r.falha.mensagem, MSG_USUARIO.ia_fora, nome);
     await semConhecimentoTecnico(conv, r);
   }

@@ -1,3 +1,4 @@
+import { FAMILIAS } from './visual/fontes.js';
 import { abrirTentativa, finalizarTentativa, registrarDownloadResultado } from './resultados.js';
 import { trabalhoDoPedido } from '../public/trabalhos.js';
 import { acessoAdvanced, prepararPedidoAdvanced, conferirAdvanced } from './advanced.js';
@@ -957,6 +958,12 @@ export function rotasConversas(app, r) {
     // tipo de fonte dele, como inferência desta peça (a regra de identidade da empresa continua valendo mais).
     if (pecaChat) {
       const estilo = estiloDaConversa(app, conv.id, anexos);
+      // Sem o PDF de referência, o compositor só possui as fontes empacotadas.
+      // Não troca silenciosamente uma fonte pedida como parte da entrega.
+      if (estilo && /mesmas? fontes?\b/i.test(texto)) {
+        const disponiveis=Object.values(FAMILIAS).map(f=>f.nome.toLowerCase());
+        if (estilo.fontes?.some(f=>!disponiveis.includes(f.toLowerCase()))) throw erro(409,'fonte_layout_indisponivel','Para manter as mesmas fontes, envie também um PDF da apresentação como referência de layout. O pedido não foi executado e nenhum crédito de IA foi consumido.');
+      }
       if (estilo) pecaChat.operacao.entregaveis[0].visual.estilo = estiloComoTexto(estilo);
     }
     const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, execucaoQw, pesquisa, false, !execucaoQw && !edicao && PEDE_ARQUIVO.test(texto))
@@ -1732,8 +1739,10 @@ export function rotasConversas(app, r) {
     }
     // Materializar antes de anunciar a entrega. Marcadores de formato não são arquivos.
     const officeProntos = [];
-    if (formatosPedidos.length && !visuais?.artefatos?.length && !gerado && !editado && !modeloAusente && !modeloApr && !edicao && !qualidadeVisualFalhou && !ehPergunta(texto) && PEDE_ENTREGA.test(texto) && soEntregavel(resposta).trim().length > 40) {
+    if (formatosPedidos.length && !modeloAusente && !modeloApr && !edicao && !qualidadeVisualFalhou && !ehPergunta(texto) && PEDE_ENTREGA.test(texto) && soEntregavel(resposta).trim().length > 40) {
       for (const formato of formatosPedidos) {
+        if (formato === 'pptx' && (gerado || visuais?.artefatos?.some(a=>a.tipo==='presentation'))) continue;
+        if (visuais?.artefatos?.length && formato !== 'docx' && formato !== 'xlsx') continue;
         try {
           const conteudo = soEntregavel(resposta), titulo = conv.titulo || 'Resposta da GreenIA';
           let dados;

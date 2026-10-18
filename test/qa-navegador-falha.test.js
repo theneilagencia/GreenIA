@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 
 test('falha ao iniciar navegador encerra o servidor do QA e retorna erro, sem processo preso', () => {
   const codigo = `import {subirComNavegador} from './scripts/navegador.js';
-    try { await subirComNavegador(); process.exitCode = 2; }
+    try { const n=await subirComNavegador(); await n.fechar(); process.exitCode = 2; }
     catch { console.log('falha detectada'); process.exitCode = 1; }`;
   const r = spawnSync(process.execPath, ['--input-type=module', '-e', codigo], {
     cwd: new URL('../', import.meta.url), env: { ...process.env, CHROMIUM_PATH: '/bin/false' }, timeout: 10000, encoding: 'utf8',

@@ -16,7 +16,7 @@ const PROIBIDOS = [
 // Exceção única: a página de vendas é da operadora (só existe na instalação dela, PAGINA_INICIAL=vendas) e
 // cita a TheNeil, que opera a GreenIA e oferece o Prumo Discovery; os documentos legais dela também. Nada da
 // aplicação das empresas cita a operadora.
-const EXCECOES = { 'public/vendas.html': ['theneil'], 'public/termos.html': ['theneil'], 'public/privacidade.html': ['theneil'] };
+const EXCECOES = { 'public/faq.html':['theneil'], 'public/llms.txt':['theneil'], 'scripts/gerar-seo-publico.js':['theneil'], 'public/vendas.html': ['theneil'], 'public/termos.html': ['theneil'], 'public/privacidade.html': ['theneil'] };
 const RAIZ = new URL('..', import.meta.url).pathname;
 const ALVOS = ['src', 'public', 'modelos-quick-win.json', 'scripts'];
 

@@ -49,7 +49,7 @@ test('identificação legal igual no rodapé da LP, nos Termos e na Política', 
 
 test('LP: acesso da equipe sem aprovação prévia inventada; retenção sem prazo na página; nada de "equipe GreenIA" no app das empresas', () => {
   const lp = semTags(ler('public/vendas.html'));
-  assert.match(lp, /[Nn]ão (?:depende de|exige) aprovação prévia/);
+  assert.match(lp,/A equipe entra com o email da empresa e um código de acesso/);
   assert.doesNotMatch(lp.replace(/[Nn]ão (?:depende de|exige) aprovação prévia/g, ''), /aprovação prévia|consentimento prévio|autorização (?:prévia|obrigatória)/i);
   assert.doesNotMatch(lp, /\b(?:15|38) dias\b/, 'prazos de cópias ficam na Política (ainda não ativos em produção)');
   for (const p of ['public/app.js', 'public/empresa.js']) assert.doesNotMatch(ler(p).replace(/^\s*\/\/.*$/gm, ''), /equipe GreenIA/, p);

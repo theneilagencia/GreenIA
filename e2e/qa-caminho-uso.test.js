@@ -105,7 +105,9 @@ for (const vp of LARGURAS) {
     assert.deepEqual(m.primarios, []);
     assert.ok(m.cromo <= 10, `controles fora das mensagens: ${m.cromo}`);
     assert.ok(m.avisos <= 1);
-    assert.deepEqual(m.detalhes, [], 'nada recolhido em details: a informação técnica fica no painel "Detalhes"');
+    assert.deepEqual(m.detalhes,['preferencias-resposta','preferencias-resposta'],'preferências e vínculo do trabalho ficam opcionais');
+    assert.deepEqual(await p.locator('.preferencias-resposta summary').allInnerTexts(),['Preferências','Acompanhar trabalho']);
+    assert.equal(await p.locator('.preferencias-resposta[open]').count(),0,'não exige decisão técnica antes de escrever');
     assert.doesNotMatch(await p.locator('.nota-compositor').innerText(), /dias|política/i);
     const texto = await ajuda(p);
     assert.match(texto, /salvas por até \d+ dias/); assert.match(texto, /Dado bloqueado pela política não é enviado/);

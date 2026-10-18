@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { publicacaoDaPagina } from '../src/pesquisa-publicacao.js';
+import { publicacaoDaPagina, dataEditorialDaPagina } from '../src/pesquisa-publicacao.js';
 import { verificarPublicacoes, notasComPublicacoes } from '../src/pesquisa-fontes.js';
 import { lerLink } from '../src/fontes.js';
 import { createHash } from 'node:crypto';
@@ -15,6 +15,28 @@ test('datas inválidas, divergentes e datas de entidades relacionadas não viram
   for (const data of ['2026-02-30', '2026-13-01', '2026-01-32', 'não informada']) assert.equal(publicacaoDaPagina(`<meta property="article:published_time" content="${data}">`), null);
   assert.equal(publicacaoDaPagina('<meta property="article:published_time" content="2026-09-30"><meta itemprop="datePublished" content="2026-10-01">'), null);
   assert.equal(publicacaoDaPagina('<script type="application/ld+json">{"@type":"Article","comments":[{"@type":"Article","datePublished":"2026-09-30"}]}</script>'), null);
+});
+
+test('datas por extenso explícitas em português e espanhol; data sem rótulo ao lado do título permanece editorial', () => {
+  assert.equal(publicacaoDaPagina('', 'Publicado el 24 de junio de 2025').data, '2025-06-24');
+  assert.equal(publicacaoDaPagina('', 'Publicado em 24 de junho de 2025').data, '2025-06-24');
+  const titulo = 'La IA otorgará una ventaja estratégica a la gobernanza documental en minería';
+  const texto = `## Revista Nueva Minería\n\n### ${titulo}\n\n24 junio, 2025\n\nConteúdo do artigo.`;
+  assert.equal(publicacaoDaPagina('', texto), null);
+  const x = dataEditorialDaPagina(texto, titulo + ' Revista Nueva Minería & Energía');
+  assert.equal(x.data, '2025-06-24'); assert.equal(x.tipo, 'data_editorial_sem_rotulo');
+  assert.equal(dataEditorialDaPagina(texto.replace('24 junio, 2025', 'Evento em 24 junio, 2025'), titulo), null);
+  assert.equal(dataEditorialDaPagina(texto, 'Outro artigo de governança documental na mineração'), null);
+  assert.equal(dataEditorialDaPagina(texto.replace('24 junio, 2025', '31 febrero, 2025'), titulo), null);
+});
+
+test('PDF mantém limite explícito de 4 MiB e data editorial não é promovida a publicação confirmada', async () => {
+  const r = await verificarPublicacoes([{url:'https://portal.exemplo/article/download/1/2/3'}], {ler: async (url, op) => {
+    assert.equal(op.maxBytes, 4 * 1024 * 1024);
+    return {titulo:'Artigo', texto:'Conteúdo público.', dataEditorial:{data:'2025-06-24',evidencia:'24 junio, 2025'}};
+  }});
+  assert.equal(r[0].estado, 'data_editorial_encontrada'); assert.equal(r[0].publicacao, null);
+  assert.match(notasComPublicacoes('Notas',r), /não apresente como publicação confirmada/);
 });
 test('leitura segura preserva data do cabeçalho HTML e hash dos bytes sem executar scripts', async () => {
   const corpo = Buffer.from('<html><head><meta property="article:published_time" content="2026-09-30"></head><body><p>Artigo sobre governança documental e novas aplicações.</p></body></html>');

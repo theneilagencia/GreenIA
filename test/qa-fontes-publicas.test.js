@@ -17,6 +17,7 @@ test('consulta pública importa por data URL e recusa relatório ou resposta alt
     await assert.rejects(verificar('a'.repeat(40), { rodada: '/app/dados' }), /Pasta inválida/);
     await assert.rejects(verificar('a'.repeat(40), { rodada, hashAnterior: 'b'.repeat(64) }), /Relatório diferente/);
     await assert.rejects(verificar('a'.repeat(40), { rodada, hashAnterior: createHash('sha256').update(r).digest('hex'), hashResposta: 'c'.repeat(64) }), /Resposta diferente/);
+    await assert.rejects(verificar('a'.repeat(40), { rodada, hashAnterior: createHash('sha256').update(r).digest('hex'), hashResposta: createHash('sha256').update('Texto preservado').digest('hex'), somente: ['https://outra.exemplo/fora'] }), /somente fontes do relatório/);
     assert.equal(chamadas, 0);
     assert.deepEqual(readFileSync(join(rodada, 'relatorio.json')), r);
   } finally { globalThis.fetch = originalFetch; rmSync(raiz, { recursive: true, force: true }); }

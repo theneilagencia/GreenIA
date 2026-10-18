@@ -112,7 +112,7 @@ export async function executar(commit, { retomar = null, hashAnterior = null, ma
         autorizacoesLocais: completo.autorizacoesLocais, padroesClasse: completo.padroesClasse,
         homologacao: { principais: completo.homologacao?.principais?.map(caso), surpresa: completo.homologacao?.surpresa?.map(caso) }, classes: completo.classes,
         recibosPendentes: completo.recibos?.filter(c => c.custo === null || c.erroStream),
-        artefatosPreservados: completo.artefatosPreservados,
+        artefatosPreservados: completo.artefatosPreservados, diagnosticos: completo.diagnosticos,
         planilhaAnterior,
       };
       try { resumo.planilhaAtual = readFileSync(join(saida, rodada, 'h-03-planilha.md'), 'utf8'); } catch {}

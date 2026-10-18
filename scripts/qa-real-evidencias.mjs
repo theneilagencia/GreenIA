@@ -1,3 +1,6 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 // Critérios do coletor, separados da resposta do modelo. Nunca converte custo ausente em zero.
 export function registrarRecibo(c, d) {
   if (d.id) c.geracao = d.id;
@@ -66,4 +69,29 @@ export function canaisNaoPedidos(pedido, entregaveis) {
   const t = String(pedido).toLowerCase();
   const citados = { linkedin: /linked\s?in/, instagram: /instagram|\binsta\b|\breels?\b/, facebook: /facebook/, tiktok: /tik\s?tok/, youtube: /youtube|\bshorts\b/, x: /twitter|\btweets?\b|\b(?:no|para o) x\b/, blog: /blog|artigo/, email: /e-?mail|newsletter/ };
   return [...new Set(entregaveis.map(e => e.canal).filter(c => c && !citados[c]?.test(t)))];
+}
+
+// Preserva todos os repositórios de entrega antes de apagar a empresa temporária de QA.
+// Preservação de bytes não é aprovação visual nem prova de download HTTP.
+export function preservarArtefatosQa(db, conversa, saida) {
+  const arquivos = [], pasta = join(saida, 'artefatos');
+  const salvar = (nome, mime, dados, origem, id) => {
+    const bytes = Buffer.from(dados), seguro = nome.replace(/[^a-zA-Z0-9._-]/g, '_');
+    mkdirSync(pasta, { recursive: true }); writeFileSync(join(pasta, seguro), bytes, { mode: 0o600 });
+    arquivos.push({ id, nome, origem, mime, bytes: bytes.length, arquivo: `artefatos/${seguro}`, sha256: createHash('sha256').update(bytes).digest('hex'), inspecaoConteudo: 'pendente', downloadHTTP: 'pendente' });
+  };
+  for (const a of db.prepare('select id,nome,mime,dados from arquivos_gerados where conversa_id = ? order by id').all(conversa)) salvar(`arquivo-${a.id}-${a.nome}`, a.mime, a.dados, 'arquivos_gerados', a.id);
+  const visuais = db.prepare('select * from artefatos_visuais where conversa_id = ? order by id').all(conversa);
+  for (const a of visuais) {
+    salvar(`visual-${a.id}.json`, 'application/json', JSON.stringify(a, null, 2), 'artefatos_visuais', a.id);
+    for (const r of db.prepare('select chave,mime,dados from artefatos_render where artefato_id = ? order by chave').all(a.id)) {
+      const ext = ({ 'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/svg+xml': 'svg' })[r.mime] || 'bin';
+      salvar(`visual-${a.id}-${r.chave}.${ext}`, r.mime, r.dados, 'artefatos_render', a.id);
+    }
+  }
+  for (const a of db.prepare('select id,mime,bytes from visual_assets where conversa_id = ? order by id').all(conversa)) {
+    const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/svg+xml': 'svg' })[a.mime] || 'bin';
+    salvar(`asset-${a.id}.${ext}`, a.mime, a.bytes, 'visual_assets', a.id);
+  }
+  return arquivos;
 }

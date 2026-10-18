@@ -22,7 +22,7 @@ import { criarOpenRouter, criarIndisponivel } from '../src/ia.js';
 import { json, um, todos } from '../src/db.js';
 import { limparCacheInterpretacao } from '../src/quickwin-interpretacao.js';
 import { rotuloEntregavel, MARCADOR_PERGUNTA } from '../src/quickwin-operacao.js';
-import { observarResposta, falhasDaEntrega, consolidarRecibos, canaisNaoPedidos } from './qa-real-evidencias.mjs';
+import { observarResposta, falhasDaEntrega, consolidarRecibos, canaisNaoPedidos, preservarArtefatosQa } from './qa-real-evidencias.mjs';
 import { verificarPlanilhaQa } from './qa-planilha-oraculo.mjs';
 import { prepararAdvancedQa } from './qa-advanced-real.mjs';
 import { verificarFacilitiesQa } from './qa-facilities-oraculo.mjs';
@@ -182,20 +182,20 @@ const criar = async (descricao, it) => (await ana.post('/api/quick-wins', { nome
 async function executar(qwId, corpo, rot, conv = null) {
   conv ??= (await ana.post('/api/conversas', { quick_win_id: qwId, teste: true })).dados.conversa;
   const antes = chamadas.length; rotulo = rot; const t0 = Date.now();
+  const eventoInicial = um(db, 'select coalesce(max(id),0) id from eventos').id;
   // O limite de rajada da aplicação (mensagens por minuto por pessoa) vale também para o QA: espera e repete.
   let r;
   for (let i = 0; ; i++) { r = await enviarMensagem(ana, conv.id, { executar_quick_win: true, ...corpo }); if (r.status !== 429 || i >= 3) break; log('   (limite de rajada: aguardando 65 s)'); await new Promise(ok => setTimeout(ok, 65e3)); }
   await esperar();
+  const diagnostico = todos(db, "select tipo,detalhes from eventos where id > ? and tipo in ('ai.failed','advanced.reserved','quickwin.tool_used') order by id", eventoInicial).map(ev => {
+    const d = json(ev.detalhes, {});
+    return { tipo: ev.tipo, etapa: d.etapa || null, modelo: d.modelo || null, erro: ev.tipo === 'ai.failed' ? d.erro || null : null, estimativa: d.estimativa ?? null, ferramenta: d.ferramenta || null, fontes: d.fontes ?? null };
+  });
+  (R.diagnosticos ??= []).push({ caso: rot, eventos: diagnostico });
   const minhas = chamadas.slice(antes), soma = t => minhas.filter(x => x.tipo === t).reduce((s, x) => s + (x.ms || 0), 0);
   // Preserva os arquivos sintéticos antes de apagar o banco temporário. Isso não substitui testar
   // download, conteúdo e aparência: os bytes ficam disponíveis para essa inspeção posterior.
-  const artefatos = [];
-  if (ISOLADO) for (const a of todos(db, 'select id,nome,mime,dados from arquivos_gerados where conversa_id = ? order by id', conv.id)) {
-    const nome = `${a.id}-${String(a.nome).replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-    const destino = join(SAIDA, 'artefatos'); mkdirSync(destino, { recursive: true });
-    const bytes = Buffer.from(a.dados); writeFileSync(join(destino, nome), bytes);
-    artefatos.push({ id: a.id, nome: a.nome, mime: a.mime, bytes: bytes.length, arquivo: `artefatos/${nome}`, sha256: createHash('sha256').update(bytes).digest('hex'), inspecaoConteudo: 'pendente', downloadHTTP: 'pendente' });
-  }
+  const artefatos = ISOLADO ? preservarArtefatosQa(db, conv.id, SAIDA) : [];
   if (artefatos.length) (R.artefatosPreservados ??= []).push({ caso: rot, conversa: conv.id, arquivos: artefatos });
   const rt = um(db, 'select classe_necessaria,classe_pedida,motivo_bloqueio,requisitos,fallback from roteamento where conversa_id = ? order by id desc limit 1', conv.id);
   const roteamento = rt ? { ...rt, requisitos: json(rt.requisitos, {}), fallback: json(rt.fallback, null) } : null;

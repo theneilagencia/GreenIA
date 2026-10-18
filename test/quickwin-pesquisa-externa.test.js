@@ -17,13 +17,14 @@ const PEDIDO = 'Pesquise os principais concorrentes da empresa e monte uma matri
 // Contexto interno fictício: nada disto pode aparecer numa chamada com a busca na internet.
 const INTERNO = ['Cliente Sigma Mineração', 'preço interno de R$ 48.000', 'estratégia de entrada no Chile em 2027', 'carlos.souza@alfaqa.exemplo'];
 const BASE = `Sobre a empresa Alfa (fictícia): software de gestão de fornecedores. Principal cliente: ${INTERNO[0]}. Tabela: ${INTERNO[1]}. Plano: ${INTERNO[2]}. Contato: ${INTERNO[3]}.`;
+const NOTAS_DATADAS = 'Notas da pesquisa:\n- Fornecedora Real Um (fonte: Revista Exemplo, https://revista.exemplo/a). Publicação: 30/09/2026. Evidência: "Publicado em 30/09/2026".\n- Contexto histórico: https://revista.exemplo/b. Data de publicação não confirmada; o ano no DOI não comprova publicação.';
 
 const sis = b => JSON.stringify(b.messages[0].content);
 const tipo = b => sis(b).includes('conferente de qualidade') ? 'conferencia' : sis(b).includes('Etapa 1 de 2') ? 'coleta' : sis(b).includes('Você está executando o Quick Win') ? 'execucao' : 'outra';
 function roteiro(b) {
   const t = tipo(b);
   if (t === 'conferencia') return '{"criterios":[],"objetivo_atingido":true}';
-  if (t === 'coleta') return 'Notas da pesquisa:\n- Fornecedora Real Um (fonte: Revista Exemplo, https://revista.exemplo/a)';
+  if (t === 'coleta') return NOTAS_DATADAS;
   if (t !== 'execucao') return 'Certo.';
   const titulos = [...sis(b).matchAll(/\d+\. ## ([^\\(]+?)(?: \(|\\n|")/g)].map(m => m[1].trim());
   return (titulos.length ? titulos : ['Resultado']).map(x => `## ${x}\n| Item | Posição |\n|---|---|\n| Fornecedora Real Um | líder em preço |`).join('\n\n') + `\n\n## ${OP.SECAO_FONTES}\n- Revista Exemplo: https://revista.exemplo/a`;
@@ -103,6 +104,31 @@ test('contexto público disponível: o perfil classificado pelo admin vai para a
   for (const x of [...INTERNO, 'Ana', 'ana@alfapx']) assert.ok(!JSON.stringify(coleta).includes(x), `privado na busca externa: ${x}`);
   assert.equal(r.fim.qualidade.pesquisa.feita, true);
   assert.equal(comBusca(r.chamadas).length, 1, 'uma busca só, na coleta');
+});
+
+test('pesquisa recente: coleta exige evidência de publicação e as notas datadas chegam à produção e à conferência sem nova busca', async () => {
+  const q = await criarQw(ana, 'Pesquise tendências recentes de gestão documental digital na mineração e resuma as três mais relevantes.');
+  const r = await executar(ana, q.id, { texto: 'Execute agora.' });
+  const [coleta] = comBusca(r.chamadas);
+  assert.ok(coleta);
+  const instrucao = coleta.messages[0].content;
+  assert.match(instrucao, /data de publicação.*trecho que a comprova/);
+  assert.match(instrucao, /Separe data de publicação, atualização e consulta/);
+  assert.match(instrucao, /Não deduza a publicação pelo ano no DOI/);
+  assert.match(instrucao, /Fonte sem data confirmada serve apenas de contexto/);
+  assert.match(instrucao, /não invente datas nem afirme que a pesquisa está completa/);
+  const producao = r.chamadas.find(b => tipo(b) === 'execucao');
+  assert.ok(producao);
+  const blocos = producao.messages[0].content;
+  const sistema = typeof blocos === 'string' ? blocos : blocos.map(b => b.text || '').join('\n');
+  assert.ok(sistema.includes(NOTAS_DATADAS), 'a evidência da data não se perde entre as etapas');
+  assert.match(sistema, /não anuncie a pesquisa como completa/);
+  const conferencias = r.chamadas.filter(b => tipo(b) === 'conferencia');
+  assert.ok(conferencias.length);
+  assert.ok(conferencias.every(b => JSON.stringify(b.messages).includes('Publicado em 30/09/2026')), 'a conferência pode conferir a mesma evidência');
+  assert.equal(comBusca(r.chamadas).length, 1);
+  for (const b of r.chamadas.filter(b => b !== coleta)) assert.equal(b.plugins, undefined);
+  for (const x of INTERNO) assert.ok(!JSON.stringify(coleta).includes(x));
 });
 
 test('perfil público com dado que não pode sair é recusado; o perfil salvo continua', async () => {

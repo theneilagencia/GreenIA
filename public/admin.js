@@ -97,6 +97,7 @@ const exemplosDeTrabalho = () => `<section class="trabalho-exemplos" aria-labell
 // Modelos, aba principal: o que a empresa decide. Modo (recomendado ou manual), os níveis e quem usa cada um.
 // O catálogo técnico (cada modelo, aprovação para dados sigilosos, capacidades, adicionar) é a aba Catálogo técnico.
 async function abaModelos() {
+  const detalhesAbertos=document.querySelector('#cfg-modelos > details')?.open || false;
   const [m, { grupos }, { areas }, gov, sig, sug] = await Promise.all([api('/api/admin/modelos'), api('/api/admin/grupos'), api('/api/admin/areas'), api('/api/admin/governanca'), api('/api/admin/sigilo'),
     api('/api/admin/modelos/sugestao').catch(() => null)]);
   const cfg = m.config;
@@ -132,7 +133,7 @@ async function abaModelos() {
     <ul class="adm-sug-niveis-lista">${niveisSug.itens.map(i => `<li data-nivel="${i.nivel}"><b>${esc(i.nome)}</b><span>${esc(i.texto)}</span>${i.segue ? '' : '<span class="tag tag-ambar">Muda</span>'}</li>`).join('')}</ul></section>` : '';
   $('conteudo').innerHTML = `${topoTela('Defina os acessos da equipe. A plataforma escolhe os recursos conforme o trabalho de cada pedido.')}
     <form id="cfg-modelos">
-    ${cartaoGov}${aviso}${exemplosDeTrabalho()}<details><summary>Detalhes da configuração de IA</summary>${blocoSugestao}
+    ${cartaoGov}${aviso}${exemplosDeTrabalho()}<details ${detalhesAbertos?'open':''}><summary>Detalhes da configuração de IA</summary>${blocoSugestao}
     <h2>Níveis</h2>
     <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Nível</th><th>Modelos do nível</th><th>Alternativa se falhar</th><th>Consumo por conversa típica</th><th>Quem usa no dia a dia</th></tr></thead><tbody>
       ${Object.entries(PERFIS).map(([k, v]) => { const x = m.modelos.find(y => y.id === cfg.padroes[k]); const r = x && m.modelos.find(y => y.id === x.reserva); const a = cfg.acessoPerfis[k] || {}; const pool = liberados.filter(y => y.perfil === k && y.noCatalogo);
@@ -976,7 +977,7 @@ const NOMES_EVENTO = { 'model.pool_expanded': 'Modelos do nível ampliados', 'mo
 
 // ---------------------------------------------------------------- rotas
 const TELAS = {
-  uso: { titulo: 'Uso e créditos', perm: 'usage.read', fn: abaUso },
+  uso: { titulo: 'Créditos do plano', perm: 'usage.read', fn: abaUso },
   // Pessoas: uma tela com abas. Cada aba aparece só para quem tem a permissão da tela que ela substitui
   // (o servidor confere de novo em cada rota): Perfis é role.manage, Quem cria Quick Wins lê uma rota de company.manage.
   pessoas: { titulo: 'Pessoas', perm: () => pode('user.read') || (!!E.plataforma && pode('role.manage')), abas: true, sub: [

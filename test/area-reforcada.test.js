@@ -201,7 +201,8 @@ test('9. créditos no fim → nunca usa recurso não autorizado nem fora da prot
     exec(S2.app.db, 'update modelos set homologado = 1, homologacao = ? where id = ?', JSON.stringify(ROTA('Anthropic')), EQUILIBRADO);
     let n = OR2.chamadas.length;
     const r = await enviarMensagem(adm, (await nova()).id, { texto: 'Resuma o laudo médico do colaborador.' });
-    assert.equal(r.status, 409);
+    assert.equal(r.status, 402, JSON.stringify(r.erro));
+    assert.equal(r.erro.erro, 'orcamento_insuficiente', 'a capacidade exigida não cabe na reserva; não reduz silenciosamente');
     assert.equal(OR2.chamadas.length, n, 'reserva do plano + recurso não autorizado = nada enviado');
     // Conteúdo comum: continua no Rápido, mas nunca no gratuito (fora da proteção da área).
     n = OR2.chamadas.length;

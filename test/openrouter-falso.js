@@ -62,7 +62,7 @@ export async function openRouterFalso({ revisao = confirmarAchados, modelos = []
   });
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${srv.address().port}/api/v1`;
-  return { chamadas, revisoes, autorizacoes, base, falhar, set responder(f) { responder = f; }, set statusFalha(n) { statusFalha = n; }, set imagem(f) { imagem = f; }, ia: criarOpenRouter({ chave: 'teste', base }), fechar: () => new Promise(r => srv.close(r)) };
+  return { chamadas, revisoes, autorizacoes, base, falhar, set responder(f) { responder = f; }, set statusFalha(n) { statusFalha = n; }, set imagem(f) { imagem = f; }, ia: criarOpenRouter({ chave: 'teste', base }), fechar: () => new Promise(r => { srv.close(r); srv.closeAllConnections?.(); }) };
 }
 
 // Lê a resposta em linhas JSON do envio de mensagem.

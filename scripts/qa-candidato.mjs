@@ -233,7 +233,7 @@ function casoSuspenso(destino, id) {
   destino.push({ id, estado: 'nao_executado', utilizavel: null, motivo: R.interrompido }); salvar(); return true;
 }
 function usabilidade(pedido, it, x, esperado, { vago = false } = {}) {
-  const op = it.operacao || {}, f = ISOLADO ? falhasDaEntrega(x) : [];
+  const op = it.operacao || {}, f = ISOLADO ? falhasDaEntrega(x, { permitePergunta: vago }) : [];
   if (it.status !== 200 || it.fonte !== 'ia') f.push('interpretação sem confirmação de IA');
   if (!vago && !(op.entregaveis || []).length) f.push('plano sem entregáveis');
   for (const canal of canaisNaoPedidos(pedido, op.entregaveis || [])) f.push(`canal que não foi pedido: ${canal}`);
@@ -389,7 +389,7 @@ if (R.classesDistintas && !R.interrompido) for (const [id, pedido, corpo] of AMO
     const up = await ana.put(`/api/quick-wins/${qw.id}`, { modelo: `classe:${classe}`, pode_trocar: false });
     const x = await executar(qw.id, corpo, `classe_${classe}_${id}`);
     writeFileSync(join(SAIDA, `classe-${classe}-${id}.md`), x.texto);
-    (R.classes[classe] ??= {})[id] = { ajuste: up.status, configurado: padroes[classe], pedido: x.pedido, usados: x.modelos, ms: x.ms, custo: x.custo, status: x.status, roteamento: x.roteamento, http: x.http, erroCodigo: x.erroCodigo, erroDetalhes: x.erroDetalhes, entregaveis: x.qualidade?.entregaveis || null, fases: x.fases, falhas: ISOLADO ? falhasDaEntrega(x) : [], requerRevisao: true };
+    (R.classes[classe] ??= {})[id] = { ajuste: up.status, configurado: padroes[classe], pedido: x.pedido, usados: x.modelos, ms: x.ms, custo: x.custo, status: x.status, roteamento: x.roteamento, http: x.http, erroCodigo: x.erroCodigo, erroDetalhes: x.erroDetalhes, qualidade: x.qualidade, pergunta: x.pergunta, fontes: x.fontes, entregaveis: x.qualidade?.entregaveis || null, fases: x.fases, falhas: ISOLADO ? falhasDaEntrega(x) : [], requerRevisao: true };
     log('classe', classe, id, x.pedido, '→', x.modelos.join(','), x.status, `${x.ms}ms`, mostrarCusto(x.custo)); salvar();
   }
 } else R.classes = R.interrompido ? 'NAO_EXECUTADO — rodada interrompida' : 'NAO_COBERTO — as classes não resolvem para modelos distintos';

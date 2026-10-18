@@ -12,10 +12,10 @@ export function selecionarRetomada(anterior) {
   const casos = [...(anterior.homologacao?.principais || []), ...(anterior.homologacao?.surpresa || [])].filter(pendente).map(c => c.id);
   const classes = [];
   if (anterior.classes && typeof anterior.classes === 'object') for (const [classe, entradas] of Object.entries(anterior.classes))
-    for (const [id, c] of Object.entries(entradas)) if (c.falhas?.length || c.status === 'erro') classes.push(`${classe}/${id}`);
+    for (const [id, c] of Object.entries(entradas)) if (c.falhas?.length || !['aprovado', 'corrigido'].includes(c.status)) classes.push(`${classe}/${id}`);
   for (const entrada of anterior.escopo?.selecaoClasses || []) {
     const [classe, id] = entrada.split('/'), c = typeof anterior.classes === 'object' ? anterior.classes?.[classe]?.[id] : null;
-    if (!c || c.falhas?.length || c.status === 'erro') classes.push(entrada);
+    if (!c || c.falhas?.length || !['aprovado', 'corrigido'].includes(c.status)) classes.push(entrada);
   }
   return { casos: [...new Set(casos)], classes: [...new Set(classes)] };
 }

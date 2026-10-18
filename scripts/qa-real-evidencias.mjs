@@ -37,11 +37,13 @@ export function observarResposta(c, resposta, stream = true, consultarCusto = nu
   })().catch(() => { c.erroStream = 'Falha na coleta da resposta do provedor'; }).finally(() => { c.ms = Date.now() - c.t0; });
   return resposta;
 }
-export function falhasDaEntrega(x) {
+export function falhasDaEntrega(x, { permitePergunta = false } = {}) {
   const f = [];
   if (x.http !== 200) f.push(`HTTP de execução ${x.http}`);
   if (x.falha || x.status === 'erro') f.push('execução falhou');
   if (x.status === 'inconsistente') f.push('resultado inconsistente');
+  if (x.status === 'parcial') f.push('resultado parcial; entrega não concluída');
+  if (!['aprovado', 'corrigido', 'erro', 'inconsistente', 'parcial', ...(permitePergunta ? ['pergunta'] : [])].includes(x.status)) f.push('status final sem aprovação verificável');
   if (!x.finalizou) f.push('evento final ausente');
   if (!String(x.texto || '').trim()) f.push('resposta vazia');
   if (!x.chamadasReais) f.push('nenhuma inferência comprovada nesta execução');

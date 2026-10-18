@@ -1,0 +1,130 @@
+TAP version 13
+# Subtest: números em formatos comuns (pt-BR, ponto, moeda, porcentagem) e texto não é número
+ok 1 - números em formatos comuns (pt-BR, ponto, moeda, porcentagem) e texto não é número
+  ---
+  duration_ms: 1.968508
+  type: 'test'
+  ...
+# Subtest: totais, vazios, fora do padrão, variação e somas por categoria sobre todas as linhas (inclusive as últimas)
+ok 2 - totais, vazios, fora do padrão, variação e somas por categoria sobre todas as linhas (inclusive as últimas)
+  ---
+  duration_ms: 23.297939
+  type: 'test'
+  ...
+# Subtest: XLSX e CSV: o texto extraído leva os cálculos conferidos
+ok 3 - XLSX e CSV: o texto extraído leva os cálculos conferidos
+  ---
+  duration_ms: 13.431221
+  type: 'test'
+  ...
+# Subtest: QA Advanced: a preparação considera a curadoria desabilitada, sem depender do antigo Sonnet 5
+ok 4 - QA Advanced: a preparação considera a curadoria desabilitada, sem depender do antigo Sonnet 5
+  ---
+  duration_ms: 4.1036
+  type: 'test'
+  ...
+# Subtest: QA Advanced: veto, catálogo vencido, preço ausente e saída insuficiente continuam impedindo a preparação
+ok 5 - QA Advanced: veto, catálogo vencido, preço ausente e saída insuficiente continuam impedindo a preparação
+  ---
+  duration_ms: 4.046878
+  type: 'test'
+  ...
+# Subtest: QA Advanced: sem rota não há habilitação, aprovação ou concessão silenciosa
+ok 6 - QA Advanced: sem rota não há habilitação, aprovação ou concessão silenciosa
+  ---
+  duration_ms: 5.909237
+  type: 'test'
+  ...
+# Subtest: QA Advanced: APIs locais registram revisão, concessão com teto e padrão para um modelo da curadoria
+ok 7 - QA Advanced: APIs locais registram revisão, concessão com teto e padrão para um modelo da curadoria
+  ---
+  duration_ms: 162.864327
+  type: 'test'
+  ...
+# Subtest: QA: a resposta real marcada PASS é reprovada por ranking e percentuais, sem depender do conferente IA
+ok 8 - QA: a resposta real marcada PASS é reprovada por ranking e percentuais, sem depender do conferente IA
+  ---
+  duration_ms: 5.654191
+  type: 'test'
+  ...
+# Subtest: QA: ranking correto é conferido, valores ausentes não entram como zero e texto sem tabela fica pendente
+ok 9 - QA: ranking correto é conferido, valores ausentes não entram como zero e texto sem tabela fica pendente
+  ---
+  duration_ms: 3.67627
+  type: 'test'
+  ...
+# Subtest: produto: a extração entrega ranking, percentuais e denominadores comparáveis calculados
+ok 10 - produto: a extração entrega ranking, percentuais e denominadores comparáveis calculados
+  ---
+  duration_ms: 28.239256
+  type: 'test'
+  ...
+# Subtest: QA real: custo ausente ou textual fica pendente, nunca vira zero
+ok 11 - QA real: custo ausente ou textual fica pendente, nunca vira zero
+  ---
+  duration_ms: 1.853219
+  type: 'test'
+  ...
+# Subtest: QA real: registra zero explícito e soma custos das tentativas que falharam
+ok 12 - QA real: registra zero explícito e soma custos das tentativas que falharam
+  ---
+  duration_ms: 1.273293
+  type: 'test'
+  ...
+# Subtest: QA real: HTTP 200 sozinho, stream quebrado e resposta vazia não aprovam entrega
+ok 13 - QA real: HTTP 200 sozinho, stream quebrado e resposta vazia não aprovam entrega
+  ---
+  duration_ms: 0.346912
+  type: 'test'
+  ...
+# Subtest: QA real: execução concluída com recibo pode passar pela verificação estrutural, sem liberar produção
+ok 14 - QA real: execução concluída com recibo pode passar pela verificação estrutural, sem liberar produção
+  ---
+  duration_ms: 0.202102
+  type: 'test'
+  ...
+# Subtest: QA real: imagem JSON preserva o corpo e registra geração, modelo e custo
+ok 15 - QA real: imagem JSON preserva o corpo e registra geração, modelo e custo
+  ---
+  duration_ms: 5.103995
+  type: 'test'
+  ...
+# Subtest: QA real: JSON sem custo continua pendente mesmo com HTTP 200 e imagem
+ok 16 - QA real: JSON sem custo continua pendente mesmo com HTTP 200 e imagem
+  ---
+  duration_ms: 1.014576
+  type: 'test'
+  ...
+# Subtest: QA real: SSE dividido em blocos, CRLF e último recibo sem newline
+ok 17 - QA real: SSE dividido em blocos, CRLF e último recibo sem newline
+  ---
+  duration_ms: 4.460023
+  type: 'test'
+  ...
+# Subtest: QA real: JSON inválido não altera o corpo da aplicação nem inventa custo
+ok 18 - QA real: JSON inválido não altera o corpo da aplicação nem inventa custo
+  ---
+  duration_ms: 1.142624
+  type: 'test'
+  ...
+# Subtest: QA real: o cliente de imagem consome o mesmo JSON observado e a próxima chamada não fica bloqueada
+ok 19 - QA real: o cliente de imagem consome o mesmo JSON observado e a próxima chamada não fica bloqueada
+  ---
+  duration_ms: 3.242676
+  type: 'test'
+  ...
+# Subtest: QA real: email pedido aceita só o canal email; citar uma rede não autoriza todas
+ok 20 - QA real: email pedido aceita só o canal email; citar uma rede não autoriza todas
+  ---
+  duration_ms: 0.57564
+  type: 'test'
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 569.15621

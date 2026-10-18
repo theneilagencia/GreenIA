@@ -1,3 +1,4 @@
+import { autorizarAdvancedFalso } from './advanced-fixture.js';
 // Design pela IA (diretora de arte): o HTML/CSS da IA é dado (limpo: sem script, evento ou recurso externo), é
 // composto num Chromium isolado (JavaScript desligado, rede bloqueada) e conferido nos pixels e no DOM; falhou, uma
 // correção; falhou de novo, motor clássico. Prévia, PDF, PNG/JPG, edição sem IA, restauração e acesso pela API.
@@ -110,10 +111,13 @@ test('isolamento do navegador: JavaScript da página não roda e nenhum pedido s
   const porta = srv.address().port;
   const bruto = `<!doctype html><html><head><style>@import url('http://127.0.0.1:${porta}/a.css'); body{background:url('http://127.0.0.1:${porta}/b.png')}</style><link rel="stylesheet" href="http://127.0.0.1:${porta}/c.css"></head>
 <body><img src="http://127.0.0.1:${porta}/d.png"><iframe src="http://127.0.0.1:${porta}/e"></iframe><p id="p">original</p><script>document.getElementById('p').textContent='HACK';fetch('http://127.0.0.1:${porta}/f')</script></body></html>`;
-  const txt = await comPagina({ largura: 400, altura: 300, documento: bruto }, page => page.evaluate(() => document.body.innerText));
-  await new Promise(ok => srv.close(ok));
-  assert.match(txt, /original/); assert.doesNotMatch(txt, /HACK/);
-  assert.equal(pedidos, 0, 'nenhum pedido chegou ao servidor local');
+  try {
+    const txt = await comPagina({ largura: 400, altura: 300, documento: bruto }, page => page.evaluate(() => document.body.innerText));
+    assert.match(txt, /original/); assert.doesNotMatch(txt, /HACK/);
+    assert.equal(pedidos, 0, 'nenhum pedido chegou ao servidor local');
+  } finally {
+    await new Promise(ok => { srv.close(ok); srv.closeAllConnections?.(); });
+  }
 });
 
 test('conferência no navegador: transbordo, margem, fonte pequena, contraste (nos pixels), sobreposição, número inventado e conteúdo omitido', async () => {
@@ -351,6 +355,8 @@ test('refatore o PPTX premium: fluxo completo entrega PowerPoint do design, não
   const { pptx, MIMES } = await import('../src/escritorio.js');
   const { previaDoPptx } = await import('../src/previa-pptx.js');
   salvarConfig(S.app.db, { acessoPerfis: { equilibrado: { todos:true }, avancado:{ todos:true } } });
+  const admin=await S.cliente().entrar('admin@exemplo.com.br');
+  await autorizarAdvancedFalso(S,admin,ana.pessoa,['anthropic/claude-sonnet-5']);
   const chamadas = OR.chamadas.length;
   OR.responder = b => {
     const sis = texto(b.messages[0].content);

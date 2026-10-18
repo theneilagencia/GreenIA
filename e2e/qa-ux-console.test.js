@@ -207,7 +207,7 @@ test('M43/M34: no celular, abas da empresa visíveis, valores técnicos dentro d
   await p.goto(`${S.base}/plataforma#/empresas/${emp.id}/resumo`);
   await p.locator('.subnav a').first().waitFor();
   const abas = await p.locator('.subnav a').evaluateAll(as => as.map(a => a.getBoundingClientRect().right <= innerWidth));
-  assert.equal(abas.length, 5); assert.ok(abas.every(Boolean), 'nenhuma aba fora da tela');
+  assert.equal(abas.length, 6); assert.ok(abas.every(Boolean), 'nenhuma aba fora da tela');
   // Marca e endereço: as três subabas também cabem.
   await p.goto(`${S.base}/plataforma#/empresas/${emp.id}/marca-e-endereco/url`);
   await p.locator('.subnav-2 a').first().waitFor();

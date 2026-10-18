@@ -158,13 +158,14 @@ test('aceite A e B (Apy Mine): pesquisa real, contexto da empresa, todos os entr
 
 test('aceite A (falhas): sem pesquisa liberada, entregável faltando ou conversa sigilosa, o resultado não passa como aprovado', async () => {
   const q = await criar(APY);
-  // Pesquisa desligada pela empresa: nenhuma pesquisa simulada; resultado parcial com o motivo.
+  // Pesquisa obrigatória indisponível: nenhuma inferência ou cobrança em seu lugar.
   salvarConfig(S.app.db, { pesquisaWeb: { ativa: false } });
   let r = await executar(ana, q.id, 'Pedido de teste.');
-  assert.ok(r.chamadas.every(b => !b.plugins));
-  assert.match(sistemaDe(r.chamadas[0]), /pesquisa na internet NÃO está disponível nesta execução \(a pesquisa na internet não está liberada pela empresa\)\. Não simule/);
-  assert.equal(r.fim.qualidade.status, 'parcial');
-  assert.match(r.fim.qualidade.avisos[0], /^Resultado parcial: a pesquisa na internet não foi feita/);
+  assert.equal(r.status, 409);
+  assert.equal(r.erro.erro, 'pesquisa_nao_liberada');
+  assert.equal(r.chamadas.length, 0);
+  assert.equal(um(S.app.db, 'select count(*) as n from uso where conversa_id = ?', r.conv.id).n, 0);
+  assert.equal(um(S.app.db, 'select motivo_bloqueio from roteamento where conversa_id = ? order by id desc limit 1', r.conv.id).motivo_bloqueio, 'pesquisa_nao_liberada');
   // Entregável faltando: falha, uma correção, e o que faltou é dito.
   salvarConfig(S.app.db, { pesquisaWeb: { ativa: true } });
   modo = 'faltando';
@@ -178,10 +179,32 @@ test('aceite A (falhas): sem pesquisa liberada, entregável faltando ou conversa
   const conv = (await ana.post('/api/conversas', { quick_win_id: q.id, teste: true })).dados.conversa;
   await ana.patch(`/api/conversas/${conv.id}`, { sigilosa: true });
   r = await executar(ana, q.id, 'Pedido de teste.', { conv });
-  assert.equal(r.status, 200, JSON.stringify(r.erro));
-  assert.ok(r.chamadas.every(b => !b.plugins), 'sigilosa: sem pesquisa');
-  assert.equal(r.fim.qualidade.status, 'parcial');
-  assert.equal(ultimoEvento('quickwin.tested').pesquisa.feita, false);
+  assert.equal(r.status, 409, JSON.stringify(r.erro));
+  assert.equal(r.erro.erro, 'pesquisa_sigilosa');
+  assert.equal(r.chamadas.length, 0, 'sigilosa: nenhuma inferência substituta');
+});
+
+test('Quick Win já publicado revalida pesquisa na execução e retoma na mesma conversa após liberação', async () => {
+  modo = 'completo';
+  salvarConfig(S.app.db, { pesquisaWeb: { ativa: true } });
+  const q = await criar(APY);
+  const inicial = await executar(ana, q.id, 'Pedido de teste.');
+  assert.equal(inicial.status, 200);
+  assert.equal(inicial.fim.qualidade.status, 'aprovado', JSON.stringify(inicial.fim.qualidade));
+  const pub = await ana.post(`/api/quick-wins/${q.id}/publicar`, {});
+  assert.equal(pub.status, 200, JSON.stringify(pub.dados));
+  salvarConfig(S.app.db, { pesquisaWeb: { ativa: false } });
+  const bloqueado = await executar(carlos, q.id, 'Execute agora.', { teste: false });
+  assert.equal(bloqueado.status, 409);
+  assert.equal(bloqueado.erro.erro, 'pesquisa_nao_liberada');
+  assert.equal(bloqueado.chamadas.length, 0);
+  assert.equal(um(S.app.db, 'select count(*) as n from uso where conversa_id = ?', bloqueado.conv.id).n, 0);
+  assert.equal(um(S.app.db, "select count(*) as n from mensagens where conversa_id = ? and papel = 'assistant'", bloqueado.conv.id).n, 0);
+  salvarConfig(S.app.db, { pesquisaWeb: { ativa: true } });
+  const retomado = await executar(carlos, q.id, 'Execute agora.', { teste: false, conv: bloqueado.conv });
+  assert.equal(retomado.status, 200);
+  assert.ok(retomado.chamadas.some(b => b.plugins?.some(p => p.id === 'web')));
+  assert.equal(retomado.fim.qualidade.pesquisa.feita, true);
 });
 
 test('aceite C: teste contextual e real (exemplo fictício do Quick Win, mesma engine, fora da medição)', async () => {

@@ -170,7 +170,7 @@ test('pedido "mesmo layout" sem o PDF original: a resposta pede o arquivo, nada 
 
 test('conversa com apresentação em PDF: "monte a da Rafisa em PPTX" usa o PDF como modelo, mesmo sem dizer "mesmo layout"', { skip: semNavegador }, async () => {
   const conv = (await ana.post('/api/conversas', {})).dados.conversa;
-  await enviarMensagem(ana, conv.id, { texto: 'analise o material', anexos: [{ nome: 'Kickoff-Repet.pdf', base64: pdfColorido().toString('base64') }] });
+  await enviarMensagem(ana, conv.id, { texto: 'analise o material', anexos: [{ nome: 'Kickoff-Repet.pdf', papel:'REFERENCE', base64: pdfColorido().toString('base64') }] });
   const r = await enviarMensagem(ana, conv.id, { texto: 'Agora monte a apresentação da Rafisa em PPTX, com o cenário do projeto dela.' });
   assert.equal(r.status, 200);
   assert.equal(r.fim.arquivos?.[0]?.modelo, 'Kickoff-Repet.pdf');
@@ -304,7 +304,7 @@ test('item numerado ("05 Que sistemas…"): a linha recuada continua o item e o 
 
 test('rede de segurança: resposta em roteiro "Slide 1, 2, 3" numa conversa com PDF de apresentação vira o arquivo no layout do PDF', async () => {
   const conv = (await ana.post('/api/conversas', {})).dados.conversa;
-  await enviarMensagem(ana, conv.id, { texto: 'analise o material', anexos: [{ nome: 'Kickoff-modelo.pdf', base64: pdfColorido().toString('base64') }] });
+  await enviarMensagem(ana, conv.id, { texto: 'analise o material', anexos: [{ nome: 'Kickoff-modelo.pdf', papel:'REFERENCE', base64: pdfColorido().toString('base64') }] });
   const r = await enviarMensagem(ana, conv.id, { texto: 'Agora escreva o conteúdo completo para a Rafisa.' });
   assert.equal(r.status, 200, JSON.stringify(r.erro));
   assert.equal(r.fim.arquivos?.[0]?.modelo, 'Kickoff-modelo.pdf', JSON.stringify(r.fim));
@@ -431,7 +431,7 @@ test('número ao lado de texto na mesma linha ("19" + "OUT") é adaptado junto; 
 
 test('correção pedida no chat edita a última versão da apresentação; "não aplicou o meu pedido" reaplica o pedido anterior', async () => {
   const conv = (await ana.post('/api/conversas', {})).dados.conversa;
-  await enviarMensagem(ana, conv.id, { texto: 'analise o material', anexos: [{ nome: 'Kickoff-modelo.pdf', base64: pdfColorido().toString('base64') }] });
+  await enviarMensagem(ana, conv.id, { texto: 'analise o material', anexos: [{ nome: 'Kickoff-modelo.pdf', papel:'REFERENCE', base64: pdfColorido().toString('base64') }] });
   const r1 = await enviarMensagem(ana, conv.id, { texto: 'Monte a apresentação da Rafisa em PPTX.' });
   assert.equal(r1.fim.arquivos?.[0]?.modelo, 'Kickoff-modelo.pdf');
   const v1 = um(S.app.db, 'select textos from arquivos_gerados where conversa_id = ? order by id desc limit 1', conv.id);

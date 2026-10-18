@@ -323,7 +323,7 @@ export function gravarVisuais(app, producao, { pessoa, conv, qw, respId, rotaId 
 export function resumoArtefato(app, a) {
   const q = json(a.qualidade, {});
   return { id: a.id, base_id: a.base_id, versao: a.versao, tipo: a.tipo, rotulo: a.rotulo, titulo: a.titulo, formato: a.formato, paginas: a.paginas, status: a.status,
-    exportacoes: json(a.exportacoes, []), avisos: q.avisos || [], correcoes: q.correcoes || 0, criado_em: a.criado_em, mensagem_id: a.mensagem_id,
+    exportacoes: [...new Set([...json(a.exportacoes, []), ...(a.tipo === 'presentation' && ['aprovado', 'corrigido'].includes(a.status) ? ['pptx'] : [])])], avisos: q.avisos || [], correcoes: q.correcoes || 0, criado_em: a.criado_em, mensagem_id: a.mensagem_id,
     ...(q.imagem_final ? { imagem_final: { gerada: !!q.imagem_final.gerada, motivo: q.imagem_final.motivo || null, briefing: q.imagem_final.briefing || null } } : {}) };
 }
 

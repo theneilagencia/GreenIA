@@ -1,0 +1,106 @@
+TAP version 13
+# Subtest: limpeza: script, eventos, iframe, link, @import, url() e src externos saem; assets da peça viram a origem isolada
+ok 1 - limpeza: script, eventos, iframe, link, @import, url() e src externos saem; assets da peça viram a origem isolada
+  ---
+  duration_ms: 2835.873
+  type: 'test'
+  ...
+# Subtest: isolamento do navegador: JavaScript da página não roda e nenhum pedido sai para a rede (mesmo sem a limpeza)
+ok 2 - isolamento do navegador: JavaScript da página não roda e nenhum pedido sai para a rede (mesmo sem a limpeza)
+  ---
+  duration_ms: 4797.024392
+  type: 'test'
+  ...
+# Subtest: conferência no navegador: transbordo, margem, fonte pequena, contraste (nos pixels), sobreposição, número inventado e conteúdo omitido
+ok 3 - conferência no navegador: transbordo, margem, fonte pequena, contraste (nos pixels), sobreposição, número inventado e conteúdo omitido
+  ---
+  duration_ms: 3357.070054
+  type: 'test'
+  ...
+# Subtest: Quick Win com peça desenhada pela IA: artefato "design", prévia, PDF de várias páginas, PNG/JPG, edição sem IA, restauração e acesso
+ok 4 - Quick Win com peça desenhada pela IA: artefato "design", prévia, PDF de várias páginas, PNG/JPG, edição sem IA, restauração e acesso
+  ---
+  duration_ms: 24242.733616
+  type: 'test'
+  ...
+# Subtest: design reprovado duas vezes: uma correção com a lista exata, depois motor clássico (a peça nunca sai quebrada)
+ok 5 - design reprovado duas vezes: uma correção com a lista exata, depois motor clássico (a peça nunca sai quebrada)
+  ---
+  duration_ms: 6337.96507
+  type: 'test'
+  ...
+# Subtest: peça de impacto: imagem ilustrativa gerada (liberada para todos por padrão) entra no design pela origem isolada
+ok 6 - peça de impacto: imagem ilustrativa gerada (liberada para todos por padrão) entra no design pela origem isolada
+  ---
+  duration_ms: 630.889195
+  type: 'test'
+  ...
+# Subtest: QF-05 escolha: IA quando ligada, saudável e permitida; clássico com categoria e motivo em cada outro caminho (nunca silencioso)
+ok 7 - QF-05 escolha: IA quando ligada, saudável e permitida; clássico com categoria e motivo em cada outro caminho (nunca silencioso)
+  ---
+  duration_ms: 1.705685
+  type: 'test'
+  ...
+# Subtest: QF-05 ajuste determinístico: texto na borda e com pouco contraste é consertado sem nova chamada e o design pela IA é usado
+ok 8 - QF-05 ajuste determinístico: texto na borda e com pouco contraste é consertado sem nova chamada e o design pela IA é usado
+  ---
+  duration_ms: 1267.660104
+  type: 'test'
+  ...
+# Subtest: QF-05 ajuste determinístico: texto pequeno sobe para o mínimo (com a margem e o contraste) sem nova chamada
+ok 9 - QF-05 ajuste determinístico: texto pequeno sobe para o mínimo (com a margem e o contraste) sem nova chamada
+  ---
+  duration_ms: 1216.9134
+  type: 'test'
+  ...
+# Subtest: QF-05 validação: falha sem conserto determinístico (conteúdo omitido) → VALIDATION_FALLBACK com códigos; resposta ilegível também
+ok 10 - QF-05 validação: falha sem conserto determinístico (conteúdo omitido) → VALIDATION_FALLBACK com códigos; resposta ilegível também
+  ---
+  duration_ms: 740.493753
+  type: 'test'
+  ...
+# Subtest: QF-05 tempo esgotado e falha do provedor: fallback explícito, sem repetição infinita
+ok 11 - QF-05 tempo esgotado e falha do provedor: fallback explícito, sem repetição infinita
+  ---
+  duration_ms: 1.701874
+  type: 'test'
+  ...
+# Subtest: QF-05 na execução: evento com motor pedido/usado, categoria e motivo; IA usada quando o design passa; clássico com motivo quando não; checker nos dois
+ok 12 - QF-05 na execução: evento com motor pedido/usado, categoria e motivo; IA usada quando o design passa; clássico com motivo quando não; checker nos dois
+  ---
+  duration_ms: 2674.497361
+  type: 'test'
+  ...
+# Subtest: QF-05 ajuste de contraste vence cor !important e fundo médio (tarja atrás do texto)
+ok 13 - QF-05 ajuste de contraste vence cor !important e fundo médio (tarja atrás do texto)
+  ---
+  duration_ms: 1290.967421
+  type: 'test'
+  ...
+# Subtest: alta qualidade: 13 slides mantêm design pela IA em quatro lotes e passam pela conferência visual
+ok 14 - alta qualidade: 13 slides mantêm design pela IA em quatro lotes e passam pela conferência visual
+  ---
+  duration_ms: 2021.279435
+  type: 'test'
+  ...
+# Subtest: PPTX usa o design aprovado, preserva texto editável, formas e número de páginas
+ok 15 - PPTX usa o design aprovado, preserva texto editável, formas e número de páginas
+  ---
+  duration_ms: 1119.923188
+  type: 'test'
+  ...
+# Subtest: refatore o PPTX premium: fluxo completo entrega PowerPoint do design, não arquivo da resposta
+ok 16 - refatore o PPTX premium: fluxo completo entrega PowerPoint do design, não arquivo da resposta
+  ---
+  duration_ms: 1831.714903
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 57360.383286

@@ -6,14 +6,21 @@ import { criarApp } from '../src/servidor.js';
 
 // Os testes do motor clássico rodam sem o design pela IA; os testes do design ligam DESIGN_IA=1.
 process.env.DESIGN_IA ??= '0';
-const CHROMIUM = ['/opt/pw-browsers/chromium', process.env.CHROMIUM_PATH, process.env.CHROMIUM].find(p => p && existsSync(p));
+const CHROMIUM = [process.env.CHROMIUM_PATH, process.env.CHROMIUM, '/opt/pw-browsers/chromium'].find(p => p && existsSync(p));
 
 export async function subirComNavegador({ adminEmail = 'admin@empresa-exemplo.com.br', largura = 1280, altura = 820, ...extra } = {}) {
   const app = criarApp({ cookieSeguro: false, log: () => {}, adminEmail, ...extra });
   await new Promise(r => app.servidor.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${app.servidor.address().port}`;
-  const navegador = await chromium.launch({ executablePath: CHROMIUM });
-  const contexto = await navegador.newContext({ viewport: { width: largura, height: altura }, deviceScaleFactor: 1 });
+  let navegador, contexto;
+  try {
+    navegador = await chromium.launch({ executablePath: CHROMIUM });
+    contexto = await navegador.newContext({ viewport: { width: largura, height: altura }, deviceScaleFactor: 1 });
+  } catch (e) {
+    await navegador?.close().catch(() => {});
+    await new Promise(r => { app.servidor.close(r); app.servidor.closeAllConnections?.(); });
+    throw e;
+  }
   // As páginas não chamam terceiros (fontes servidas pelo próprio servidor); qualquer pedido externo é cortado.
   await contexto.route(u => !u.href.startsWith(base), r => r.abort());
   return {

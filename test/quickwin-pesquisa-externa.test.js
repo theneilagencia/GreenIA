@@ -17,13 +17,14 @@ const PEDIDO = 'Pesquise os principais concorrentes da empresa e monte uma matri
 // Contexto interno fictício: nada disto pode aparecer numa chamada com a busca na internet.
 const INTERNO = ['Cliente Sigma Mineração', 'preço interno de R$ 48.000', 'estratégia de entrada no Chile em 2027', 'carlos.souza@alfaqa.exemplo'];
 const BASE = `Sobre a empresa Alfa (fictícia): software de gestão de fornecedores. Principal cliente: ${INTERNO[0]}. Tabela: ${INTERNO[1]}. Plano: ${INTERNO[2]}. Contato: ${INTERNO[3]}.`;
+const NOTAS_DATADAS = 'Notas da pesquisa:\n- Fornecedora Real Um (fonte: Revista Exemplo, https://revista.exemplo/a). Publicação: 30/09/2026. Evidência: "Publicado em 30/09/2026".\n- Contexto histórico: https://revista.exemplo/b. Data de publicação não confirmada; o ano no DOI não comprova publicação.';
 
 const sis = b => JSON.stringify(b.messages[0].content);
 const tipo = b => sis(b).includes('conferente de qualidade') ? 'conferencia' : sis(b).includes('Etapa 1 de 2') ? 'coleta' : sis(b).includes('Você está executando o Quick Win') ? 'execucao' : 'outra';
 function roteiro(b) {
   const t = tipo(b);
   if (t === 'conferencia') return '{"criterios":[],"objetivo_atingido":true}';
-  if (t === 'coleta') return 'Notas da pesquisa:\n- Fornecedora Real Um (fonte: Revista Exemplo, https://revista.exemplo/a)';
+  if (t === 'coleta') return NOTAS_DATADAS;
   if (t !== 'execucao') return 'Certo.';
   const titulos = [...sis(b).matchAll(/\d+\. ## ([^\\(]+?)(?: \(|\\n|")/g)].map(m => m[1].trim());
   return (titulos.length ? titulos : ['Resultado']).map(x => `## ${x}\n| Item | Posição |\n|---|---|\n| Fornecedora Real Um | líder em preço |`).join('\n\n') + `\n\n## ${OP.SECAO_FONTES}\n- Revista Exemplo: https://revista.exemplo/a`;
@@ -105,6 +106,58 @@ test('contexto público disponível: o perfil classificado pelo admin vai para a
   assert.equal(comBusca(r.chamadas).length, 1, 'uma busca só, na coleta');
 });
 
+test('pesquisa recente: coleta exige evidência de publicação e as notas datadas chegam à produção e à conferência sem nova busca', async () => {
+  const q = await criarQw(ana, 'Pesquise tendências recentes de gestão documental digital na mineração e resuma as três mais relevantes.');
+  const r = await executar(ana, q.id, { texto: 'Execute agora.' });
+  const [coleta] = comBusca(r.chamadas);
+  assert.ok(coleta);
+  const instrucao = coleta.messages[0].content;
+  assert.match(instrucao, /data de publicação.*trecho que a comprova/);
+  assert.match(instrucao, /Separe data de publicação, atualização e consulta/);
+  assert.match(instrucao, /Não deduza a publicação pelo ano no DOI/);
+  assert.match(instrucao, /Fonte sem data confirmada serve apenas de contexto/);
+  assert.match(instrucao, /não invente datas nem afirme que a pesquisa está completa/);
+  assert.match(coleta.messages.at(-1).content, /Referência temporal da busca:/);
+  assert.match(coleta.messages.at(-1).content, /últimos 24 meses/);
+  const producao = r.chamadas.find(b => tipo(b) === 'execucao');
+  assert.ok(producao);
+  const blocos = producao.messages[0].content;
+  const sistema = typeof blocos === 'string' ? blocos : blocos.map(b => b.text || '').join('\n');
+  assert.ok(sistema.includes(NOTAS_DATADAS), 'a evidência da data não se perde entre as etapas');
+  assert.match(sistema, /não anuncie a pesquisa como completa/);
+  const conferencias = r.chamadas.filter(b => tipo(b) === 'conferencia');
+  assert.ok(conferencias.length);
+  assert.ok(conferencias.every(b => JSON.stringify(b.messages).includes('Publicado em 30/09/2026')), 'a conferência pode conferir a mesma evidência');
+  assert.equal(comBusca(r.chamadas).length, 1);
+  for (const b of r.chamadas.filter(b => b !== coleta)) assert.equal(b.plugins, undefined);
+  for (const x of INTERNO) assert.ok(!JSON.stringify(coleta).includes(x));
+});
+
+test('pesquisa recente lê as páginas pela rede segura e leva a evidência à resposta, à produção e à conferência', async () => {
+  const antes = S.P.tenant(A.id).buscarLink;
+  const tenant = S.P.tenant(A.id);
+  const chamadas = [];
+  tenant.buscarLink = async op => {
+    chamadas.push(op);
+    const corpo = Buffer.from('<html><head><meta property="article:published_time" content="2026-09-30"></head><body><p>Artigo público sobre governança documental e novas aplicações.</p></body></html>');
+    return { status: 200, cabecalhos: { 'content-type': 'text/html' }, corpo };
+  };
+  try {
+    const q = await criarQw(ana, 'Pesquise tendências recentes de gestão documental na mineração.');
+    const r = await executar(ana, q.id, { texto: 'Execute agora.' });
+    assert.equal(chamadas.length, 2, 'somente as duas citações da busca');
+    for (const op of chamadas) {
+      assert.equal(op.redePrivada, false); assert.equal(op.metodo, 'GET');
+      assert.equal(op.cabecalhos.authorization, undefined); assert.equal(op.cabecalhos.cookie, undefined);
+      for (const x of INTERNO) assert.ok(!JSON.stringify(op).includes(x));
+    }
+    assert.ok(r.fim.fontes.filter(f => f.url).every(f => f.verificacaoPublicacao?.publicacao?.data === '2026-09-30'));
+    for (const chamada of r.chamadas.filter(b => ['execucao', 'conferencia'].includes(tipo(b))))
+      assert.ok(JSON.stringify(chamada.messages).includes('Publicação declarada na página: 2026-09-30'));
+    assert.equal(comBusca(r.chamadas).length, 1);
+  } finally { tenant.buscarLink = antes; }
+});
+
 test('perfil público com dado que não pode sair é recusado; o perfil salvo continua', async () => {
   for (const perfil of [{ setor: 'Software B2B, contato carlos.souza@alfaqa.exemplo' }, { mercado: 'Uso interno: mineradoras' }, { nome: 'Alfa token sk-or-v1-0123456789abcdef0123456789abcdef' }]) {
     const r = await ana.put('/api/admin/config', { pesquisaWeb: { ativa: true, perfil } });
@@ -160,6 +213,22 @@ test('unidade: o contexto externo só junta peças seguras e diz quando falta me
   assert.equal(OP.contextoExternoDaPesquisa({ objetivo: PEDIDO, op: { ferramentas: ['pesquisa_web'] } }).suficiente, false);
   assert.equal(OP.contextoExternoDaPesquisa({ objetivo: 'Pesquise os temas em alta da semana sobre mineração.', op: { ferramentas: ['pesquisa_web'] } }).suficiente, true, 'sem pedir mercado, o tema basta');
   assert.equal(OP.contextoExternoDaPesquisa({ objetivo: PEDIDO, op: { ferramentas: ['pesquisa_web'] }, textosDaPessoa: ['Use a planilha que mandei'] }).suficiente, false, 'frase sem assunto não é mercado');
+});
+
+test('recorte vai na consulta externa com relógio da plataforma, preservando período explícito e sem material interno', () => {
+  const agora = new Date('2026-10-18T22:00:00Z');
+  const consulta = OP.contextoExternoDaPesquisa({ objetivo: 'Pesquise tendências recentes de mineração.', agora, textosDaPessoa: [`Uso interno: ${INTERNO.join('; ')}`] }).consulta;
+  assert.match(consulta, /18 de outubro de 2026/);
+  assert.match(consulta, /recorte sugerido pela plataforma/);
+  for (const x of INTERNO) assert.ok(!consulta.includes(x));
+  for (const objetivo of ['Pesquise notícias desta semana.', 'Pesquise tendências dos últimos 7 dias.', 'Pesquise novidades de 2025.']) {
+    const x = OP.recorteTemporalDaPesquisa(objetivo, agora);
+    assert.match(x, /período explícito/); assert.doesNotMatch(x, /24 meses/);
+  }
+  assert.equal(OP.recorteTemporalDaPesquisa('Pesquise a história da mineração.', agora), '');
+  assert.equal(OP.recorteTemporalDaPesquisa('Pesquise tendências recentes.', new Date('inválida')), '');
+  const e = C.construir({descricao:'Pesquise tendências recentes de mineração.'});
+  assert.ok(e.criterios_qualidade.some(c => c.id === 'atualidade'));
 });
 
 test('checker: matriz com "Concorrente A–E" que não está no material é invenção; tabela sem dados é parcial, não aprovada', () => {

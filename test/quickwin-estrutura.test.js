@@ -206,7 +206,7 @@ test('uma chamada por objetivo novo; mesmo objetivo salvo = 0 chamadas; objetivo
   // Créditos realmente registrados neste cenário (provedor de teste: custo fixo por chamada).
   const novos = todos(S.app.db, 'select custo from uso order by id').slice(usoAntes);
   assert.equal(novos.length, 2, 'duas estruturações de fato (A e B); os reaproveitamentos não registram consumo');
-  assert.deepEqual(novos.map(u => creditosDe(u.custo)), [0.1, 0.1]);
+  assert.deepEqual(novos.map(u => creditosDe(u.custo)), [0.123, 0.123]);
 });
 
 test('C, D e campo inventado pela IA, pelo servidor', async () => {

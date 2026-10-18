@@ -169,7 +169,7 @@ test('admin da plataforma entra em qualquer ambiente, com registro na auditoria'
   assert.equal(eu.status, 200);
   assert.equal(eu.dados.plataforma.empresa.id, B.id);
   assert.equal(eu.dados.plataforma.adminPlataforma, true);
-  assert.equal(eu.dados.unidade, 'usd');   // só o operador vê dólar
+  assert.equal(eu.dados.unidade, 'creditos');   // contexto da empresa não expõe valores financeiros, mesmo no suporte
 });
 
 test('planos por configuração: limite de usuários, recursos e mudança de plano valem na hora', async () => {

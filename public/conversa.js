@@ -116,8 +116,8 @@ function desenhar() {
               <button type="button" role="menuitem" id="anexar-link" aria-controls="link-novo" aria-expanded="false">${ICONE.link}<span><b>Adicionar link</b><small>Página pública usada como fonte</small></span></button>
             </div>
           </div>
-          ${C.opcoes.length > 1 && !qw?.v2 ? `<details class="preferencias-resposta"><summary>Preferências</summary><div class="preferencias-resposta-painel"><p>O GreenIA recomenda a opção adequada para o seu pedido, dentro do seu acesso e do limite de consumo.</p><label for="modelo">Como responder</label><select class="caixa-nivel" id="modelo" aria-label="Como responder" title="O GreenIA recomenda a opção adequada dentro do seu acesso e do orçamento." ${podeTrocar ? '' : 'disabled'}>
-            ${C.opcoes.map(o => `<option value="${esc(o.id)}" ${o.id === C.modelo ? 'selected' : ''} ${o.bloqueado ? 'disabled' : ''}>${esc(o.automatico ? 'Seguir a recomendação do GreenIA' : o.nivel || o.nome)}${o.bloqueado ? ' · indisponível até a renovação' : ''}</option>`).join('')}
+          ${C.opcoes.length > 1 && !qw?.v2 ? `<details class="preferencias-resposta"><summary>Preferências</summary><div class="preferencias-resposta-painel"><p>A plataforma recomenda a opção adequada para o seu pedido, dentro do seu acesso e do limite de consumo.</p><label for="modelo">Como responder</label><select class="caixa-nivel" id="modelo" aria-label="Como responder" title="A plataforma recomenda a opção adequada dentro do seu acesso e do orçamento." ${podeTrocar ? '' : 'disabled'}>
+            ${C.opcoes.map(o => `<option value="${esc(o.id)}" ${o.id === C.modelo ? 'selected' : ''} ${o.bloqueado ? 'disabled' : ''}>${esc(o.automatico ? 'Seguir a recomendação' : o.nivel || o.nome)}${o.bloqueado ? ' · indisponível até a renovação' : ''}</option>`).join('')}
           </select></div></details>` : ''}
           <details class="preferencias-resposta"><summary>Acompanhar trabalho</summary><div class="preferencias-resposta-painel"><label for="resultado-vinculo">Este pedido é</label><select class="entrada" id="resultado-vinculo"><option value="nao_classificado">Continuação do trabalho atual</option><option value="etapa">Próxima etapa planejada</option><option value="correcao">Correção do que foi pedido</option><option value="preferencia">Mudança de preferência</option><option value="escopo">Ampliação do trabalho</option><option value="novo">Um novo trabalho</option></select><p>O consumo fica reunido no mesmo trabalho. Novo trabalho e ampliação ficam separados.</p><a href="#/resultados">Conferir entregas e consumo</a></div></details>
           <button type="button" class="caixa-chave" id="sigilosa" role="switch" aria-checked="${sig}" ${sig ? 'aria-readonly="true"' : ''} aria-describedby="efeito-sigilo"
@@ -408,6 +408,7 @@ function andamentoDaResposta() {
 }
 function ajustarAltura() { const t = $('entrada'), vh = window.visualViewport?.height || innerHeight, celular = innerWidth <= 760, max = Math.round(C.expandida ? vh * (celular ? 0.5 : 0.68) : celular ? Math.max(96, Math.min(168, vh * 0.24)) : Math.max(120, Math.min(320, vh * 0.4))); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, max) + 'px'; t.style.overflowY = t.scrollHeight > max ? 'auto' : 'hidden'; const ex = $('expandir'); if (ex) ex.hidden = !C.expandida && t.scrollHeight < 110; }
 function atualizarEnviar() {
+  if (!$('entrada') || !$('enviar') || !C) return;
   const vazio = !$('entrada').value.trim() && !C.anexos.length;
   const botao = $('enviar');
   botao.disabled = C.enviando ? !!C.interrompendo || !C.conv : vazio;
@@ -770,7 +771,8 @@ async function receberResposta(r, { manterErro = false } = {}) {
   C.recebendo = false; C.interrompendo = false; C.pensando = false; C.etapa = null; C.montandoArquivo = false; C.vaiArquivo = false; C.execucao = false;
   $('ao-vivo').textContent = resposta.interrompida ? 'Execução interrompida.' : resposta.erro ? resposta.texto : resposta.qualidade ? 'Pronto.' : 'Resposta pronta.';
   C.enviando = false;
-  try { await recarregarConversa(true); } catch { desenharMensagens(); }
+  try { await recarregarConversa(true); } catch { if(C===estado && $('coluna')) desenharMensagens(); }
+  if (C!==estado || !$('coluna')) return;
   atualizarEnviar();
   if (C.conv?.em_execucao) acompanharExecucao(C);
   if (C.executarDepois) { const x = C.executarDepois; C.executarDepois = null; executarProjeto(x.arquivo, x.modo); }

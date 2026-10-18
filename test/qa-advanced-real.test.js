@@ -45,3 +45,15 @@ test('QA Advanced: APIs locais registram revisão, concessão com teto e padrão
     assert.equal((await admin.get('/api/admin/modelos')).dados.config.padroes.avancado, m.id);
   } finally { await s.fechar(); }
 });
+
+test('QA Advanced: catálogo real relatado exige reserva de pesquisa US$ 2,269144, sem elevar teto ou reduzir classe', async () => {
+  const caro = modelo(); caro.atributos.catalogo.contexto = 1000000; caro.atributos.catalogo.rotas[0].contexto = 1000000;
+  const r = selecionarRotaQa([caro], agora);
+  assert.ok(Math.abs(r.estimativaPesquisa - 2.269144) < 1e-12);
+  assert.equal(selecionarRotaQa([caro], agora, { pesquisaWeb: true }), null);
+  const compativel = modelo(); compativel.atributos.catalogo.rotas[0].id = 'rota-compativel';
+  assert.equal(selecionarRotaQa([caro, compativel], agora, { pesquisaWeb: true }).provedor, 'rota-compativel');
+  const a = { put() { assert.fail('sem reserva válida não alterar autorização'); }, post() { assert.fail('não conceder'); } };
+  caro.atributos.catalogo.consultadoEm = new Date().toISOString();
+  assert.match((await prepararAdvancedQa(a, [caro], 1, { pesquisaWeb: true })).pendente, /Não iniciar inferências/);
+});

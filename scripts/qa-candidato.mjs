@@ -164,10 +164,12 @@ if (ISOLADO) {
   // não se abre a informação financeira na interface do cliente para preparar o QA.
   const modelos = lerModelos(db);
   R.catalogo = modelos.map(m => ({ id: m.id, perfil: m.perfil, liberado: m.liberado, noCatalogo: m.noCatalogo, catalogo: m.atributos?.catalogo }));
-  const preparacao = await prepararAdvancedQa(ana, modelos, eu.pessoa.id);
+  const pesquisaAdvanced = !SELECAO_CLASSES || SELECAO_CLASSES.has('avancado/pesquisa');
+  const preparacao = await prepararAdvancedQa(ana, modelos, eu.pessoa.id, { pesquisaWeb: pesquisaAdvanced });
   R.autorizacoesLocais = preparacao.id ? [preparacao] : [];
   if (preparacao.pendente) R.erros.push(preparacao.pendente);
   salvar();
+  if (preparacao.pendente) { log(preparacao.pendente); await encerrar(); process.exit(2); }
 }
 
 // ---- interpretação, criação, execução ---------------------------------------------------------------------------

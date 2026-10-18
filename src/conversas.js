@@ -1308,6 +1308,16 @@ export function rotasConversas(app, r) {
     // Etapa 1 (coleta): pesquisa com o plugin web, só com o contexto externo seguro. Falhou ou não trouxe notas: a
     // produção segue sem pesquisa e o resultado fica parcial (nada é simulado). Notas com algo que parece segredo não seguem.
     let notas = null, custoColeta = 0, economiaColeta = 0;
+    // Orçamento, autorização e rota são decisões de governança, não ausência de resultados.
+    // Não consome execução/conferência depois de uma coleta recusada por esses controles.
+    const coletaRecusada = e => /^(advanced_|rota_nao_controlada)/.test(e?.codigo || '') || [401, 402, 403].includes(e?.status);
+    const encerrarColetaRecusada = e => {
+      const codigo = e?.codigo || 'pesquisa_bloqueada';
+      exec(app.db, "update roteamento set resultado = 'bloqueado_na_coleta', motivo_bloqueio = ?, ms_total = ? where id = ?", codigo, Date.now() - inicio, rotaId);
+      linha({ t: 'erro', codigo, mensagem: /^(advanced_|rota_nao_controlada)/.test(codigo) ? e.message : 'A pesquisa não pôde ser autorizada nesta tentativa. O administrador precisa revisar o acesso e os limites antes de continuar.' });
+      return res.end();
+    };
+
     if (emEtapas && !perguntaMercado) {
       linha({ t: 'etapa', v: 'Pesquisando na internet…' });
       // O plugin de busca usa a última mensagem da pessoa como consulta: ela é o contexto externo seguro, e só ele.
@@ -1323,6 +1333,7 @@ export function rotasConversas(app, r) {
         if (notas && contemCredencial(notas)) notas = null;
       } catch (e) {
         registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: m.id, roteamento: rotaId, etapa: 'coleta', erro: erroDoProvedor(e, { guardar: !naoGuardar, conteudo: conteudoDoPedido }) });
+        if (coletaRecusada(e)) return encerrarColetaRecusada(e);
       }
       if (notas) mensagens[0] = { role: 'system', content: montarSistema(sistemaProducao, delimitar('pesquisa', 'Notas da pesquisa desta execução', notas)) };
       // Coleta sem notas: a produção não pesquisa sozinha (levaria o contexto interno para a busca). Resultado parcial.
@@ -1345,6 +1356,7 @@ export function rotasConversas(app, r) {
         else mensagens[0] = { ...mensagens[0], content: `${mensagens[0].content}\n\nA pesquisa na internet não trouxe resultados: diga isso e não invente notícias, datas ou números recentes.` };
       } catch (e) {
         registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: m.id, roteamento: rotaId, etapa: 'coleta_conversa', erro: erroDoProvedor(e, { guardar: !naoGuardar, conteudo: conteudoDoPedido }) });
+        if (coletaRecusada(e)) return encerrarColetaRecusada(e);
         mensagens[0] = { ...mensagens[0], content: `${mensagens[0].content}\n\nA pesquisa na internet falhou nesta tentativa: diga isso e não invente notícias, datas ou números recentes.` };
       }
     }

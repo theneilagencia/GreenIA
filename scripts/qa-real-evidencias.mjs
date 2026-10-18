@@ -54,3 +54,8 @@ export function consolidarRecibos(chamadas) {
     liberacaoProducao: false,
   };
 }
+export function canaisNaoPedidos(pedido, entregaveis) {
+  const t = String(pedido).toLowerCase();
+  const citados = { linkedin: /linked\s?in/, instagram: /instagram|\binsta\b|\breels?\b/, facebook: /facebook/, tiktok: /tik\s?tok/, youtube: /youtube|\bshorts\b/, x: /twitter|\btweets?\b|\b(?:no|para o) x\b/, blog: /blog|artigo/, email: /e-?mail|newsletter/ };
+  return [...new Set(entregaveis.map(e => e.canal).filter(c => c && !citados[c]?.test(t)))];
+}

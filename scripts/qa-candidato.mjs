@@ -22,7 +22,10 @@ import { criarOpenRouter, criarIndisponivel } from '../src/ia.js';
 import { json, um } from '../src/db.js';
 import { limparCacheInterpretacao } from '../src/quickwin-interpretacao.js';
 import { rotuloEntregavel, MARCADOR_PERGUNTA } from '../src/quickwin-operacao.js';
-import { observarResposta, falhasDaEntrega, consolidarRecibos } from './qa-real-evidencias.mjs';
+import { observarResposta, falhasDaEntrega, consolidarRecibos, canaisNaoPedidos } from './qa-real-evidencias.mjs';
+import { verificarPlanilhaQa } from './qa-planilha-oraculo.mjs';
+import { prepararAdvancedQa } from './qa-advanced-real.mjs';
+import { lerModelos } from '../src/modelos.js';
 import { BATERIA, SURPRESA, CONTRATO, PROPOSTAS, TRANSCRICAO, CVS, planilha, SMOKE15, MATERIAIS_TEXTO, SURPRESA10 } from './qa-cenarios.mjs';
 // QA_PARTES=homologacao: só os 15 casos principais e os 10 surpresa (com as classes); padrão: tudo.
 const PARTES = (process.env.QA_PARTES || 'tudo').split(',');
@@ -151,18 +154,13 @@ if (ISOLADO) {
   const eu = conferir(await ana.get('/api/eu'), 'Conta local');
   if (!eu.iaConfigurada || eu.iaSimulada) throw new Error('O serviço local não está com IA real configurada.');
   conferir(await ana.post('/api/admin/modelos/atualizar'), 'Catálogo real');
-  const modelos = conferir(await ana.get('/api/admin/modelos'), 'Modelos').modelos;
+  // A API da empresa remove preços por política. O operador lê o catálogo INTERNO do banco fictício;
+  // não se abre a informação financeira na interface do cliente para preparar o QA.
+  const modelos = lerModelos(db);
   R.catalogo = modelos.map(m => ({ id: m.id, perfil: m.perfil, liberado: m.liberado, noCatalogo: m.noCatalogo, catalogo: m.atributos?.catalogo }));
-  conferir(await ana.put('/api/admin/advanced/config', { limiteMensalUsd: 2 }), 'Orçamento fictício');
-  R.autorizacoesLocais = [];
-  for (const m of modelos.filter(m => m.perfil === 'avancado' && m.liberado && m.noCatalogo)) {
-    const rotas = m.atributos?.catalogo?.rotas || [];
-    const rota = rotas.find(r => r.parametros?.includes('max_tokens') && r.contexto >= 200000 && r.maxSaida >= 32768 && Number.isFinite(r.entrada) && Number.isFinite(r.saida));
-    if (!rota) { R.erros.push(`Nenhuma rota atual elegível: ${m.id}`); continue; }
-    conferir(await ana.put('/api/admin/advanced/modelos/' + encodeURIComponent(m.id), { aprovado: true, provedores: [rota.id], justificativa: 'QA isolado com dados fictícios; catálogo real, sem desligar as proteções de retenção e treino.' }), 'Revisão local de rota');
-    const a = conferir(await ana.post('/api/admin/advanced/autorizacoes', { pessoa_id: eu.pessoa.id, modelos: [m.id], provedores: [rota.id], limite_usd: 2, limite_chamada_usd: 1, saida_tokens: 32768, pesquisa_web: true, expira_em: new Date(Date.now() + 3600000).toISOString() }), 'Autorização local');
-    R.autorizacoesLocais.push({ modelo: m.id, provedor: rota.id, id: a.id });
-  }
+  const preparacao = await prepararAdvancedQa(ana, modelos, eu.pessoa.id);
+  R.autorizacoesLocais = preparacao.id ? [preparacao] : [];
+  if (preparacao.pendente) R.erros.push(preparacao.pendente);
   salvar();
 }
 
@@ -216,15 +214,15 @@ function casoSuspenso(destino, id) {
   if (!R.interrompido) return false;
   destino.push({ id, estado: 'nao_executado', utilizavel: null, motivo: R.interrompido }); salvar(); return true;
 }
-const QUER_CANAL = /linkedin|instagram|facebook|tiktok|youtube|reels|blog|newsletter/i;
 function usabilidade(pedido, it, x, esperado, { vago = false } = {}) {
   const op = it.operacao || {}, f = ISOLADO ? falhasDaEntrega(x) : [];
   if (it.status !== 200 || it.fonte !== 'ia') f.push('interpretação sem confirmação de IA');
   if (!vago && !(op.entregaveis || []).length) f.push('plano sem entregáveis');
-  if ((op.entregaveis || []).some(e => e.canal) && !QUER_CANAL.test(pedido)) f.push('canal que não foi pedido');
+  for (const canal of canaisNaoPedidos(pedido, op.entregaveis || [])) f.push(`canal que não foi pedido: ${canal}`);
   if (/configur(e|ar) (o|a) (modelo|prompt|json)|ajuste o quick win|edite a configura/i.test(x.texto)) f.push('pede configuração técnica');
   if (vago) { if (!x.pergunta && !(it.lacunas || op.lacunas || []).some(l => l.obrigatoria)) f.push('vago sem pergunta'); }
   else {
+    if (!['aprovado', 'corrigido'].includes(x.status)) f.push('conferência da execução não aprovada');
     if (x.pergunta) f.push('pergunta num caso com material');
     if (x.status === 'inconsistente') f.push('inconsistente (pede ajustar e testar de novo)');
     if (x.qualidade?.itens?.some(i => i.id === 'invencao' && i.conferido && !i.ok)) f.push('conferência aponta invenção');
@@ -250,8 +248,10 @@ if (roda('homologacao')) {
       const x = await executar(qw.id, materialDe(material), `h_${id}`);
       writeFileSync(join(SAIDA, `h-${id}.md`), x.texto);
       const falhas = usabilidade(pedido, it, x, esperado, { vago: id.endsWith('vago') });
+      const conferenciaNumerica = id === '03-planilha' ? verificarPlanilhaQa(x.texto, planilha()) : null;
+      if (conferenciaNumerica) falhas.push(...conferenciaNumerica.falhas);
       R.homologacao.principais.push({ id, pedido, fonte: it.fonte, plano: plano_(it.operacao), status: x.status, http: x.http, erroCodigo: x.erroCodigo, erroDetalhes: x.erroDetalhes, custosPendentes: x.custosPendentes, pergunta: x.pergunta, avisos: x.qualidade?.avisos || [], objetivo: x.qualidade?.objetivo || null,
-        entregaveis: x.qualidade?.entregaveis || null, fontes: x.fontes.length, modelos: x.modelos, ms: x.ms, custo: x.custo, utilizavel: !falhas.length && it.fonte === 'ia', falhas });
+        entregaveis: x.qualidade?.entregaveis || null, conferenciaNumerica, fontes: x.fontes.length, modelos: x.modelos, ms: x.ms, custo: x.custo, utilizavel: !falhas.length && it.fonte === 'ia', falhas });
       log(falhas.length ? 'FAIL' : 'PASS', id, it.fonte, x.status, `${x.ms}ms`, mostrarCusto(x.custo), falhas.join('; ')); salvar();
     } catch (e) { R.homologacao.principais.push({ id, erro: String(e.message) }); salvar(); }
   }

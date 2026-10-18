@@ -20,7 +20,7 @@ export async function executar(commit, { retomar = null, hashAnterior = null } =
     const hash = createHash('sha256').update(original).digest('hex');
     if (hashAnterior && hash !== hashAnterior) throw new Error('O relatório anterior difere do hash informado. Não iniciar nova rodada.');
     const anterior = JSON.parse(original);
-    selecao = anterior.homologacao.principais.filter(c => c.utilizavel !== true || c.custo === null).map(c => c.id).join(',');
+    selecao = anterior.homologacao.principais.filter(c => c.utilizavel !== true || c.custo === null || (c.id === '03-planilha' && !c.conferenciaNumerica)).map(c => c.id).join(',');
     console.log('RODADA_ANTERIOR', hash);
     console.log('Principais a retomar:', selecao, '; as aprovações anteriores não contam como novas execuções.');
     // Guarda o resultado real que a conferência reprovou, sem presumir que a própria conferência esteja certa.

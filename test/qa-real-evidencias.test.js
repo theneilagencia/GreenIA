@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { registrarRecibo, observarResposta, falhasDaEntrega, consolidarRecibos } from '../scripts/qa-real-evidencias.mjs';
+import { registrarRecibo, observarResposta, falhasDaEntrega, consolidarRecibos, canaisNaoPedidos } from '../scripts/qa-real-evidencias.mjs';
 import { criarOpenRouter } from '../src/ia.js';
 
 test('QA real: custo ausente ou textual fica pendente, nunca vira zero', () => {
@@ -67,4 +67,9 @@ test('QA real: o cliente de imagem consome o mesmo JSON observado e a próxima c
   for (let i = 0; i < 2; i++) { const imagem = await ia.gerarImagem('Material fictício', { modelo: 'imagem-qa' }); assert.equal(imagem.custo, 0.039); assert.equal(imagem.dataUrl, 'data:image/png;base64,cWE='); }
   await Promise.all(chamadas.map(c => c.pronto));
   assert.equal(consolidarRecibos(chamadas).custoTotalUsd, 0.078); assert.equal(consolidarRecibos(chamadas).inferenciasComRecibo, 2);
+});
+test('QA real: email pedido aceita só o canal email; citar uma rede não autoriza todas', () => {
+  assert.deepEqual(canaisNaoPedidos('Prepare um e-mail executivo', [{ canal: 'email' }]), []);
+  assert.deepEqual(canaisNaoPedidos('Prepare um e-mail executivo', [{ canal: 'email' }, { canal: 'linkedin' }]), ['linkedin']);
+  assert.deepEqual(canaisNaoPedidos('Crie conteúdo para LinkedIn e Instagram', [{ canal: 'linkedin' }, { canal: 'instagram' }, { canal: 'youtube' }]), ['youtube']);
 });

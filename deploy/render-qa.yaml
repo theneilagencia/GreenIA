@@ -4,7 +4,7 @@ services:
   - type: web
     name: greenia-qa-release
     repo: https://github.com/theneilagencia/GreenIA
-    branch: qa/homologacao-isolada-20261018
+    branch: qa/quickwin-pesquisa-bloqueada-20261018
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .

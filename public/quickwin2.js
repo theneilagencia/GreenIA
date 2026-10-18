@@ -610,7 +610,7 @@ function htmlPlano(W) {
       <div><dt>Vai fazer</dt><dd>${editar ? `<label class="sr" for="plano-etapas">Etapas, uma por linha</label><textarea class="campo-amplo menor" id="plano-etapas">${esc((op.etapas || []).map(x => x.texto).join('\n'))}</textarea><p class="dica">Uma etapa por linha.</p>`
         : `<ol>${(op.etapas || []).map(x => `<li>${esc(x.texto)}</li>`).join('') || '<li class="dica">Do jeito que o trabalho pedir.</li>'}</ol>`}</dd></div>
       <div><dt>Vai entregar</dt><dd><ul>${entregas.map(t => `<li>${esc(t)}</li>`).join('')}</ul>${sugerido ? '' : '<button type="button" class="link-sutil" id="plano-entregas">Ajustar o que vai entregar</button>'}</dd></div>
-      <div><dt>Vai usar</dt><dd><ul>${(op.ferramentas || []).map(f => { const ind = W.indisponiveis.find(x => x.id === f); return `<li>${esc(rotuloF(f))}${ind ? ` <span class="dica">(não disponível: entrega ${esc(ind.alternativa)})</span>` : f === 'pesquisa_web' && !W.pesquisaLiberada ? ' <span class="dica">(ainda não liberada pela empresa: o resultado sai parcial)</span>' : ''}</li>`; }).join('') || '<li>IA da GreenIA</li>'}</ul></dd></div>
+      <div><dt>Vai usar</dt><dd><ul>${(op.ferramentas || []).map(f => { const ind = W.indisponiveis.find(x => x.id === f); return `<li>${esc(rotuloF(f))}${ind ? ` <span class="dica">(não disponível: entrega ${esc(ind.alternativa)})</span>` : f === 'pesquisa_web' && !W.pesquisaLiberada ? ' <span class="dica">(a pesquisa precisa ser liberada antes de executar)</span>' : ''}</li>`; }).join('') || '<li>IA da GreenIA</li>'}</ul></dd></div>
     </dl>
     ${lacunas.length ? `<div class="lacunas" id="plano-lacunas"><p class="legenda">Para o resultado não sair genérico</p>${lacunas.map(l => `<div><label for="lacuna-${esc(l.id)}">${esc(l.pergunta)}${l.obrigatoria ? ' <span class="tag">Necessário</span>' : ''}</label>
       <input class="entrada" id="lacuna-${esc(l.id)}" data-lacuna="${esc(l.id)}" data-pergunta="${esc(l.pergunta)}" maxlength="600" value="${esc(respostas.get(l.id) || '')}" placeholder="${esc(l.exemplo || '')}"></div>`).join('')}
@@ -689,7 +689,7 @@ function htmlEntregas(W) {
     ${op.entregaveis.some(e => tipo(e.tipo).visual) ? '<p class="dica">Imagem (briefing), carrossel, Reels e vídeo saem como briefing para quem produz. Para a peça pronta, use "Imagem final".</p>' : ''}
     <label class="ferramenta"><input type="checkbox" id="pesquisa-web" ${op.ferramentas.includes('pesquisa_web') ? 'checked' : ''}>
       <span><b>Pesquisar na internet antes de escrever</b><br><span class="dica">${W.pesquisaLiberada ? 'Usa fontes reais e mostra de onde veio cada tema. Não roda com informação sigilosa.'
-        : 'A empresa ainda não liberou a pesquisa na internet (quem administra libera em Configurações). Até lá, o resultado sai parcial, sem temas confirmados como atuais.'}</span></span></label>
+        : 'A empresa ainda não liberou a pesquisa na internet. Quem administra as políticas pode avaliar esse acesso em Políticas de IA. A execução aguarda essa revisão; uma versão sem pesquisa não será gerada automaticamente.'}</span></span></label>
     <p class="exemplos"><button type="button" id="formato-unico-btn">Prefiro um resultado só (texto, lista, tabela...)</button></p>
   </section>`;
 }

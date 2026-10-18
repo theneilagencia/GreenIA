@@ -103,7 +103,8 @@ test('Áreas com rolagem própria alcançáveis pelo teclado; página de vendas 
   // A página de vendas só é a inicial com paginaInicial = 'vendas'; aqui basta conferir o HTML servido.
   await p.setContent(readFileSync(new URL('../public/vendas.html', import.meta.url), 'utf8'));
   assert.equal(await p.locator('.l-comp-rolagem').getAttribute('tabindex'), '0');
-  assert.equal(await p.locator('main aside, [role=main] aside').count(), 0);
+  assert.equal(await p.locator('main aside:not(.l-conferencia-nota), [role=main] aside:not(.l-conferencia-nota)').count(),0);
+  assert.match(await p.locator('.l-conferencia-nota').innerText(),/A conferência pode ser incompleta e não substitui a revisão/);
 });
 
 test('Sair do envio de documento com dados pendentes: modal da plataforma; "Sair sem salvar" segue para o destino', async () => {

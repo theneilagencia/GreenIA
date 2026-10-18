@@ -408,6 +408,7 @@ function andamentoDaResposta() {
 }
 function ajustarAltura() { const t = $('entrada'), vh = window.visualViewport?.height || innerHeight, celular = innerWidth <= 760, max = Math.round(C.expandida ? vh * (celular ? 0.5 : 0.68) : celular ? Math.max(96, Math.min(168, vh * 0.24)) : Math.max(120, Math.min(320, vh * 0.4))); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, max) + 'px'; t.style.overflowY = t.scrollHeight > max ? 'auto' : 'hidden'; const ex = $('expandir'); if (ex) ex.hidden = !C.expandida && t.scrollHeight < 110; }
 function atualizarEnviar() {
+  if (!$('entrada') || !$('enviar') || !C) return;
   const vazio = !$('entrada').value.trim() && !C.anexos.length;
   const botao = $('enviar');
   botao.disabled = C.enviando ? !!C.interrompendo || !C.conv : vazio;
@@ -770,7 +771,8 @@ async function receberResposta(r, { manterErro = false } = {}) {
   C.recebendo = false; C.interrompendo = false; C.pensando = false; C.etapa = null; C.montandoArquivo = false; C.vaiArquivo = false; C.execucao = false;
   $('ao-vivo').textContent = resposta.interrompida ? 'Execução interrompida.' : resposta.erro ? resposta.texto : resposta.qualidade ? 'Pronto.' : 'Resposta pronta.';
   C.enviando = false;
-  try { await recarregarConversa(true); } catch { desenharMensagens(); }
+  try { await recarregarConversa(true); } catch { if(C===estado && $('coluna')) desenharMensagens(); }
+  if (C!==estado || !$('coluna')) return;
   atualizarEnviar();
   if (C.conv?.em_execucao) acompanharExecucao(C);
   if (C.executarDepois) { const x = C.executarDepois; C.executarDepois = null; executarProjeto(x.arquivo, x.modo); }

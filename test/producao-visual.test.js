@@ -171,9 +171,12 @@ test('execução com artefato: plano visual pela IA (mesma rota), artefato guard
   }
   const pg = await fetch(`${S.base}/api/artefatos/${a.id}/baixar?formato=jpg&pagina=2`, { headers: { cookie: cookieDe(ana) } });
   assert.equal(inspecionarImagem(Buffer.from(await pg.arrayBuffer())).mime, 'image/jpeg');
-  const pptx = await ana.get(`/api/artefatos/${a.id}/baixar?formato=pptx`);
-  assert.equal(pptx.status, 400); assert.match(pptx.dados.mensagem, /PPTX ainda não está disponível/);
-  assert.equal(todos(S.app.db, "select 1 from eventos where tipo = 'visual.exported'").length, 5);
+  const pptx = await fetch(`${S.base}/api/artefatos/${a.id}/baixar?formato=pptx`, { headers: { cookie: cookieDe(ana) } });
+  assert.equal(pptx.status, 200);
+  const { previaDoPptx } = await import('../src/previa-pptx.js');
+  const previa = previaDoPptx(Buffer.from(await pptx.arrayBuffer()));
+  assert.equal(previa.slides.length, a.paginas); assert.ok(previa.slides.every(s => s.formas.length));
+  assert.equal(todos(S.app.db, "select 1 from eventos where tipo = 'visual.exported'").length, 6);
 });
 const cookieDe = c => c.cookie;
 

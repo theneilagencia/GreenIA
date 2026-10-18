@@ -45,3 +45,10 @@ test('exportação visual usa rota real de PPTX e não transforma assets isolado
     assert.equal(x.length, 1); assert.equal(x[0].integridade, 'confere');
   } finally { rmSync(pasta, { recursive: true, force: true }); }
 });
+test('carrossel com várias páginas preserva ZIP, sem tratá-lo como imagem única', async () => {
+  const pasta = mkdtempSync('/tmp/qa-download-');
+  try {
+    const r = await baixarArtefatosQa([{ origem: 'artefatos_visuais', id: 4 }], 2, pasta, async () => resposta(Buffer.from('PK-fixture-zip'), 200, 'application/zip'));
+    assert.equal(r[0].integridade, 'confere'); assert.ok(r[0].arquivo.endsWith('.zip')); assert.equal(r[0].inspecaoVisual, 'pendente');
+  } finally { rmSync(pasta, { recursive: true, force: true }); }
+});

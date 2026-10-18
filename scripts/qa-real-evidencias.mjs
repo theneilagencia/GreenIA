@@ -109,9 +109,9 @@ export async function baixarArtefatosQa(arquivos, conversa, saida, obter, { apre
       if (r.status !== 200 || !Buffer.isBuffer(dados) || !dados.length) throw new Error(`Download HTTP ${r.status} sem bytes válidos`);
       const sha256 = createHash('sha256').update(dados).digest('hex');
       if (a.sha256 && (sha256 !== a.sha256 || mime !== a.mime)) throw new Error('Download difere dos bytes ou MIME preservados');
-      const ext = ({ 'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx', 'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg' })[mime];
+      const ext = ({ 'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx', 'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg', 'application/zip': 'zip' })[mime];
       if (!ext) throw new Error('Tipo de arquivo não atende à inspeção visual');
-      if (ext === 'pptx' && dados.subarray(0, 2).toString() !== 'PK' || ext === 'pdf' && dados.subarray(0, 5).toString() !== '%PDF-' || ext === 'png' && dados.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a' || ext === 'jpg' && dados.subarray(0, 2).toString('hex') !== 'ffd8') throw new Error('Assinatura do arquivo não confere com o MIME');
+      if (['pptx', 'zip'].includes(ext) && dados.subarray(0, 2).toString() !== 'PK' || ext === 'pdf' && dados.subarray(0, 5).toString() !== '%PDF-' || ext === 'png' && dados.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a' || ext === 'jpg' && dados.subarray(0, 2).toString('hex') !== 'ffd8') throw new Error('Assinatura do arquivo não confere com o MIME');
       mkdirSync(join(saida, 'downloads'), { recursive: true, mode: 0o700 });
       const arquivo = `downloads/${conversa}-${nome}.${ext}`;
       writeFileSync(join(saida, arquivo), dados, { mode: 0o600, flag: 'wx' });

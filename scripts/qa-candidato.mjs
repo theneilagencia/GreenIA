@@ -22,11 +22,12 @@ import { criarOpenRouter, criarIndisponivel } from '../src/ia.js';
 import { json, um } from '../src/db.js';
 import { limparCacheInterpretacao } from '../src/quickwin-interpretacao.js';
 import { rotuloEntregavel, MARCADOR_PERGUNTA } from '../src/quickwin-operacao.js';
-import { registrarRecibo, falhasDaEntrega, consolidarRecibos } from './qa-real-evidencias.mjs';
+import { observarResposta, falhasDaEntrega, consolidarRecibos } from './qa-real-evidencias.mjs';
 import { BATERIA, SURPRESA, CONTRATO, PROPOSTAS, TRANSCRICAO, CVS, planilha, SMOKE15, MATERIAIS_TEXTO, SURPRESA10 } from './qa-cenarios.mjs';
 // QA_PARTES=homologacao: só os 15 casos principais e os 10 surpresa (com as classes); padrão: tudo.
 const PARTES = (process.env.QA_PARTES || 'tudo').split(',');
 const roda = p => PARTES.includes('tudo') || PARTES.includes(p);
+const SELECAO = process.env.QA_CASOS ? new Set(process.env.QA_CASOS.split(',')) : null;
 
 const RODADA = new Date().toISOString().replace(/[:.]/g, '-');
 const SAIDA = join(process.cwd(), 'qa-candidato-saida', RODADA); mkdirSync(SAIDA, { recursive: true });
@@ -37,6 +38,7 @@ const R = { rodada: RODADA, interpretacoes: [], surpresa: [], execucoes: {}, cla
 const ISOLADO = process.env.QA_KEY_FD === '3';
 if (ISOLADO && process.env.QA_AUTOTESTE === '1') throw new Error('O modo real não aceita IA simulada.');
 R.escopo = { candidato: process.env.QA_COMMIT || null, bancoTemporario: true, autenticacao: 'contas fictícias locais', iaRealSolicitada: ISOLADO, designIA: process.env.DESIGN_IA === '1', liberacaoProducao: false,
+  selecao: SELECAO ? [...SELECAO] : null,
   pendente: ['login e permissões no ambiente implantado', 'download e inspeção dos arquivos gerados', 'aceitação dos resultados pelo tipo de trabalho', 'casos negativos com configuração real do cliente'] };
 const salvar = () => {
   R.recibos = chamadas.map(({ pronto, ...c }) => c);
@@ -84,15 +86,12 @@ async function espiao(url, init = {}) {
   try { r = await fetch(url, init); } catch { c.erroTransporte = true; c.ms = Date.now() - c.t0; throw new Error('Falha de transporte para o provedor; custo pendente.'); }
   c.status = r.status;
   if (!r.ok) { c.ms = Date.now() - c.t0; return r; }
-  const [a, x] = r.body.tee();
-  c.pronto = (async () => { const dec = new TextDecoder(); let resto = '';
-    for await (const p of x) { resto += dec.decode(p, { stream: true }); const ls = resto.split('\n'); resto = ls.pop();
-      for (const l of ls) { if (!l.startsWith('data: ') || l === 'data: [DONE]') continue; try { registrarRecibo(c, JSON.parse(l.slice(6))); } catch {} } }
-    if (resto.startsWith('data: ') && resto !== 'data: [DONE]') { try { registrarRecibo(c, JSON.parse(resto.slice(6))); } catch {} }
-    c.ms = Date.now() - c.t0; })().catch(e => { c.erroStream = String(e?.cause?.code || e?.message || e); c.ms = Date.now() - c.t0; });
-  return new Response(a, { status: r.status, headers: r.headers });
+  return observarResposta(c, r, b.stream);
 }
-const esperar = () => Promise.all(chamadas.map(c => c.pronto));
+const esperar = async () => {
+  await Promise.all(chamadas.map(c => c.pronto));
+  if (ISOLADO && chamadas.some(c => c.custo === null || c.erroStream)) R.interrompido = 'Recibo pendente ou coleta interrompida; casos seguintes não executados.';
+};
 
 // ---- plataforma local do candidato ------------------------------------------------------------------------------
 // QA_AUTOTESTE=1: só para conferir o roteiro — OpenRouter falso local, navegador sem janela e uma chave falsa digitada
@@ -185,7 +184,7 @@ async function executar(qwId, corpo, rot, conv = null) {
   await esperar();
   const minhas = chamadas.slice(antes), soma = t => minhas.filter(x => x.tipo === t).reduce((s, x) => s + (x.ms || 0), 0);
   const texto = r.texto || '';
-  return { conv, http: r.status, finalizou: !!r.fim, chamadasReais: minhas.filter(c => c.status === 200 && c.geracao && c.modeloResposta && !c.erroStream && !c.erroProvedor).length, ms: Date.now() - t0, texto, status: r.fim?.qualidade?.status || (r.falha || r.erro ? 'erro' : null), falha: r.falha?.mensagem || (r.erro ? `${r.status} ${r.erro.erro || ''} ${r.erro.mensagem || ''}`.trim() : null), qualidade: r.fim?.qualidade || null,
+  return { conv, http: r.status, finalizou: !!r.fim, custosPendentes: minhas.filter(c => c.custo === null).length, erroCodigo: r.erro?.erro || r.falha?.codigo || null, erroDetalhes: r.erro || r.falha || null, chamadasReais: minhas.filter(c => c.status === 200 && c.geracao && c.modeloResposta && !c.erroStream && !c.erroProvedor).length, ms: Date.now() - t0, texto, status: r.fim?.qualidade?.status || (r.falha || r.erro ? 'erro' : null), falha: r.falha?.mensagem || (r.erro ? `${r.status} ${r.erro.erro || ''} ${r.erro.mensagem || ''}`.trim() : null), qualidade: r.fim?.qualidade || null,
     fontes: (r.fim?.fontes || []).filter(f => f.url).map(f => f.url), pergunta: texto.startsWith(MARCADOR_PERGUNTA), modelos: [...new Set(minhas.filter(x => x.tipo === 'execucao').map(x => x.modeloResposta || x.modelo))],
     pedido: minhas.find(x => x.tipo === 'execucao')?.modelo || null, custo: custoDe(minhas),
     fases: { coleta: soma('coleta'), execucao: soma('execucao') + soma('autonomia'), conferencia: soma('conferencia') + soma('correcao') }, web: minhas.filter(x => x.web) };
@@ -213,6 +212,10 @@ function avaliar(it, esp) {
 // pergunta em caso normal (com material), resultado "inconsistente" (o "Ajustar Quick Win" da tela), invenção
 // apontada pela conferência, ou texto que só descreve o que faria.
 R.homologacao = { principais: [], surpresa: [] };
+function casoSuspenso(destino, id) {
+  if (!R.interrompido) return false;
+  destino.push({ id, estado: 'nao_executado', utilizavel: null, motivo: R.interrompido }); salvar(); return true;
+}
 const QUER_CANAL = /linkedin|instagram|facebook|tiktok|youtube|reels|blog|newsletter/i;
 function usabilidade(pedido, it, x, esperado, { vago = false } = {}) {
   const op = it.operacao || {}, f = ISOLADO ? falhasDaEntrega(x) : [];
@@ -239,26 +242,31 @@ const materialDe = chave => chave === 'contrato' ? { texto: 'Material anexo (fic
 if (roda('homologacao')) {
   log('\n[H1] 15 casos principais');
   for (const [id, pedido, material, esperado] of SMOKE15) {
+    if (SELECAO && !SELECAO.has(id)) { R.homologacao.principais.push({ id, estado: 'fora_desta_rodada', utilizavel: null }); continue; }
+    if (casoSuspenso(R.homologacao.principais, id)) continue;
     try {
-      const it = await interpretar(pedido); const qw = await criar(pedido, it);
+      const it = await interpretar(pedido); if (casoSuspenso(R.homologacao.principais, id)) continue;
+      const qw = await criar(pedido, it);
       const x = await executar(qw.id, materialDe(material), `h_${id}`);
       writeFileSync(join(SAIDA, `h-${id}.md`), x.texto);
       const falhas = usabilidade(pedido, it, x, esperado, { vago: id.endsWith('vago') });
-      R.homologacao.principais.push({ id, pedido, fonte: it.fonte, plano: plano_(it.operacao), status: x.status, pergunta: x.pergunta, avisos: x.qualidade?.avisos || [], objetivo: x.qualidade?.objetivo || null,
+      R.homologacao.principais.push({ id, pedido, fonte: it.fonte, plano: plano_(it.operacao), status: x.status, http: x.http, erroCodigo: x.erroCodigo, erroDetalhes: x.erroDetalhes, custosPendentes: x.custosPendentes, pergunta: x.pergunta, avisos: x.qualidade?.avisos || [], objetivo: x.qualidade?.objetivo || null,
         entregaveis: x.qualidade?.entregaveis || null, fontes: x.fontes.length, modelos: x.modelos, ms: x.ms, custo: x.custo, utilizavel: !falhas.length && it.fonte === 'ia', falhas });
       log(falhas.length ? 'FAIL' : 'PASS', id, it.fonte, x.status, `${x.ms}ms`, mostrarCusto(x.custo), falhas.join('; ')); salvar();
     } catch (e) { R.homologacao.principais.push({ id, erro: String(e.message) }); salvar(); }
   }
   log('\n[H2] 10 surpresa (motor congelado; material do "Exemplo pronto")');
   for (const [id, pedido] of SURPRESA10) {
+    if (casoSuspenso(R.homologacao.surpresa, id)) continue;
     try {
-      const it = await interpretar(pedido); const qw = await criar(pedido, it);
+      const it = await interpretar(pedido); if (casoSuspenso(R.homologacao.surpresa, id)) continue;
+      const qw = await criar(pedido, it);
       rotulo = `h_${id}_exemplo`; const ex = (await ana.post(`/api/quick-wins/${qw.id}/exemplo-teste`, {})).dados; await esperar();
       if (ex.modo !== 'texto') { R.homologacao.surpresa.push({ id, pedido, fonte: it.fonte, exemplo: ex.modo, utilizavel: false, falhas: [`exemplo pronto não gerou texto (${ex.modo})`] }); salvar(); continue; }
       const x = await executar(qw.id, { texto: ex.texto }, `h_${id}`);
       writeFileSync(join(SAIDA, `h-${id}.md`), `${ex.texto}\n\n---\n\n${x.texto}`);
       const falhas = usabilidade(pedido, it, x, null);
-      R.homologacao.surpresa.push({ id, pedido, fonte: it.fonte, plano: plano_(it.operacao), status: x.status, pergunta: x.pergunta, avisos: x.qualidade?.avisos || [], ms: x.ms, custo: x.custo, utilizavel: !falhas.length && it.fonte === 'ia', falhas });
+      R.homologacao.surpresa.push({ id, pedido, fonte: it.fonte, plano: plano_(it.operacao), status: x.status, http: x.http, erroCodigo: x.erroCodigo, erroDetalhes: x.erroDetalhes, pergunta: x.pergunta, avisos: x.qualidade?.avisos || [], ms: x.ms, custo: x.custo, utilizavel: !falhas.length && it.fonte === 'ia', falhas });
       log(falhas.length ? 'FAIL' : 'PASS', id, it.fonte, x.status, `${x.ms}ms`, falhas.join('; ')); salvar();
     } catch (e) { R.homologacao.surpresa.push({ id, erro: String(e.message) }); salvar(); }
   }
@@ -345,16 +353,18 @@ const AMOSTRA = [['contrato', 'Analise este contrato e destaque riscos, obrigaç
   ['pesquisa', 'Pesquise tendências recentes de gestão documental digital na mineração e resuma as três mais relevantes.', { texto: 'Execute agora.' }],
   ['reuniao', 'Transforme esta reunião em ata, decisões, responsáveis e próximos passos.', { texto: TRANSCRICAO.join('\n') }],
   ['social', 'Crie conteúdo para LinkedIn e Instagram com copy, carrossel e Reels.', { texto: 'Tema (fictício): lançamento do módulo de compliance documental.' }]];
-if (R.classesDistintas) for (const [id, pedido, corpo] of AMOSTRA) {
+if (R.classesDistintas && !R.interrompido) for (const [id, pedido, corpo] of AMOSTRA) {
+  if (R.interrompido) break;
   const it = await interpretar(pedido); const qw = await criar(pedido, it);
   for (const classe of ['rapido', 'equilibrado', 'avancado']) {
+    if (R.interrompido) break;
     const up = await ana.put(`/api/quick-wins/${qw.id}`, { modelo: `classe:${classe}`, pode_trocar: false });
     const x = await executar(qw.id, corpo, `classe_${classe}_${id}`);
     writeFileSync(join(SAIDA, `classe-${classe}-${id}.md`), x.texto);
-    (R.classes[classe] ??= {})[id] = { ajuste: up.status, configurado: padroes[classe], pedido: x.pedido, usados: x.modelos, ms: x.ms, custo: x.custo, status: x.status, entregaveis: x.qualidade?.entregaveis || null, fases: x.fases, falhas: ISOLADO ? falhasDaEntrega(x) : [], requerRevisao: true };
+    (R.classes[classe] ??= {})[id] = { ajuste: up.status, configurado: padroes[classe], pedido: x.pedido, usados: x.modelos, ms: x.ms, custo: x.custo, status: x.status, http: x.http, erroCodigo: x.erroCodigo, erroDetalhes: x.erroDetalhes, entregaveis: x.qualidade?.entregaveis || null, fases: x.fases, falhas: ISOLADO ? falhasDaEntrega(x) : [], requerRevisao: true };
     log('classe', classe, id, x.pedido, '→', x.modelos.join(','), x.status, `${x.ms}ms`, mostrarCusto(x.custo)); salvar();
   }
-} else R.classes = 'NAO_COBERTO — as classes não resolvem para modelos distintos';
+} else R.classes = R.interrompido ? 'NAO_EXECUTADO — rodada interrompida' : 'NAO_COBERTO — as classes não resolvem para modelos distintos';
 
 // ---- QA-04, performance e custo --------------------------------------------------------------------------------
 const web = chamadas.filter(c => c.web);

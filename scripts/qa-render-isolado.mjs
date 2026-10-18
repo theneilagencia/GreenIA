@@ -31,6 +31,10 @@ const saida = join(raiz, 'qa-candidato-saida'); mkdirSync(saida, { recursive: tr
 const env = { PATH: process.env.PATH, LANG: 'C.UTF-8', TMPDIR: temporario, NODE_ENV: 'test', DESIGN_IA: '1',
   QA_KEY_FD: '3', QA_PARTES: 'homologacao', QA_COMMIT: candidato, QA_MAX_CHAMADAS: '180', QA_PARAR_CUSTO_USD: '2',
   CHROMIUM_PATH: process.env.CHROMIUM_PATH || '/usr/bin/chromium', RENDER_GIT_COMMIT: candidato };
+if (process.env.QA_CASOS) {
+  if (!/^[a-z0-9,-]+$/.test(process.env.QA_CASOS)) throw new Error('Seleção de casos inválida.');
+  env.QA_CASOS = process.env.QA_CASOS;
+}
 let filho;
 try {
   filho = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', join(raiz, 'scripts/qa-candidato.mjs')], {

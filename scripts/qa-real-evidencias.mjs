@@ -9,6 +9,28 @@ export function registrarRecibo(c, d) {
     if (typeof d.usage.cost === 'number' && Number.isFinite(d.usage.cost) && d.usage.cost >= 0) c.custo = d.usage.cost;
   }
 }
+// Mantém o corpo original intacto para a aplicação. Imagens usam JSON, texto normalmente SSE.
+export function observarResposta(c, resposta, stream = true) {
+  c.formatoResposta = stream === false || /application\/json/i.test(resposta.headers.get('content-type') || '') ? 'json' : 'sse';
+  const copia = resposta.clone();
+  c.pronto = (async () => {
+    if (c.formatoResposta === 'json') registrarRecibo(c, await copia.json());
+    else {
+      const dec = new TextDecoder(); let resto = '';
+      const linha = l => {
+        if (!l.startsWith('data:')) return;
+        const dado = l.slice(5).trim(); if (dado === '[DONE]') return;
+        try { registrarRecibo(c, JSON.parse(dado)); } catch { c.reciboMalformado = true; }
+      };
+      for await (const pedaco of copia.body) {
+        resto += dec.decode(pedaco, { stream: true });
+        const linhas = resto.split('\n'); resto = linhas.pop(); linhas.forEach(linha);
+      }
+      resto += dec.decode(); if (resto.trim()) linha(resto);
+    }
+  })().catch(() => { c.erroStream = 'Falha na coleta da resposta do provedor'; }).finally(() => { c.ms = Date.now() - c.t0; });
+  return resposta;
+}
 export function falhasDaEntrega(x) {
   const f = [];
   if (x.http !== 200) f.push(`HTTP de execução ${x.http}`);
@@ -17,6 +39,7 @@ export function falhasDaEntrega(x) {
   if (!x.finalizou) f.push('evento final ausente');
   if (!String(x.texto || '').trim()) f.push('resposta vazia');
   if (!x.chamadasReais) f.push('nenhuma inferência comprovada nesta execução');
+  if (x.custosPendentes) f.push('custo pendente de comprovação');
   return f;
 }
 export function consolidarRecibos(chamadas) {

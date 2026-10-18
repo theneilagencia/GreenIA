@@ -897,8 +897,8 @@ export function rotasConversas(app, r) {
     const origem = qwFixo ? 'quick_win' : automatico ? 'auto' : qw?.modelo && pedido === qw.modelo ? 'quick_win'
       : !roteamentoAtivo && (!escolhaSalva || escolhaSalva === AUTOMATICO || pedido === classePadrao) ? 'padrao' : 'pessoa';
     // Ferramenta da execução (pesquisa na internet): só se o Quick Win permite, a empresa liberou e o conteúdo
-    // deixa (o pedido sairia para o serviço de busca). Recusada, a execução segue sem pesquisa e o resultado fica
-    // parcial, com o motivo: nada é simulado.
+    // deixa (o pedido sairia para o serviço de busca). Recusada, a execução é bloqueada antes da IA;
+    // nenhuma versão parcial é produzida automaticamente.
     const querPesquisa = execucaoQw && !!qw.espec.ferramentas_permitidas?.includes('pesquisa_web');
     const motivoSemPesquisa = !querPesquisa ? null : !cfg.pesquisaWeb?.ativa ? 'nao_liberada' : sigilosa ? 'sigilosa' : areaReforcada ? 'area_reforcada'
       : protegidos.length ? 'dados_protegidos' : plano?.fase === 'reserva' ? 'reserva_do_plano' : null;
@@ -1036,16 +1036,19 @@ export function rotasConversas(app, r) {
         VERSAO_ROTEADOR,Number(sigilosa),conv.teste,origem,'bloqueado',solicitado,solicitado?'bloqueado':null,codigo,
         requisitos.classe || 'avancado',JSON.stringify(requisitos),JSON.stringify((decisao?.candidatos || []).map(c=>({...c,status:c.status==='escolhido'?'excluido':c.status}))));
     };
-    if (pesquisaChat && !pesquisaChat.pode && exigePesquisa(texto)) {
-      const codigo = `pesquisa_${pesquisaChat.codigo}`;
+    const pesquisaImpedida = execucaoQw && pesquisa && !pesquisa.disponivel
+      ? { codigo: pesquisa.codigo }
+      : pesquisaChat && !pesquisaChat.pode && exigePesquisa(texto) ? pesquisaChat : null;
+    if (pesquisaImpedida) {
+      const codigo = `pesquisa_${pesquisaImpedida.codigo}`;
       gravarBloqueioPrevio(codigo, { complexidade: analise.complexidade, classe: analise.classe, ferramenta: 'pesquisa_web' });
-      registrar(app, 'research.blocked', pessoa.id, { conversa: conv.id, motivo: pesquisaChat.codigo });
-      const proximo = pesquisaChat.codigo === 'nao_liberada'
+      registrar(app, 'research.blocked', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, motivo: pesquisaImpedida.codigo });
+      const proximo = pesquisaImpedida.codigo === 'nao_liberada'
         ? 'O administrador pode revisar esse acesso em Configurações › Políticas.'
-        : pesquisaChat.codigo === 'reserva_do_plano'
+        : pesquisaImpedida.codigo === 'reserva_do_plano'
           ? 'O administrador pode conferir os créditos e os limites do plano.'
           : 'A pesquisa externa precisa respeitar a proteção deste conteúdo. Liberar um modelo não remove essa restrição.';
-      throw erro(409, codigo, `A pesquisa solicitada não foi iniciada porque ${MOTIVOS_PESQUISA[pesquisaChat.codigo]}. Nenhuma resposta baseada apenas em conhecimento geral foi gerada no lugar da pesquisa. ${proximo}`);
+      throw erro(409, codigo, `A pesquisa solicitada não foi iniciada porque ${MOTIVOS_PESQUISA[pesquisaImpedida.codigo]}. Nenhuma resposta baseada apenas em conhecimento geral foi gerada no lugar da pesquisa. ${proximo}`);
     }
     const prepararAdvanced = (requisitos, decisao = null) => {
       gravarBloqueioPrevio('advanced_sem_autorizacao',requisitos,decisao);

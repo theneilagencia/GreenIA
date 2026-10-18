@@ -63,10 +63,10 @@ test('quick win: usuário comum só cria se o admin autorizar; cria nas própria
 test('política: a seção automática muda com a política de informação sigilosa e gera nova versão; nunca cita fornecedor; preço não; ciência pendente bloqueia o envio', async () => {
   const v1 = (await admin.get('/api/politica')).dados;
   assert.match(v1.secao, /A empresa não permite processar informações sigilosas com IA/);
-  // Nível sem acesso não aparece como "ninguém": sai da lista, e a nota explica a ausência.
+  // Advanced descreve autorização real; o grupo legado não concede acesso.
   assert.doesNotMatch(v1.secao, /ninguém/);
   assert.doesNotMatch(v1.secao, /- Avançado:/);
-  assert.match(v1.secao, /Os níveis que não aparecem na lista não estão liberados nesta empresa/);
+  assert.match(v1.secao, /Advanced: depende de liberação administrativa válida/);
   await admin.put(`/api/admin/modelos/${enc(HOMOLOGADO)}`, { liberado: true, perfil: 'rapido' });
   await admin.post(`/api/admin/modelos/${enc(HOMOLOGADO)}/homologar`, { fornecedor: 'mistral', semTreino: true, retencaoZero: true, justificativa: 'Retenção zero conferida no contrato.' });
   assert.equal((await admin.put('/api/admin/sigilo', { ativo: true })).status, 200);
@@ -80,9 +80,11 @@ test('política: a seção automática muda com a política de informação sigi
   await admin.put(`/api/admin/modelos/${enc(HOMOLOGADO)}`, { perfil: 'rapido' });
   assert.equal((await admin.get('/api/politica')).dados.versao, v2.versao);
   // Acesso a perfil entra na seção.
-  await admin.put('/api/admin/modelos-config', { acessoPerfis: { equilibrado: { todos: true }, avancado: { todos: false, grupos: [grupo.id] } } });
+  await admin.put('/api/admin/modelos-config', { acessoPerfis: { equilibrado: { todos: false, grupos: [grupo.id] }, avancado: { todos: false, grupos: [grupo.id] } } });
   const v3 = (await admin.get('/api/politica')).dados;
-  assert.match(v3.secao, /Avançado: Criadores/);
+  assert.match(v3.secao, /Equilibrado: Criadores/);
+  assert.match(v3.secao, /Advanced: depende de liberação administrativa válida/);
+  assert.doesNotMatch(v3.secao, /Avançado: Criadores/);
   // Quem não registrou ciência da versão nova não envia.
   const conv = (await bia.post('/api/conversas', {})).dados.conversa;
   assert.equal((await bia.get('/api/politica')).dados.cienciaPendente, true);

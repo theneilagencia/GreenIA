@@ -1,3 +1,5 @@
+import { autorizarAdvancedFalso } from '../test/advanced-fixture.js';
+import { cliente } from '../scripts/cliente.js';
 // Arquivo montado depois do texto (apresentação no design de outra): enquanto a montagem acontece, a tela mostra o
 // cartão "Preparando o arquivo para baixar…" e o texto não diz "pronto para download"; no fim, o cartão do arquivo.
 // QA em produção: a atualização da bolha durante o streaming reescrevia o texto sem o cartão, que nunca aparecia.
@@ -13,6 +15,8 @@ let N, OR;
 before(async () => {
   OR = await openRouterFalso({ responder: () => 'Entendi: vou montar a apresentação no design da referência.\n\nO arquivo está pronto para download abaixo.' });
   N = await subirComNavegador({ ia: OR.ia });
+  const admin=await cliente(N.app,N.base).entrar('admin@empresa-exemplo.com.br');
+  await autorizarAdvancedFalso(N,admin,admin.pessoa,['anthropic/claude-sonnet-5']);
 });
 after(async () => { await N?.fechar(); await OR?.fechar(); });
 

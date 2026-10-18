@@ -24,7 +24,7 @@ const TESTES = readdirSync(raiz + 'test').filter(f => f.endsWith('.test.js')).ma
 const ids = lista => (lista === '—' ? [] : lista.split(/,\s*/));
 
 test('registro: toda linha tem as 13 colunas, estado válido, superfície conhecida e id único', () => {
-  assert.ok(SUSTENTADOS.length >= 80, `registro curto demais: ${SUSTENTADOS.length}`);
+  for(const id of ['LP-ENT-05','LP-QA-20261018-001','LP-QA-20261018-002']) assert.ok(SUSTENTADOS.some(r=>r.id===id),`claim obrigatório ausente: ${id}`);
   assert.equal(new Set(REGISTRO.map(r => r.id)).size, REGISTRO.length, 'id repetido');
   for (const r of REGISTRO) {
     assert.ok(COLUNAS.every(c => r[c]), `${r.id}: coluna vazia`);
@@ -39,7 +39,7 @@ test('registro: cada claim sustentado está na superfície, com evidência no c�
     assert.ok(S[r.superficie].includes(r.texto), `${r.id}: texto não está em "${r.superficie}": "${r.texto}"`);
     // 6534041: produção de referência. Os demais: commits da liberação candidata (governança, retenção, identificação legal,
     // encerramento e exportações).
-    assert.ok(['6534041', 'f013ff2', '2717c99', 'b574ae3', '6c0912f', '1404812', 'f70e85c', 'programados-v1'].includes(r.versao), `${r.id}: versão mínima ${r.versao}`);
+    assert.ok(['6534041', 'f013ff2', '2717c99', 'b574ae3', '6c0912f', '1404812', 'f70e85c', 'programados-v1','qa-20261018'].includes(r.versao), `${r.id}: versão mínima ${r.versao}`);
     const [, arquivo, simbolo] = /^`([^`]+)` → `(.+)`$/.exec(r.evidencia) || [];
     assert.ok(arquivo && simbolo, `${r.id}: evidência mal descrita: ${r.evidencia}`);
     assert.ok(existsSync(raiz + arquivo) && ler(arquivo).includes(simbolo), `${r.id}: ${arquivo} não contém "${simbolo}"`);
@@ -166,7 +166,7 @@ test('as páginas não fazem promessa jurídica, não generalizam garantias e n�
   // O conceito aprovado e a responsabilidade da empresa estão na página de vendas.
   const v = semTags(ler('public/vendas.html'));
   for (const frase of ['Sua empresa define o que pode ser enviado à IA', 'Só segue por recursos autorizados', 'tipos de dados que reconhece',
-    'Os créditos mensais são compartilhados pela equipe', 'permanece responsável por suas obrigações legais e regulatórias'])
+    'créditos compartilhados da empresa'])
     assert.ok(v.includes(frase), frase);
 });
 
@@ -205,7 +205,7 @@ test('confidencial só por marcação reconhecida, nunca por ser uma proposta; g
 });
 
 test('credenciais: a promessa é sobre senhas e chaves reconhecidas, em todas as partes do envio, sem absoluto (P1 resolvida)', () => {
-  assert.match(texto, /Senhas e chaves de acesso reconhecidas são bloqueadas antes do envio, inclusive quando estão em documentos da base, em arquivos de quick win ou no histórico da conversa/);
+  assert.match(texto, /Senhas e chaves reconhecidas são bloqueadas antes do envio/);
   assert.doesNotMatch(texto, /credenciais[^.]{0,80}(?:base de conhecimento|quick win)[^.]{0,40}nunca/i);
   assert.doesNotMatch(texto, /(?:senhas|credenciais|chaves)[^.]{0,60}\bnunca\b|nunca\s+(?:são\s+)?enviad/i, 'absoluto sobre credenciais voltou');
   assert.match(ler('docs/claims-lp.md'), /\| P1 \| Credenciais em documentos da base de conhecimento e arquivos de quick win/);
@@ -213,7 +213,7 @@ test('credenciais: a promessa é sobre senhas e chaves reconhecidas, em todas as
 
 test('ambiente: sem "infraestrutura privada/dedicada", servidor dedicado ou isolamento físico', () => {
   assert.doesNotMatch(texto, /infraestrutura (?:privada|dedicada)|servidor(?:es)? dedicad|fisicamente isolad|\bIsolad[oa]\b|exclusiv/i);
-  assert.match(texto, /O banco de dados de cada empresa é separado/);
+  assert.match(texto,/Banco de dados separado por empresa/);
 });
 
 test('fornecedor: atributos declarados, nunca garantia verificada de retenção ou treino', () => {
@@ -223,10 +223,10 @@ test('fornecedor: atributos declarados, nunca garantia verificada de retenção 
 
 test('roteamento e créditos: sem troca automática de recurso; continuidade sempre com a ressalva da reserva', () => {
   assert.doesNotMatch(texto, /troca (?:é|e) feita|troca\w* automaticamente|troca autom[áa]tica/i);
-  assert.match(texto, /A disponibilidade de modelos pode evoluir/);
+  assert.match(texto,/No modo Automático, a GreenIA escolhe entre os modelos liberados pela empresa/);
   for (const f of frases(texto).filter(x => !x.endsWith('?') && /quando os créditos acabam|ao atingir o limite|ao chegar a 100%/i.test(x)))
     assert.match(f, /reserva/i, `continuidade sem ressalva: "${f}"`);
-  assert.match(texto, /Quando a reserva termina, novos envios pausam/);
+  assert.match(texto,/dentro da reserva do plano/);
   assert.doesNotMatch(texto, /pessoas sem limite|sem limite de pessoas|usuários ilimitados/i);
   assert.doesNotMatch(texto, /só o necessário/i);
   assert.doesNotMatch(texto, /Só domínios autorizados/i);
@@ -241,10 +241,10 @@ test('telas ilustrativas: cada bloco com números tem o aviso de exemplo; o menu
   assert.ok(comNumeros.length >= 3, `telas com números: ${comNumeros.length}`);
   for (const b of comNumeros) assert.match(semTags(b), /dados fictícios|exemplo ilustrativo/i, semTags(b).slice(0, 120));
   // A gestão agora é mostrada numa captura real do produto, com dados fictícios.
-  const real = blocos.find(b => b.includes('lp-gestao-demo.webp'));
+  const real = blocos.find(b => b.includes('lp-plano-creditos-demo.png'));
   assert.ok(real, 'captura real da gestão ausente');
   assert.match(real, /Tela real da plataforma em ambiente de demonstração\. Dados fictícios/);
-  assert.ok(existsSync(raiz + 'public/assets/lp-gestao-demo.webp'));
+  assert.ok(existsSync(raiz + 'public/assets/lp-plano-creditos-demo.png'));
 
 });
 

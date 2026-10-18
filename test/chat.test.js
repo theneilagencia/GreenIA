@@ -1,3 +1,4 @@
+import { autorizarAdvancedFalso } from './advanced-fixture.js';
 // Chat: streaming pelo OpenRouter (falso), filtro no servidor, catálogo e acesso
 // por perfil, homologação, conversas sigilosas, privacidade e retenção.
 import { test, before, after } from 'node:test';
@@ -79,21 +80,21 @@ test('acesso por perfil: sem o Avançado, a pessoa não vê nem usa modelo Avan�
   assert.ok(opcoes.includes('classe:rapido') && opcoes.includes('classe:equilibrado'));
   assert.ok(!opcoes.includes('classe:avancado') && !opcoes.includes(AVANCADO));
   const conv = await novaConversa();
-  // Pedido forçado pela API a um Avançado: não é usado; o automático escolhe entre o que ela pode usar.
-  const r = await enviarMensagem(ana, conv.id, { texto: 'Olá', modelo: AVANCADO });
-  assert.equal(r.status, 200);
-  assert.notEqual(usado(r), AVANCADO);
-  assert.notEqual(r.fim.classe, 'avancado');
-  // Liberado para um grupo do qual ela faz parte: passa a ver e usar; a mudança fica no log.
-  const g = (await admin.post('/api/admin/grupos', { nome: 'Analistas' })).dados;
-  await admin.put(`/api/admin/grupos/${g.id}`, { pessoas: [ana.pessoa.id] });
-  await admin.put('/api/admin/modelos-config', { acessoPerfis: { equilibrado: { todos: true }, avancado: { todos: false, grupos: [g.id] } } });
-  assert.ok((await ana.get('/api/modelos')).dados.opcoes.some(o => o.id === 'classe:avancado'));
-  const r2 = await enviarMensagem(ana, conv.id, { texto: 'Olá', modelo: 'classe:avancado' });
-  assert.equal(r2.status, 200);
-  assert.equal(usado(r2), AVANCADO);
-  assert.ok(um(S.app.db, "select 1 from eventos where tipo = 'model.config_changed'"));
-  await admin.put('/api/admin/modelos-config', { acessoPerfis: { equilibrado: { todos: true }, avancado: { todos: false } } });
+  const n=OR.chamadas.length;
+  const r=await enviarMensagem(ana,conv.id,{texto:'Olá',modelo:AVANCADO});
+  assert.equal(r.status,403);assert.equal(OR.chamadas.length,n);
+  const g=(await admin.post('/api/admin/grupos',{nome:'Analistas'})).dados;
+  await admin.put(`/api/admin/grupos/${g.id}`,{pessoas:[ana.pessoa.id]});
+  await admin.put('/api/admin/modelos-config',{acessoPerfis:{equilibrado:{todos:true},avancado:{todos:false,grupos:[g.id]}}});
+  assert.ok(!(await ana.get('/api/modelos')).dados.opcoes.some(o=>o.id==='classe:avancado'));
+  const grant=await autorizarAdvancedFalso(S,admin,ana.pessoa,[AVANCADO]);
+  try {
+    const r2=await enviarMensagem(ana,conv.id,{texto:'Olá',modelo:'classe:avancado'});
+    assert.equal(r2.status,200,JSON.stringify(r2));assert.equal(usado(r2),AVANCADO);
+  } finally {
+    await admin.post(`/api/admin/advanced/autorizacoes/${grant}/revogar`);
+    await admin.put('/api/admin/modelos-config',{acessoPerfis:{equilibrado:{todos:true},avancado:{todos:false}}});
+  }
 });
 
 test('trocar de modelo no meio da conversa funciona e fica registrado na conversa', async () => {
@@ -191,7 +192,7 @@ async function confereSigilosa(conv, corpo, motivo) {
 test('sigilosa pela chave manual', async () => {
   const conv = await novaConversa();
   await ana.patch(`/api/conversas/${conv.id}`, { sigilosa: true });
-  await confereSigilosa(conv, { texto: 'Estratégia de preço do próximo trimestre.' }, 'manual');
+  await confereSigilosa(conv, { texto: 'Liste os itens do próximo trimestre.' }, 'manual');
 });
 
 test('sigilosa por dado que a política manda proteger (dados bancários); CNPJ de empresa é conteúdo normal', async () => {
@@ -227,7 +228,8 @@ test('área com proteção reforçada: conteúdo comum segue as regras gerais, m
     exec(S.app.db, 'update modelos set homologado = 1 where id = ?', HOMOLOGADO);
     // Com recurso autorizado: o conteúdo sigiloso segue só pelos guardrails.
     const conv2 = await novaConversa();
-    await confereSigilosa(conv2, { texto: 'Resuma o laudo médico do colaborador.' }, 'dado:sensivel');
+    exec(S.app.db,'update modelos set capacidades=? where id=?',JSON.stringify({precisao:2}),HOMOLOGADO);
+    await confereSigilosa(conv2, { texto: 'Liste os títulos do laudo médico do colaborador.' }, 'dado:sensivel');
     // Registro de pessoa em processo interno (sinal da área reforçada): dado pessoal, com proteção de dados
     // (fornecedor fixo, sem treino), e não informação sigilosa.
     const conv4 = await novaConversa();
@@ -242,7 +244,7 @@ test('área com proteção reforçada: conteúdo comum segue as regras gerais, m
     assert.equal(c.status, 200);
     assert.equal((await ana.get(`/api/conversas/${conv3.id}`)).dados.conversa.sigilosa, false);
     const conv5 = await novaConversa();
-    await confereSigilosa(conv5, { texto: 'Resuma o laudo médico do colaborador.' }, 'dado:sensivel');
+    await confereSigilosa(conv5, { texto: 'Liste os títulos do laudo médico do colaborador.' }, 'dado:sensivel');
   } finally {
     exec(S.app.db, 'delete from area_pessoas where area_id = ?', areaId);
     exec(S.app.db, 'delete from areas where id = ?', areaId);

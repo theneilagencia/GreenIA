@@ -1,0 +1,334 @@
+TAP version 13
+# Subtest: detecta cpf
+ok 1 - detecta cpf
+  ---
+  duration_ms: 8.231752
+  type: 'test'
+  ...
+# Subtest: detecta cnpj
+ok 2 - detecta cnpj
+  ---
+  duration_ms: 0.493952
+  type: 'test'
+  ...
+# Subtest: detecta cartao
+ok 3 - detecta cartao
+  ---
+  duration_ms: 1.086559
+  type: 'test'
+  ...
+# Subtest: detecta banco
+ok 4 - detecta banco
+  ---
+  duration_ms: 0.511156
+  type: 'test'
+  ...
+# Subtest: detecta pix
+ok 5 - detecta pix
+  ---
+  duration_ms: 0.235308
+  type: 'test'
+  ...
+# Subtest: detecta credencial
+ok 6 - detecta credencial
+  ---
+  duration_ms: 0.295946
+  type: 'test'
+  ...
+# Subtest: detecta rg
+ok 7 - detecta rg
+  ---
+  duration_ms: 0.186105
+  type: 'test'
+  ...
+# Subtest: detecta email
+ok 8 - detecta email
+  ---
+  duration_ms: 0.237292
+  type: 'test'
+  ...
+# Subtest: detecta sensivel
+ok 9 - detecta sensivel
+  ---
+  duration_ms: 0.279596
+  type: 'test'
+  ...
+# Subtest: detecta confidencial
+ok 10 - detecta confidencial
+  ---
+  duration_ms: 1.610158
+  type: 'test'
+  ...
+# Subtest: detecta telefone
+ok 11 - detecta telefone
+  ---
+  duration_ms: 0.286979
+  type: 'test'
+  ...
+# Subtest: detecta cep
+ok 12 - detecta cep
+  ---
+  duration_ms: 0.184147
+  type: 'test'
+  ...
+# Subtest: detecta endereco
+ok 13 - detecta endereco
+  ---
+  duration_ms: 0.201763
+  type: 'test'
+  ...
+# Subtest: não dispara em datas, valores, números de pedido e textos comuns
+ok 14 - não dispara em datas, valores, números de pedido e textos comuns
+  ---
+  duration_ms: 2.620461
+  type: 'test'
+  ...
+# Subtest: devolve só os tipos, nunca os valores
+ok 15 - devolve só os tipos, nunca os valores
+  ---
+  duration_ms: 0.90834
+  type: 'test'
+  ...
+# Subtest: decidir: credencial sempre bloqueada, mesmo marcada como permitir
+ok 16 - decidir: credencial sempre bloqueada, mesmo marcada como permitir
+  ---
+  duration_ms: 0.463177
+  type: 'test'
+  ...
+# Subtest: números em formatos comuns (pt-BR, ponto, moeda, porcentagem) e texto não é número
+ok 17 - números em formatos comuns (pt-BR, ponto, moeda, porcentagem) e texto não é número
+  ---
+  duration_ms: 4.588025
+  type: 'test'
+  ...
+# Subtest: totais, vazios, fora do padrão, variação e somas por categoria sobre todas as linhas (inclusive as últimas)
+ok 18 - totais, vazios, fora do padrão, variação e somas por categoria sobre todas as linhas (inclusive as últimas)
+  ---
+  duration_ms: 48.430629
+  type: 'test'
+  ...
+# Subtest: XLSX e CSV: o texto extraído leva os cálculos conferidos
+ok 19 - XLSX e CSV: o texto extraído leva os cálculos conferidos
+  ---
+  duration_ms: 16.007047
+  type: 'test'
+  ...
+# Subtest: QA Advanced: a preparação considera a curadoria desabilitada, sem depender do antigo Sonnet 5
+ok 20 - QA Advanced: a preparação considera a curadoria desabilitada, sem depender do antigo Sonnet 5
+  ---
+  duration_ms: 4.330213
+  type: 'test'
+  ...
+# Subtest: QA Advanced: veto, catálogo vencido, preço ausente e saída insuficiente continuam impedindo a preparação
+ok 21 - QA Advanced: veto, catálogo vencido, preço ausente e saída insuficiente continuam impedindo a preparação
+  ---
+  duration_ms: 0.89991
+  type: 'test'
+  ...
+# Subtest: QA Advanced: sem rota não há habilitação, aprovação ou concessão silenciosa
+ok 22 - QA Advanced: sem rota não há habilitação, aprovação ou concessão silenciosa
+  ---
+  duration_ms: 12.550722
+  type: 'test'
+  ...
+# Subtest: QA Advanced: APIs locais registram revisão, concessão com teto e padrão para um modelo da curadoria
+ok 23 - QA Advanced: APIs locais registram revisão, concessão com teto e padrão para um modelo da curadoria
+  ---
+  duration_ms: 192.93104
+  type: 'test'
+  ...
+# Subtest: auditoria real do QA: prontuários de treinamento não são classificados como prontuários de saúde
+ok 24 - auditoria real do QA: prontuários de treinamento não são classificados como prontuários de saúde
+  ---
+  duration_ms: 9.81845
+  type: 'test'
+  ...
+# Subtest: a exceção de treinamento não libera documentos médicos, sinais de saúde, sigilo explícito ou credenciais
+ok 25 - a exceção de treinamento não libera documentos médicos, sinais de saúde, sigilo explícito ou credenciais
+  ---
+  duration_ms: 1.521213
+  type: 'test'
+  ...
+# Subtest: facilities: resposta real omite OS elegível e agrupamento, sem confundir menção na nota com linha entregue
+ok 26 - facilities: resposta real omite OS elegível e agrupamento, sem confundir menção na nota com linha entregue
+  ---
+  duration_ms: 3.656503
+  type: 'test'
+  ...
+# Subtest: facilities: grupo correto e célula ausente preservada; OS mais recente não entra no filtro
+ok 27 - facilities: grupo correto e célula ausente preservada; OS mais recente não entra no filtro
+  ---
+  duration_ms: 6.094846
+  type: 'test'
+  ...
+# Subtest: correção conserva colunas manuais e de exemplo; sugestão não vira contrato fixo
+ok 28 - correção conserva colunas manuais e de exemplo; sugestão não vira contrato fixo
+  ---
+  duration_ms: 7.44351
+  type: 'test'
+  ...
+# Subtest: QA: a resposta real marcada PASS é reprovada por ranking e percentuais, sem depender do conferente IA
+ok 29 - QA: a resposta real marcada PASS é reprovada por ranking e percentuais, sem depender do conferente IA
+  ---
+  duration_ms: 4.318967
+  type: 'test'
+  ...
+# Subtest: QA: ranking correto é conferido, valores ausentes não entram como zero e texto sem tabela fica pendente
+ok 30 - QA: ranking correto é conferido, valores ausentes não entram como zero e texto sem tabela fica pendente
+  ---
+  duration_ms: 2.984425
+  type: 'test'
+  ...
+# Subtest: produto: a extração entrega ranking, percentuais e denominadores comparáveis calculados
+ok 31 - produto: a extração entrega ranking, percentuais e denominadores comparáveis calculados
+  ---
+  duration_ms: 34.885519
+  type: 'test'
+  ...
+# Subtest: QA real: custo ausente ou textual fica pendente, nunca vira zero
+ok 32 - QA real: custo ausente ou textual fica pendente, nunca vira zero
+  ---
+  duration_ms: 1.917728
+  type: 'test'
+  ...
+# Subtest: QA real: registra zero explícito e soma custos das tentativas que falharam
+ok 33 - QA real: registra zero explícito e soma custos das tentativas que falharam
+  ---
+  duration_ms: 1.33704
+  type: 'test'
+  ...
+# Subtest: QA real: HTTP 200 sozinho, stream quebrado e resposta vazia não aprovam entrega
+ok 34 - QA real: HTTP 200 sozinho, stream quebrado e resposta vazia não aprovam entrega
+  ---
+  duration_ms: 0.571339
+  type: 'test'
+  ...
+# Subtest: QA real: execução concluída com recibo pode passar pela verificação estrutural, sem liberar produção
+ok 35 - QA real: execução concluída com recibo pode passar pela verificação estrutural, sem liberar produção
+  ---
+  duration_ms: 0.29131
+  type: 'test'
+  ...
+# Subtest: QA real: imagem JSON preserva o corpo e registra geração, modelo e custo
+ok 36 - QA real: imagem JSON preserva o corpo e registra geração, modelo e custo
+  ---
+  duration_ms: 7.10781
+  type: 'test'
+  ...
+# Subtest: QA real: JSON sem custo continua pendente mesmo com HTTP 200 e imagem
+ok 37 - QA real: JSON sem custo continua pendente mesmo com HTTP 200 e imagem
+  ---
+  duration_ms: 1.703555
+  type: 'test'
+  ...
+# Subtest: QA real: SSE dividido em blocos, CRLF e último recibo sem newline
+ok 38 - QA real: SSE dividido em blocos, CRLF e último recibo sem newline
+  ---
+  duration_ms: 6.51856
+  type: 'test'
+  ...
+# Subtest: QA real: JSON inválido não altera o corpo da aplicação nem inventa custo
+ok 39 - QA real: JSON inválido não altera o corpo da aplicação nem inventa custo
+  ---
+  duration_ms: 1.359548
+  type: 'test'
+  ...
+# Subtest: QA real: o cliente de imagem consome o mesmo JSON observado e a próxima chamada não fica bloqueada
+ok 40 - QA real: o cliente de imagem consome o mesmo JSON observado e a próxima chamada não fica bloqueada
+  ---
+  duration_ms: 3.347893
+  type: 'test'
+  ...
+# Subtest: QA real: email pedido aceita só o canal email; citar uma rede não autoriza todas
+ok 41 - QA real: email pedido aceita só o canal email; citar uma rede não autoriza todas
+  ---
+  duration_ms: 0.903669
+  type: 'test'
+  ...
+# Subtest: retomada preserva positivos, inclui surpresas e não reexecuta casos fora da rodada anterior
+ok 42 - retomada preserva positivos, inclui surpresas e não reexecuta casos fora da rodada anterior
+  ---
+  duration_ms: 2.857908
+  type: 'test'
+  ...
+# Subtest: não marca ausência de objeto de classes como execução nem repete uma planilha já conferida
+ok 43 - não marca ausência de objeto de classes como execução nem repete uma planilha já conferida
+  ---
+  duration_ms: 0.316113
+  type: 'test'
+  ...
+# Subtest: retomada usa o material anterior inteiro, inclusive separadores internos, sem inferência de exemplo
+ok 44 - retomada usa o material anterior inteiro, inclusive separadores internos, sem inferência de exemplo
+  ---
+  duration_ms: 0.878199
+  type: 'test'
+  ...
+# Subtest: tipo de trabalho: sugestão clicada vale; sem ela, inferido da descrição
+ok 45 - tipo de trabalho: sugestão clicada vale; sem ela, inferido da descrição
+  ---
+  duration_ms: 6.024603
+  type: 'test'
+  ...
+# Subtest: nome e descrição automáticos
+ok 46 - nome e descrição automáticos
+  ---
+  duration_ms: 3.356954
+  type: 'test'
+  ...
+# Subtest: regras: poucas, "não inventar" sempre ligada e travada; formato sugerido com motivo
+ok 47 - regras: poucas, "não inventar" sempre ligada e travada; formato sugerido com motivo
+  ---
+  duration_ms: 8.374717
+  type: 'test'
+  ...
+# Subtest: exemplo: extrai estrutura, detalhe e tom; não vai inteiro para a execução
+ok 48 - exemplo: extrai estrutura, detalhe e tom; não vai inteiro para a execução
+  ---
+  duration_ms: 6.522294
+  type: 'test'
+  ...
+# Subtest: especificação: estrutura completa, sem ferramentas, autonomia do catálogo, explicação vira procedimento
+ok 49 - especificação: estrutura completa, sem ferramentas, autonomia do catálogo, explicação vira procedimento
+  ---
+  duration_ms: 3.523215
+  type: 'test'
+  ...
+# Subtest: entradas de teste geradas: sintéticas, sem segredo e sem dado que a política bloqueie ou proteja
+ok 50 - entradas de teste geradas: sintéticas, sem segredo e sem dado que a política bloqueie ou proteja
+  ---
+  duration_ms: 7.397527
+  type: 'test'
+  ...
+# Subtest: contrato de saída: formato, colunas, seções e números sem fonte
+ok 51 - contrato de saída: formato, colunas, seções e números sem fonte
+  ---
+  duration_ms: 2.863967
+  type: 'test'
+  ...
+# Subtest: conferência pela IA: JSON lido com segurança; critério desconhecido ignorado
+ok 52 - conferência pela IA: JSON lido com segurança; critério desconhecido ignorado
+  ---
+  duration_ms: 2.894338
+  type: 'test'
+  ...
+# Subtest: correção automática: aprova, corrige, respeita o limite, reserva sem IA e falha da conferência
+ok 53 - correção automática: aprova, corrige, respeita o limite, reserva sem IA e falha da conferência
+  ---
+  duration_ms: 5.667284
+  type: 'test'
+  ...
+# Subtest: regras próprias: dados estruturados na especificação, na execução e no Quality Check
+ok 54 - regras próprias: dados estruturados na especificação, na execução e no Quality Check
+  ---
+  duration_ms: 4.271094
+  type: 'test'
+  ...
+1..54
+# tests 54
+# suites 0
+# pass 54
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 831.335842

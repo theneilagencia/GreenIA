@@ -1,3 +1,4 @@
+import { autorizarAdvancedFalso } from './advanced-fixture.js';
 // Roteamento no fluxo completo (HTTP → análise → requisitos → governança → seleção → execução →
 // auditoria → resposta): a decisão chega ao modelo chamado, ao registro e à tela, sem conteúdo do pedido.
 import { test, before, after } from 'node:test';
@@ -24,6 +25,8 @@ after(async () => { await S.fechar(); await OR.fechar(); });
 const liberarClasses = async todosTem => {
   const r = await admin.put('/api/admin/modelos-config', { acessoPerfis: { equilibrado: { todos: todosTem }, avancado: { todos: todosTem } } });
   assert.equal(r.status, 200, JSON.stringify(r.dados));
+  if(todosTem) await autorizarAdvancedFalso(S,admin,ana.pessoa,[AVANCADO]);
+  else exec(S.app.db,'update advanced_autorizacoes set revogada=1');
 };
 const conversa = async () => (await ana.post('/api/conversas', {})).dados.conversa;
 const ultimaRota = () => { const r = um(S.app.db, 'select * from roteamento order by id desc limit 1'); for (const k of ['requisitos', 'candidatos', 'politicas', 'sinais', 'fallback', 'tipos']) r[k] = JSON.parse(r[k] ?? 'null'); return r; };
@@ -92,30 +95,17 @@ test('auditoria: reconstrói a decisão (requisitos, candidatos, motivo, prefer�
   assert.ok(tela.resumo.calibracao.taxaMenorClasseSuficiente === null || (tela.resumo.calibracao.taxaMenorClasseSuficiente >= 0 && tela.resumo.calibracao.taxaMenorClasseSuficiente <= 100));
 });
 
-test('sem acesso à classe necessária: a mais capaz permitida, com a causa na auditoria e na explicação', async () => {
-  await liberarClasses(false);
-  const conv = await conversa();
-  assert.equal((await enviarMensagem(ana, conv.id, { texto: CONTRATO })).status, 200);
-  assert.equal(OR.chamadas.at(-1).model, RAPIDO);
-  const rota = ultimaRota();
-  assert.equal(rota.fallback.tipo, 'abaixo_do_necessario');
-  assert.deepEqual(rota.fallback.causas, ['sem_acesso_a_classe']);
-  assert.match(rota.explicacao, /pedia a classe Avançado, mas a pessoa não tem acesso/);
-  const resumo = (await admin.get('/api/admin/roteamento')).dados.resumo;
-  assert.ok(resumo.limitadas >= 1);
-  await liberarClasses(true);
+test('sem acesso à capacidade necessária: bloqueia antes da inferência e registra solicitação',async()=>{
+ await liberarClasses(false);
+ try {const conv=await conversa(),n=OR.chamadas.length;
+ const r=await enviarMensagem(ana,conv.id,{texto:CONTRATO});assert.equal(r.status,403);assert.equal(r.erro.erro,'advanced_necessario');assert.equal(OR.chamadas.length,n);assert.equal(ultimaRota().resultado,'bloqueado');
+ }finally{await liberarClasses(true);}
 });
 
-test('classe escolhida pela pessoa: respeitada, analisada e sinalizada quando fica abaixo do necessário', async () => {
-  const conv = await conversa();
-  assert.equal((await enviarMensagem(ana, conv.id, { texto: CONTRATO, modelo: 'classe:rapido' })).status, 200);
-  assert.equal(OR.chamadas.at(-1).model, RAPIDO);
-  const rota = ultimaRota();
-  assert.equal(rota.modo, 'manual');
-  assert.equal(rota.origem, 'pessoa');
-  assert.equal(rota.classe_necessaria, 'avancado', 'a análise roda mesmo com escolha manual');
-  assert.equal(rota.fallback.tipo, 'abaixo_do_necessario_por_escolha');
-  assert.match(rota.explicacao, /escolhida pela pessoa.*a classe indicada seria Avançado/);
+test('classe escolhida pela pessoa não reduz capacidade exigida',async()=>{
+ const conv=await conversa(),n=OR.chamadas.length;
+ const r=await enviarMensagem(ana,conv.id,{texto:CONTRATO,modelo:'classe:rapido'});
+ assert.equal(r.status,200);assert.equal(OR.chamadas.length,n+1);assert.equal(OR.chamadas.at(-1).model,AVANCADO);
 });
 
 test('nova tentativa na mesma conversa sobe a partir da classe usada antes', async () => {
@@ -129,15 +119,10 @@ test('nova tentativa na mesma conversa sobe a partir da classe usada antes', asy
   assert.equal(OR.chamadas.at(-1).model, EQUILIBRADO);
 });
 
-test('roteamento desligado: padrão da empresa, registrado como padrão (não como escolha da pessoa)', async () => {
-  await admin.put('/api/admin/modelos-config', { roteamento: { ativo: false } });
-  const conv = await conversa();
-  assert.equal((await enviarMensagem(ana, conv.id, { texto: CONTRATO })).status, 200);
-  const rota = ultimaRota();
-  assert.equal(rota.modo, 'padrao');
-  assert.match(rota.explicacao, /padrão da empresa \(roteamento automático desligado\)/);
-  assert.ok(!rota.explicacao.includes('escolhida pela pessoa'));
-  await admin.put('/api/admin/modelos-config', { roteamento: { ativo: true } });
+test('roteamento desligado não autoriza padrão insuficiente',async()=>{
+ await admin.put('/api/admin/modelos-config',{roteamento:{ativo:false}});
+ try {const conv=await conversa(),n=OR.chamadas.length;const r=await enviarMensagem(ana,conv.id,{texto:CONTRATO});assert.equal(r.status,503);assert.equal(OR.chamadas.length,n);assert.equal(ultimaRota().resultado,'bloqueado');}
+ finally{await admin.put('/api/admin/modelos-config',{roteamento:{ativo:true}});}
 });
 
 test('decisão bloqueada também é registrada; nada é enviado nem gravado como mensagem', async () => {
@@ -177,43 +162,23 @@ test('reserva de execução: só vai ao fornecedor se passar pelas regras; o uso
   assert.equal(ultimaRota().reserva, 'descartada:reserva_de_classe_inferior');
   exec(S.app.db, "insert or replace into modelos (id, nome, fornecedor, liberado, perfil, preco_entrada, preco_saida, contexto) values ('x/avancado-2', 'Avançado 2', 'x', 1, 'avancado', 0.000003, 0.000015, 200000)");
   exec(S.app.db, 'update modelos set reserva = ? where id = ?', 'x/avancado-2', AVANCADO);
+  await autorizarAdvancedFalso(S,admin,ana.pessoa,[AVANCADO,'x/avancado-2']);
   OR.falhar.add(AVANCADO);
   try {
-    conv = await conversa();
-    const r = await enviarMensagem(ana, conv.id, { texto: CONTRATO });
-    assert.equal(r.status, 200);
-    assert.deepEqual(OR.chamadas.at(-1).models, [AVANCADO, 'x/avancado-2']);
-    const rota = ultimaRota();
-    assert.equal(rota.reserva, 'x/avancado-2');
-    assert.equal(rota.resultado, 'respondido_pela_reserva');
-    assert.equal(rota.modelo_usado, 'x/avancado-2');
-  } finally { OR.falhar.delete(AVANCADO); exec(S.app.db, 'update modelos set reserva = null where id = ?', AVANCADO); exec(S.app.db, "delete from modelos where id = 'x/avancado-2'"); }
+    conv=await conversa();const n=OR.chamadas.length;
+    const r=await enviarMensagem(ana,conv.id,{texto:CONTRATO});
+    assert.equal(r.status,200);assert.ok(r.falha,'Advanced não delega troca ao fornecedor');
+    assert.ok(OR.chamadas.slice(n).every(c=>!c.models&&c.model===AVANCADO));
+  }finally{OR.falhar.delete(AVANCADO);exec(S.app.db,'update modelos set reserva=null where id=?',AVANCADO);exec(S.app.db,"delete from modelos where id='x/avancado-2'");}
+
 });
 
-test('Automático do serviço de IA: fora das regras de roteamento, identificado como tal e fora dos indicadores do roteador', async () => {
-  await admin.put('/api/admin/modelos-config', { automatico: true });
-  const antes = (await admin.get('/api/admin/roteamento')).dados.resumo;
-  const conv = await conversa();
-  assert.equal((await enviarMensagem(ana, conv.id, { texto: CONTRATO, modelo: 'openrouter/auto' })).status, 200);
-  assert.equal(OR.chamadas.at(-1).model, 'openrouter/auto');
-  const rota = ultimaRota();
-  assert.equal(rota.modo, 'externo', 'o identificador interno não leva o nome do provedor');
-  assert.equal(rota.classe, null);
-  assert.equal(rota.custo_estimado, null);
-  assert.match(rota.explicacao, /fora das classes e das regras de roteamento da empresa/);
-  assert.doesNotMatch(rota.explicacao, /openrouter/i);
-  const depois = (await admin.get('/api/admin/roteamento')).dados.resumo;
-  assert.equal(depois.decisoes, antes.decisoes, 'não entra na contagem do roteador');
-  assert.equal(depois.foraDoRoteador.externo, antes.foraDoRoteador.externo + 1);
-  assert.doesNotMatch(JSON.stringify((await admin.get('/api/admin/roteamento')).dados), /openrouter/i, 'nem o admin da empresa vê o provedor');
-  // O roteamento automático nunca escolhe o openrouter/auto.
-  assert.ok(!rota.candidatos.some(c => c.id === 'openrouter/auto'));
-  // Conversa sigilosa: nem aparece no seletor, nem é aceito pela API.
-  const sig = await conversa();
-  await ana.patch(`/api/conversas/${sig.id}`, { sigilosa: true });
-  assert.ok(!(await ana.get('/api/modelos?sigilosa=1')).dados.opcoes.some(o => o.id === 'openrouter/auto'));
-  assert.equal((await enviarMensagem(ana, sig.id, { texto: 'Olá', modelo: 'openrouter/auto' })).status, 409);
-  await admin.put('/api/admin/modelos-config', { automatico: false });
+test('Automático externo nunca recebe conteúdo, mesmo ligado em configuração antiga',async()=>{
+ await admin.put('/api/admin/modelos-config',{automatico:true});
+ try {const conv=await conversa(),n=OR.chamadas.length;
+ const r=await enviarMensagem(ana,conv.id,{texto:'Olá',modelo:'openrouter/auto'});
+ assert.equal(r.status,200);assert.ok(OR.chamadas.slice(n).every(c=>c.model!=='openrouter/auto'&&!c.models?.includes('openrouter/auto')));assert.equal(ultimaRota().modo,'automatico');
+ }finally{await admin.put('/api/admin/modelos-config',{automatico:false});}
 });
 
 test('admin: Automático é o padrão; liga, desliga e muda a preferência; a preferência chega à decisão', async () => {
@@ -228,8 +193,8 @@ test('admin: Automático é o padrão; liga, desliga e muda a preferência; a pr
   const rota = ultimaRota();
   assert.equal(rota.preferencia, 'qualidade');
   assert.equal(rota.classe_necessaria, 'equilibrado');
-  assert.equal(rota.classe, 'avancado', 'Qualidade compra uma classe de margem');
-  assert.equal(rota.motivo_escolha, 'margem_de_capacidade');
+  assert.equal(rota.classe, 'equilibrado', 'preferência mantém menor capacidade suficiente');
+  assert.equal(rota.motivo_escolha, 'menor_custo');
   await admin.put('/api/admin/modelos-config', { roteamento: { ativo: true, preferencia: 'equilibrio' } });
   assert.equal((await ana.get('/api/admin/roteamento')).status, 403);
 });

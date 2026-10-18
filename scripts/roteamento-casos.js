@@ -50,6 +50,16 @@ export function montarBanco({ preferencia = 'equilibrio', acesso = true } = {}) 
   for (const m of CATALOGO) exec(db, 'insert or replace into modelos (id, nome, fornecedor, liberado, perfil, preco_entrada, preco_saida, contexto) values (?, ?, ?, 1, ?, ?, ?, ?)',
     m.id, m.id, m.id.split('/')[0], m.perfil, m.entrada / 1e6, m.saida / 1e6, m.contexto);
   salvarConfig(db, { roteamento: { ativo: true, preferencia }, acessoPerfis: { equilibrado: { todos: acesso }, avancado: { todos: acesso } } });
+  // Ambiente sintético de auditoria: pessoa, rotas e autorização explícitas.
+  exec(db,"insert into pessoas(id,email,papel) values(1,'matriz@exemplo.test','usuario')");
+  if(acesso){
+    const ids=CATALOGO.filter(m=>m.perfil==='avancado').map(m=>m.id);
+    for(const m of CATALOGO.filter(m=>m.perfil==='avancado')){
+      const rota={id:'x',contexto:m.contexto,maxSaida:65536,entrada:m.entrada/1e6,saida:m.saida/1e6,parametros:['max_tokens']};
+      exec(db,'update modelos set atributos=? where id=?',JSON.stringify({advanced:{aprovado:true,provedores:['x']},catalogo:{...rota,consultadoEm:new Date().toISOString(),rotas:[rota]}}),m.id);
+    }
+    exec(db,`insert into advanced_autorizacoes(pessoa_id,modelos,provedores,limite_usd,limite_chamada_usd,saida_tokens,expira_em,por,em) values(1,?,'["x"]',100,10,32768,?,1,?)`,JSON.stringify(ids),new Date(Date.now()+86400000).toISOString(),new Date().toISOString());
+  }
   return db;
 }
 
@@ -58,10 +68,10 @@ export function rotearAnalise(analise, { db, preferencia = 'equilibrio' } = {}) 
   const banco = db || montarBanco({ preferencia });
   const cfg = lerConfig(banco);
   cfg.roteamento = { ativo: true, preferencia };
-  return rotear({ db: banco, cfg, pessoa: { grupos: [], areas: [] }, pedido: AUTOMATICO, analise });
+  return rotear({ db: banco, cfg, pessoa: { id: 1, grupos: [], areas: [] }, pedido: AUTOMATICO, analise });
 }
 
-export function rodarCaso(caso, { db, preferencia, sigilosa = false, reservaDoPlano = false, pessoa = { grupos: [], areas: [] }, homologados = [] } = {}) {
+export function rodarCaso(caso, { db, preferencia, sigilosa = false, reservaDoPlano = false, pessoa = { id: 1, grupos: [], areas: [] }, homologados = [] } = {}) {
   const banco = db || montarBanco({ preferencia });
   for (const id of homologados) exec(banco, "update modelos set homologado = 1, homologacao = '{\"fornecedor\":\"x\",\"endpoint\":\"x\",\"retencaoZero\":true,\"semTreino\":true}' where id = ?", id);
   const cfg = lerConfig(banco);

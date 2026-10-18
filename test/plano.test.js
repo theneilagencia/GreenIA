@@ -4,7 +4,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { subir } from './ajuda.js';
 import { openRouterFalso, enviarMensagem } from './openrouter-falso.js';
-import { lerPlano, situacaoPlano } from '../src/plano.js';
+import { lerPlano, situacaoPlano, emCreditos } from '../src/plano.js';
 import { um } from '../src/db.js';
 
 let S, OR, admin, op, relogio = new Date('2026-09-10T12:00:00Z');
@@ -146,4 +146,11 @@ test('preço de modelo liberado muda mais de 20%: evento e email ao operador; a 
     assert.equal((await a.get('/api/admin/modelos')).dados.modelos.find(m => m.id === RAPIDO).aviso, null);
     assert.ok(um(T.app.db, "select 1 from eventos where tipo = 'model.price_changed'"));
   } finally { await T.fechar(); await OR2.fechar(); }
+});
+
+
+test('conversão financeira preserva faixas de consumo sem expor preços nem dados financeiros',()=>{
+ const r=emCreditos({sugeridos:[{custo:'econômico'},{custo:'médio'},{custo:'alto'}],uso:{custo:0.01},preco_entrada:0.0001,financeiro:{lucro:10}});
+ assert.deepEqual(r.sugeridos.map(m=>m.custo),['econômico','médio','alto']);
+ assert.equal(r.uso.custo,1);assert.ok(!('preco_entrada' in r));assert.ok(!('financeiro' in r));
 });

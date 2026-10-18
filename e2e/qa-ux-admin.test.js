@@ -110,7 +110,7 @@ test('A23: formulário alterado avisa antes de sair; continuar editando mantém 
   assert.match(await p.locator('#c-chips').innerText(), /adm\.test/);
   await p.click('#lateral a.item-lat[href="#/uso"]');
   await p.getByRole('dialog').getByRole('button', { name: 'Sair sem salvar' }).click();
-  await p.waitForFunction(() => document.querySelector('.cabeca h1')?.textContent.trim() === 'Uso e créditos');
+  await p.waitForFunction(() => document.querySelector('.cabeca h1')?.textContent.trim() === 'Créditos do plano');
   assert.deepEqual(p.erros, []);
 });
 

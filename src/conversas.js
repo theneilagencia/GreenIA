@@ -994,7 +994,7 @@ export function rotasConversas(app, r) {
     // precisa dele: nenhuma chamada; a execução pergunta o mínimo.
     const emEtapas = !!(execucaoQw && pesquisa?.disponivel && !sigilosa);
     const textosDaPessoa = emEtapas ? [...todos(app.db, "select texto from mensagens where conversa_id = ? and papel = 'user'", conv.id).map(m => m.texto).filter(t => t !== NAO_GUARDADO), texto] : [];
-    const externo = emEtapas ? contextoExternoDaPesquisa({ objetivo: qw.espec.objetivo, op: qw.espec.operacao, perfil: cfg.pesquisaWeb?.perfil, textosDaPessoa }) : null;
+    const externo = emEtapas ? contextoExternoDaPesquisa({ objetivo: qw.espec.objetivo, op: qw.espec.operacao, perfil: cfg.pesquisaWeb?.perfil, textosDaPessoa, agora: app.agora() }) : null;
     const perguntaMercado = externo && !externo.suficiente ? perguntaDeMercado(qw.espec.objetivo) : null;
     const sistemaColeta = emEtapas ? promptColeta(qw.espec.operacao) + notaDeData(app) : null;
     const sistemaProducao = emEtapas ? persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, true, pesquisa, true) + notaDeData(app) + (programada ? NOTA_PROGRAMADA : '') : null;

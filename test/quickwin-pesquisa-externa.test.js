@@ -117,6 +117,8 @@ test('pesquisa recente: coleta exige evidência de publicação e as notas datad
   assert.match(instrucao, /Não deduza a publicação pelo ano no DOI/);
   assert.match(instrucao, /Fonte sem data confirmada serve apenas de contexto/);
   assert.match(instrucao, /não invente datas nem afirme que a pesquisa está completa/);
+  assert.match(coleta.messages.at(-1).content, /Referência temporal da busca:/);
+  assert.match(coleta.messages.at(-1).content, /últimos 24 meses/);
   const producao = r.chamadas.find(b => tipo(b) === 'execucao');
   assert.ok(producao);
   const blocos = producao.messages[0].content;
@@ -211,6 +213,22 @@ test('unidade: o contexto externo só junta peças seguras e diz quando falta me
   assert.equal(OP.contextoExternoDaPesquisa({ objetivo: PEDIDO, op: { ferramentas: ['pesquisa_web'] } }).suficiente, false);
   assert.equal(OP.contextoExternoDaPesquisa({ objetivo: 'Pesquise os temas em alta da semana sobre mineração.', op: { ferramentas: ['pesquisa_web'] } }).suficiente, true, 'sem pedir mercado, o tema basta');
   assert.equal(OP.contextoExternoDaPesquisa({ objetivo: PEDIDO, op: { ferramentas: ['pesquisa_web'] }, textosDaPessoa: ['Use a planilha que mandei'] }).suficiente, false, 'frase sem assunto não é mercado');
+});
+
+test('recorte vai na consulta externa com relógio da plataforma, preservando período explícito e sem material interno', () => {
+  const agora = new Date('2026-10-18T22:00:00Z');
+  const consulta = OP.contextoExternoDaPesquisa({ objetivo: 'Pesquise tendências recentes de mineração.', agora, textosDaPessoa: [`Uso interno: ${INTERNO.join('; ')}`] }).consulta;
+  assert.match(consulta, /18 de outubro de 2026/);
+  assert.match(consulta, /recorte sugerido pela plataforma/);
+  for (const x of INTERNO) assert.ok(!consulta.includes(x));
+  for (const objetivo of ['Pesquise notícias desta semana.', 'Pesquise tendências dos últimos 7 dias.', 'Pesquise novidades de 2025.']) {
+    const x = OP.recorteTemporalDaPesquisa(objetivo, agora);
+    assert.match(x, /período explícito/); assert.doesNotMatch(x, /24 meses/);
+  }
+  assert.equal(OP.recorteTemporalDaPesquisa('Pesquise a história da mineração.', agora), '');
+  assert.equal(OP.recorteTemporalDaPesquisa('Pesquise tendências recentes.', new Date('inválida')), '');
+  const e = C.construir({descricao:'Pesquise tendências recentes de mineração.'});
+  assert.ok(e.criterios_qualidade.some(c => c.id === 'atualidade'));
 });
 
 test('checker: matriz com "Concorrente A–E" que não está no material é invenção; tabela sem dados é parcial, não aprovada', () => {

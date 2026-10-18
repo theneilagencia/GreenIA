@@ -43,9 +43,10 @@ function lerRodada(pasta, esperado) {
   if (!/^[a-f0-9]{64}$/.test(esperado || '') || hash !== esperado) throw new Error('O relatório anterior difere do hash informado. Não iniciar nova rodada.');
   return { pasta, hash, relatorio: JSON.parse(original) };
 }
-export async function executar(commit, { retomar = null, hashAnterior = null, materiaisDe = null, hashMateriais = null, limiteReservaUsd = 2 } = {}) {
+export async function executar(commit, { retomar = null, hashAnterior = null, materiaisDe = null, hashMateriais = null, limiteReservaUsd = 2, somenteClasses = null } = {}) {
   if (!/^[a-f0-9]{40}$/.test(commit || '')) throw new Error('Commit inválido.');
   if (![2, 3].includes(limiteReservaUsd)) throw new Error('Reserva de QA inválida; informe explicitamente 2 ou 3.');
+  if (somenteClasses !== null && (!retomar || !Array.isArray(somenteClasses) || !somenteClasses.length || somenteClasses.some(x => !/^(rapido|equilibrado|avancado)\/(contrato|fornecedores|pesquisa|reuniao|social)$/.test(x)))) throw new Error('Seleção de classes inválida; selecione pendências da retomada.');
   let selecao = null, selecaoClasses = null, planilhaAnterior = null, anterior = null, materiais = null, contexto = null, revisaoPlanilha = null;
   if (retomar) {
     anterior = lerRodada(retomar, hashAnterior); retomar = anterior.pasta;
@@ -103,6 +104,12 @@ export async function executar(commit, { retomar = null, hashAnterior = null, ma
       }
     }
     const pendencias = selecionarRetomada(anterior.relatorio);
+    if (somenteClasses !== null) {
+      if (somenteClasses.some(x => !pendencias.classes.includes(x))) throw new Error('Classe selecionada não é uma pendência comprovada desta retomada.');
+      contexto.classesPendentesForaDestaRodada = pendencias.classes.filter(x => !somenteClasses.includes(x));
+      pendencias.classes = pendencias.classes.filter(x => somenteClasses.includes(x));
+      console.log('Classes pendentes preservadas fora desta rodada:', contexto.classesPendentesForaDestaRodada.join(',') || 'nenhuma');
+    }
     if (!pendencias.casos.length && !pendencias.classes.length) throw new Error('Nenhuma pendência selecionada; não iniciar chamadas repetidas.');
     // Valida TODOS os materiais antes de iniciar qualquer inferência.
     for (const id of pendencias.casos.filter(id => /^U\d{2}$/.test(id))) {

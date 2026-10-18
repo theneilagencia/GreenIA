@@ -501,7 +501,7 @@ export function construir(r = {}) {
     fontes_permitidas: ['entrada', 'anexos', 'conversa', 'contexto_autorizado', ...(operacao?.ferramentas.includes('pesquisa_web') ? ['pesquisa_web'] : [])],
     ferramentas_permitidas: executaveis(operacao?.ferramentas),
     ...(operacao ? { operacao } : {}),
-    criterios_qualidade: [...criterios(regras, { tipo, colunas, secoes }, proprias, confirmada), ...criteriosOperacao(operacao)],
+    criterios_qualidade: [...criterios(regras, { tipo, colunas, secoes }, proprias, confirmada), ...criteriosOperacao(operacao, { objetivo: descricao })],
     ...(confirmada ? { configuracao_confirmada: true } : {}),
     dicas_roteamento: { complexidade: entregaMultipla(operacao) && operacao.entregaveis.length >= 3 && a.complexidade === 'baixa' ? 'media' : a.complexidade },
     origem: { descricao, arquetipo: r.arquetipo && ARQUETIPOS[r.arquetipo] ? r.arquetipo : null, como: { modo, texto: explicacao }, exemplo, regras, regras_proprias: proprias.map(x => x.texto), formato: tipo, formato_descricao: limpar(r.formato_descricao, 200), nome,

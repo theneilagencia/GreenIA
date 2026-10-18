@@ -55,6 +55,11 @@ test('bootstrap: reconfere planilha salva, conserva pendências e usa materiais 
     assert.equal(r.pendenciasAnteriores.revisaoPlanilha.conferencia.lancamentosVerificados, 8);
     assert.equal(r.pendenciasAnteriores.revisaoPlanilha.utilizavel, true);
     assert.equal(createHash('sha256').update(readFileSync(join(anterior, 'relatorio.json'))).digest('hex'), hashAnterior);
+    await executar('a'.repeat(40), { retomar: anterior, hashAnterior, materiaisDe: materiais, hashMateriais, somenteClasses: ['avancado/pesquisa'] });
+    const focal = JSON.parse(readFileSync(join(raizes.at(-1), 'qa-candidato-saida/2026-10-18T15-00-00-000Z/relatorio.json'), 'utf8'));
+    assert.equal(focal.escopo.selecaoClasses, 'avancado/pesquisa');
+    assert.deepEqual(focal.pendenciasAnteriores.classesPendentesForaDestaRodada, ['rapido/contrato', 'avancado/reuniao']);
+    await assert.rejects(executar('a'.repeat(40), { retomar: anterior, hashAnterior, materiaisDe: materiais, hashMateriais, somenteClasses: ['avancado/contrato'] }), /não é uma pendência/);
     rmSync(join(materiais, 'h-U10.md'));
     await assert.rejects(executar('a'.repeat(40), { retomar: anterior, hashAnterior, materiaisDe: materiais, hashMateriais }), /ENOENT/);
     // Sem material, o processo filho não chega a criar a saída de uma nova rodada.

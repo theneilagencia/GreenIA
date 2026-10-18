@@ -5,7 +5,7 @@ export function verificarPlanilhaQa(texto, tabela) {
   const total = dados.reduce((s, l) => s + l[5], 0);
   const porId = new Map(dados.map(l => [l[0], l]));
   const top = [...dados].sort((a, b) => b[5] - a[5]).slice(0, 5).map(l => l[0]);
-  const falhas = [], secoes = [...String(texto).matchAll(/^##\s+Maiores (?:despesas|gastos)[^\n]*\n([\s\S]*?)(?=^##\s|$(?![\s\S]))/gmi)];
+  const falhas = [], secoes = [...String(texto).matchAll(/^#{2,3}\s+(?:Ranking (?:dos?|das?)\s+)?[Mm]aiores (?:despesas|gastos)[^\n]*\n([\s\S]*?)(?=^##\s|$(?![\s\S]))/gmi)];
   let verificados = 0;
   for (const secao of secoes) {
     const ls = secao[1].split('\n').filter(l => /^\s*\|/.test(l));

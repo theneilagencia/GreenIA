@@ -47,6 +47,7 @@ if (ISOLADO && process.env.QA_AUTOTESTE === '1') throw new Error('O modo real n�
 R.escopo = { candidato: process.env.QA_COMMIT || null, bancoTemporario: true, autenticacao: 'contas fictícias locais', iaRealSolicitada: ISOLADO, designIA: process.env.DESIGN_IA === '1', liberacaoProducao: false,
   selecao: SELECAO ? [...SELECAO] : null,
   selecaoClasses: SELECAO_CLASSES ? [...SELECAO_CLASSES] : null,
+  limiteReservaQaUsd: Number(process.env.QA_RESERVA_USD || 2), pontoParadaObservadoUsd: 2,
   pendente: ['login e permissões no ambiente implantado', 'download e inspeção dos arquivos gerados', 'aceitação dos resultados pelo tipo de trabalho', 'casos negativos com configuração real do cliente'] };
 if (process.env.QA_CONTEXTO_ANTERIOR) R.pendenciasAnteriores = JSON.parse(readFileSync(process.env.QA_CONTEXTO_ANTERIOR, 'utf8'));
 const salvar = () => {
@@ -165,7 +166,7 @@ if (ISOLADO) {
   const modelos = lerModelos(db);
   R.catalogo = modelos.map(m => ({ id: m.id, perfil: m.perfil, liberado: m.liberado, noCatalogo: m.noCatalogo, catalogo: m.atributos?.catalogo }));
   const pesquisaAdvanced = !SELECAO_CLASSES || SELECAO_CLASSES.has('avancado/pesquisa');
-  const preparacao = await prepararAdvancedQa(ana, modelos, eu.pessoa.id, { pesquisaWeb: pesquisaAdvanced });
+  const preparacao = await prepararAdvancedQa(ana, modelos, eu.pessoa.id, { pesquisaWeb: pesquisaAdvanced, limiteReservaUsd: Number(process.env.QA_RESERVA_USD || 2) });
   R.autorizacoesLocais = preparacao.id ? [preparacao] : [];
   if (preparacao.pendente) R.erros.push(preparacao.pendente);
   salvar();

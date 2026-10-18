@@ -57,3 +57,18 @@ test('QA Advanced: catálogo real relatado exige reserva de pesquisa US$ 2,26914
   caro.atributos.catalogo.consultadoEm = new Date().toISOString();
   assert.match((await prepararAdvancedQa(a, [caro], 1, { pesquisaWeb: true })).pendente, /Não iniciar inferências/);
 });
+
+test('QA Advanced: US$ 3 só por opção explícita, sem ampliar saída, trocar classe ou aceitar valor livre', async () => {
+  const m = modelo(); m.atributos.catalogo.contexto = 1000000; m.atributos.catalogo.rotas[0].contexto = 1000000;
+  assert.equal(selecionarRotaQa([m], agora, { pesquisaWeb: true }), null);
+  assert.equal(selecionarRotaQa([m], agora, { pesquisaWeb: true, limiteReservaUsd: 3 }).modelo, m.id);
+  for (const limiteReservaUsd of [0, -1, 2.5, 4, 100, NaN, '3']) assert.throws(() => selecionarRotaQa([m], agora, { limiteReservaUsd }), /explicitamente/);
+  m.atributos.catalogo.consultadoEm = new Date().toISOString();
+  const gravacoes = [];
+  const cli = { put: async (url, corpo) => { gravacoes.push({ url, corpo }); return { status: 200, dados: {} }; }, post: async (url, corpo) => { gravacoes.push({ url, corpo }); return { status: 200, dados: { id: 7 } }; } };
+  const r = await prepararAdvancedQa(cli, [m], 1, { pesquisaWeb: true, limiteReservaUsd: 3 });
+  assert.equal(r.limiteReservaUsd, 3);
+  const g = gravacoes.find(x => x.url === '/api/admin/advanced/autorizacoes').corpo;
+  assert.equal(g.limite_usd, 3); assert.equal(g.limite_chamada_usd, 3); assert.equal(g.saida_tokens, 32768);
+  assert.deepEqual(g.modelos, [m.id]); assert.equal(g.pesquisa_web, true);
+});

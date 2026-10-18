@@ -25,11 +25,14 @@ try {
 } finally { db?.close(); }
 if (!chave || !/^sk-[A-Za-z0-9_-]{20,200}$/.test(chave)) throw new Error('Nenhuma chave válida disponível no serviço. Não cole segredos no chat.');
 
+const reservaQa = process.env.QA_RESERVA_USD || '2';
+if (!['2', '3'].includes(reservaQa)) throw new Error('Reserva de QA inválida.');
+
 const temporario = mkdtempSync(join(tmpdir(), 'greenia-qa-real-')); chmodSync(temporario, 0o700);
 const saida = join(raiz, 'qa-candidato-saida'); mkdirSync(saida, { recursive: true, mode: 0o700 });
 // Lista explícita: não herda banco, SMTP, agendamentos, integrações ou segredos do serviço.
 const env = { PATH: process.env.PATH, LANG: 'C.UTF-8', TMPDIR: temporario, NODE_ENV: 'test', DESIGN_IA: '1',
-  QA_KEY_FD: '3', QA_PARTES: 'homologacao', QA_COMMIT: candidato, QA_MAX_CHAMADAS: '180', QA_PARAR_CUSTO_USD: '2',
+  QA_KEY_FD: '3', QA_PARTES: 'homologacao', QA_COMMIT: candidato, QA_MAX_CHAMADAS: '180', QA_PARAR_CUSTO_USD: '2', QA_RESERVA_USD: reservaQa,
   CHROMIUM_PATH: process.env.CHROMIUM_PATH || '/usr/bin/chromium', RENDER_GIT_COMMIT: candidato };
 if (process.env.QA_CASOS) {
   if (!/^[A-Za-z0-9,-]+$/.test(process.env.QA_CASOS)) throw new Error('Seleção de casos inválida.');

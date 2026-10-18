@@ -43,8 +43,9 @@ function lerRodada(pasta, esperado) {
   if (!/^[a-f0-9]{64}$/.test(esperado || '') || hash !== esperado) throw new Error('O relatório anterior difere do hash informado. Não iniciar nova rodada.');
   return { pasta, hash, relatorio: JSON.parse(original) };
 }
-export async function executar(commit, { retomar = null, hashAnterior = null, materiaisDe = null, hashMateriais = null } = {}) {
+export async function executar(commit, { retomar = null, hashAnterior = null, materiaisDe = null, hashMateriais = null, limiteReservaUsd = 2 } = {}) {
   if (!/^[a-f0-9]{40}$/.test(commit || '')) throw new Error('Commit inválido.');
+  if (![2, 3].includes(limiteReservaUsd)) throw new Error('Reserva de QA inválida; informe explicitamente 2 ou 3.');
   let selecao = null, selecaoClasses = null, planilhaAnterior = null, anterior = null, materiais = null, contexto = null, revisaoPlanilha = null;
   if (retomar) {
     anterior = lerRodada(retomar, hashAnterior); retomar = anterior.pasta;
@@ -93,11 +94,12 @@ export async function executar(commit, { retomar = null, hashAnterior = null, ma
     console.log('Pendências financeiras anteriores preservadas:', contexto.recibosPendentes.length);
   }
 
+  console.log('Reserva administrativa somente do QA: US$', limiteReservaUsd);
   console.log('Execução real com dados fictícios; parada após US$ 2 de custo observado ou 180 chamadas.');
   console.log('US$ 2 não é teto rígido: a última chamada pode ultrapassar o valor. Recibo pendente impede a próxima chamada.');
   let erro = null;
   try {
-    await rodar(process.execPath, ['--disable-warning=ExperimentalWarning', join(pasta, 'scripts/qa-render-isolado.mjs')], { env: { ...process.env, QA_COMMIT: commit, ...(selecao ? { QA_CASOS: selecao } : {}), ...(selecaoClasses ? { QA_CLASSES: selecaoClasses } : {}), ...(retomar ? { QA_MATERIAIS: materiais.pasta, QA_CONTEXTO_ANTERIOR: join(pasta, 'qa-contexto-anterior.json') } : {}) } });
+    await rodar(process.execPath, ['--disable-warning=ExperimentalWarning', join(pasta, 'scripts/qa-render-isolado.mjs')], { env: { ...process.env, QA_COMMIT: commit, QA_RESERVA_USD: String(limiteReservaUsd), ...(selecao ? { QA_CASOS: selecao } : {}), ...(selecaoClasses ? { QA_CLASSES: selecaoClasses } : {}), ...(retomar ? { QA_MATERIAIS: materiais.pasta, QA_CONTEXTO_ANTERIOR: join(pasta, 'qa-contexto-anterior.json') } : {}) } });
   } catch (e) { erro = e; }
   const saida = join(pasta, 'qa-candidato-saida');
   let rodadas = [];

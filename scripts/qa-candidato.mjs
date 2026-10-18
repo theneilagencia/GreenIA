@@ -204,7 +204,7 @@ async function executar(qwId, corpo, rot, conv = null) {
   const roteamento = rt ? { ...rt, requisitos: json(rt.requisitos, {}), fallback: json(rt.fallback, null) } : null;
   const texto = r.texto || '';
   return { conv, roteamento, http: r.status, finalizou: !!r.fim, custosPendentes: minhas.filter(c => c.custo === null).length, erroCodigo: r.erro?.erro || r.falha?.codigo || null, erroDetalhes: r.erro || r.falha || null, chamadasReais: minhas.filter(c => c.status === 200 && c.geracao && c.modeloResposta && !c.erroStream && !c.erroProvedor).length, ms: Date.now() - t0, texto, status: r.fim?.qualidade?.status || (r.falha || r.erro ? 'erro' : null), falha: r.falha?.mensagem || (r.erro ? `${r.status} ${r.erro.erro || ''} ${r.erro.mensagem || ''}`.trim() : null), qualidade: r.fim?.qualidade || null,
-    fontes: (r.fim?.fontes || []).filter(f => f.url).map(f => f.url), pergunta: texto.startsWith(MARCADOR_PERGUNTA), modelos: [...new Set(minhas.filter(x => x.tipo === 'execucao').map(x => x.modeloResposta || x.modelo))],
+    fontes: (r.fim?.fontes || []).filter(f => f.url).map(f => f.url), fontesVerificadas: (r.fim?.fontes || []).filter(f => f.verificacaoPublicacao).map(f => f.verificacaoPublicacao), pergunta: texto.startsWith(MARCADOR_PERGUNTA), modelos: [...new Set(minhas.filter(x => x.tipo === 'execucao').map(x => x.modeloResposta || x.modelo))],
     pedido: minhas.find(x => x.tipo === 'execucao')?.modelo || null, custo: custoDe(minhas),
     fases: { coleta: soma('coleta'), execucao: soma('execucao') + soma('autonomia'), conferencia: soma('conferencia') + soma('correcao') }, web: minhas.filter(x => x.web) };
 }
@@ -392,7 +392,7 @@ if (R.classesDistintas && !R.interrompido) for (const [id, pedido, corpo] of AMO
     const up = await ana.put(`/api/quick-wins/${qw.id}`, { modelo: `classe:${classe}`, pode_trocar: false });
     const x = await executar(qw.id, corpo, `classe_${classe}_${id}`);
     writeFileSync(join(SAIDA, `classe-${classe}-${id}.md`), x.texto);
-    (R.classes[classe] ??= {})[id] = { ajuste: up.status, configurado: padroes[classe], pedido: x.pedido, usados: x.modelos, ms: x.ms, custo: x.custo, status: x.status, roteamento: x.roteamento, http: x.http, erroCodigo: x.erroCodigo, erroDetalhes: x.erroDetalhes, qualidade: x.qualidade, pergunta: x.pergunta, fontes: x.fontes, entregaveis: x.qualidade?.entregaveis || null, fases: x.fases, falhas: ISOLADO ? falhasDaEntrega(x) : [], requerRevisao: true };
+    (R.classes[classe] ??= {})[id] = { ajuste: up.status, configurado: padroes[classe], pedido: x.pedido, usados: x.modelos, ms: x.ms, custo: x.custo, status: x.status, roteamento: x.roteamento, http: x.http, erroCodigo: x.erroCodigo, erroDetalhes: x.erroDetalhes, qualidade: x.qualidade, pergunta: x.pergunta, fontes: x.fontes, fontesVerificadas: x.fontesVerificadas, entregaveis: x.qualidade?.entregaveis || null, fases: x.fases, falhas: ISOLADO ? falhasDaEntrega(x) : [], requerRevisao: true };
     log('classe', classe, id, x.pedido, '→', x.modelos.join(','), x.status, `${x.ms}ms`, mostrarCusto(x.custo)); salvar();
   }
 } else R.classes = R.interrompido ? 'NAO_EXECUTADO — rodada interrompida' : 'NAO_COBERTO — as classes não resolvem para modelos distintos';

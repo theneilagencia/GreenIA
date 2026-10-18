@@ -69,6 +69,28 @@ export async function executar(commit, { retomar = null, hashAnterior = null, ma
   rmSync(arquivo);
   symlinkSync('/app/node_modules', join(pasta, 'node_modules'), 'dir');
   if (anterior) {
+    // Rever o falso positivo já salvo sem nova inferência e sem alterar o arquivo original.
+    const pesquisas = Object.entries(typeof anterior.relatorio.classes === 'object' && anterior.relatorio.classes || {}).filter(([, itens]) => ['aprovado', 'corrigido'].includes(itens?.pesquisa?.status));
+    if (pesquisas.length) {
+      const { conferirOperacao } = await import(pathToFileURL(join(pasta, 'src/quickwin-operacao.js')).href);
+      const revisoes = [];
+      for (const [classe, itens] of pesquisas) {
+        const caminho = join(retomar, `classe-${classe}-pesquisa.md`);
+        if (!existsSync(caminho)) continue;
+        const texto = readFileSync(caminho, 'utf8');
+        const revisao = conferirOperacao({ ferramentas: ['pesquisa_web'] }, texto, {
+          objetivo: 'Pesquise tendências recentes de gestão documental digital na mineração e resuma as três mais relevantes.',
+          pesquisa: { disponivel: true, fontes: itens.pesquisa.fontes || [] }
+        });
+        if (revisao.objetivo?.atingido === false) {
+          revisoes.push({ caso: `${classe}/pesquisa`, statusOriginal: itens.pesquisa.status, statusRevisado: 'parcial',
+            motivo: revisao.objetivo.motivo, sha256Resposta: createHash('sha256').update(texto).digest('hex'), semNovaInferencia: true });
+          itens.pesquisa = { ...itens.pesquisa, status: 'parcial', falhas: [...new Set([...(itens.pesquisa.falhas || []), revisao.objetivo.motivo])] };
+        }
+      }
+      contexto.revisoesPesquisasSalvas = revisoes;
+      if (revisoes.length) console.log('PESQUISA_RECONFERIDA_SEM_INFERENCIA', JSON.stringify(revisoes));
+    }
     if (planilhaAnterior) {
       const { verificarPlanilhaQa } = await import(pathToFileURL(join(pasta, 'scripts/qa-planilha-oraculo.mjs')).href);
       const { planilha } = await import(pathToFileURL(join(pasta, 'scripts/qa-cenarios.mjs')).href);

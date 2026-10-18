@@ -131,6 +131,31 @@ test('pesquisa recente: coleta exige evidência de publicação e as notas datad
   for (const x of INTERNO) assert.ok(!JSON.stringify(coleta).includes(x));
 });
 
+test('pesquisa recente lê as páginas pela rede segura e leva a evidência à resposta, à produção e à conferência', async () => {
+  const antes = S.P.tenant(A.id).buscarLink;
+  const tenant = S.P.tenant(A.id);
+  const chamadas = [];
+  tenant.buscarLink = async op => {
+    chamadas.push(op);
+    const corpo = Buffer.from('<html><head><meta property="article:published_time" content="2026-09-30"></head><body><p>Artigo público sobre governança documental e novas aplicações.</p></body></html>');
+    return { status: 200, cabecalhos: { 'content-type': 'text/html' }, corpo };
+  };
+  try {
+    const q = await criarQw(ana, 'Pesquise tendências recentes de gestão documental na mineração.');
+    const r = await executar(ana, q.id, { texto: 'Execute agora.' });
+    assert.equal(chamadas.length, 2, 'somente as duas citações da busca');
+    for (const op of chamadas) {
+      assert.equal(op.redePrivada, false); assert.equal(op.metodo, 'GET');
+      assert.equal(op.cabecalhos.authorization, undefined); assert.equal(op.cabecalhos.cookie, undefined);
+      for (const x of INTERNO) assert.ok(!JSON.stringify(op).includes(x));
+    }
+    assert.ok(r.fim.fontes.filter(f => f.url).every(f => f.verificacaoPublicacao?.publicacao?.data === '2026-09-30'));
+    for (const chamada of r.chamadas.filter(b => ['execucao', 'conferencia'].includes(tipo(b))))
+      assert.ok(JSON.stringify(chamada.messages).includes('Publicação declarada na página: 2026-09-30'));
+    assert.equal(comBusca(r.chamadas).length, 1);
+  } finally { tenant.buscarLink = antes; }
+});
+
 test('perfil público com dado que não pode sair é recusado; o perfil salvo continua', async () => {
   for (const perfil of [{ setor: 'Software B2B, contato carlos.souza@alfaqa.exemplo' }, { mercado: 'Uso interno: mineradoras' }, { nome: 'Alfa token sk-or-v1-0123456789abcdef0123456789abcdef' }]) {
     const r = await ana.put('/api/admin/config', { pesquisaWeb: { ativa: true, perfil } });

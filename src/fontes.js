@@ -16,6 +16,7 @@ import { extrairTexto } from './texto.js';
 import { indexar, desindexar } from './busca.js';
 import { buscaSegura, ErroRede } from './integracoes/rede.js';
 import { cifrar } from './plataforma/segredo.js';
+import { publicacaoDaPagina } from './pesquisa-publicacao.js';
 
 export const PAPEIS = {
   KNOWLEDGE_BASE: { rotulo: 'Base de conhecimento', descricao: 'Fundamento factual do trabalho.' },
@@ -73,14 +74,16 @@ export async function lerLink(url, { lookup, tempoMs = 15000, maxBytes = 4 * 102
   const corpo = Buffer.from(r.corpo || []);
   if (tipo.includes('pdf') || corpo.subarray(0, 4).toString() === '%PDF') {
     const x = await extrairTexto({ nome: 'link.pdf', base64: corpo.toString('base64') });
-    return { titulo: decodeURIComponent(u.pathname.split('/').pop() || host), texto: x.texto, mime: 'application/pdf' };
+    const publicacao = publicacaoDaPagina('', x.texto);
+    return { titulo: decodeURIComponent(u.pathname.split('/').pop() || host), texto: x.texto, mime: 'application/pdf', ...(publicacao ? { publicacao } : {}), sha256: createHash('sha256').update(corpo).digest('hex') };
   }
   if (tipo.includes('html') || /^\s*<(!doctype|html)/i.test(corpo.subarray(0, 200).toString())) {
     const { titulo, texto } = textoDoHtml(corpo.toString('utf8'));
     if (!texto || texto.length < 20) throw new ErroFonte('sem_texto', 'A página não tem texto legível (pode depender de JavaScript ou de login).');
-    return { titulo: titulo || host, texto, mime: 'text/html' };
+    const publicacao = publicacaoDaPagina(corpo.toString('utf8'), texto);
+    return { titulo: titulo || host, texto, mime: 'text/html', ...(publicacao ? { publicacao } : {}), sha256: createHash('sha256').update(corpo).digest('hex') };
   }
-  if (tipo.includes('json') || tipo.startsWith('text/')) return { titulo: host + u.pathname, texto: corpo.toString('utf8'), mime: tipo.split(';')[0] || 'text/plain' };
+  if (tipo.includes('json') || tipo.startsWith('text/')) return { titulo: host + u.pathname, texto: corpo.toString('utf8'), mime: tipo.split(';')[0] || 'text/plain', sha256: createHash('sha256').update(corpo).digest('hex') };
   throw new ErroFonte('formato_nao_suportado', 'Este tipo de conteúdo não é suportado como fonte (use página, texto, JSON ou PDF).');
 }
 

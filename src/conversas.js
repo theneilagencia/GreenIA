@@ -1,4 +1,5 @@
 import { FAMILIAS } from './visual/fontes.js';
+import { verificarPublicacoes, notasComPublicacoes } from './pesquisa-fontes.js';
 import { abrirTentativa, finalizarTentativa, registrarDownloadResultado } from './resultados.js';
 import { trabalhoDoPedido } from '../public/trabalhos.js';
 import { acessoAdvanced, prepararPedidoAdvanced, conferirAdvanced } from './advanced.js';
@@ -1334,6 +1335,11 @@ export function rotasConversas(app, r) {
       } catch (e) {
         registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: m.id, roteamento: rotaId, etapa: 'coleta', erro: erroDoProvedor(e, { guardar: !naoGuardar, conteudo: conteudoDoPedido }) });
         if (coletaRecusada(e)) return encerrarColetaRecusada(e);
+      }
+      if (notas && /\b(recentes?|atuais?|atualidade|novidades|noticias|em alta|esta semana|[uú]ltim[oa]s?)\b/i.test(String(qw.espec.objetivo).normalize('NFD').replace(/[\u0300-\u036f]/g, ''))) {
+        const verificacoes = await verificarPublicacoes(fontesWeb, { lookup: app.dnsLookup, buscar: app.buscarLink, agora: app.agora() });
+        for (const f of fontesWeb) { const v = verificacoes.find(x => x.url === f.url); if (v) f.verificacaoPublicacao = v; }
+        notas = notasComPublicacoes(notas, verificacoes);
       }
       if (notas) mensagens[0] = { role: 'system', content: montarSistema(sistemaProducao, delimitar('pesquisa', 'Notas da pesquisa desta execução', notas)) };
       // Coleta sem notas: a produção não pesquisa sozinha (levaria o contexto interno para a busca). Resultado parcial.

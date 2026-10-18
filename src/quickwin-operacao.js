@@ -612,7 +612,12 @@ function tabelasSemDados(texto) {
   }
   return total >= 4 && vazias / total >= 0.6;
 }
-export function conferirOperacao(op, texto, { pesquisa = null, entrada = '' } = {}) {
+// Uma admissão global de ausência de datas impede aceitar um pedido de atualidade.
+// Isso é uma barreira negativa, não uma certificação das datas ou das fontes: a
+// ausência desta admissão não prova recência e não dispensa a conferência.
+const PEDE_ATUALIDADE = /\b(recentes?|atuais?|atualidade|em alta|novidades|noticias|esta semana|ultim[oa]s?\s+(?:\d+\s+)?(?:dias?|semanas?|meses?|anos?))\b/;
+const SEM_DATAS_CONFIRMADAS = /\bnenhuma\s+(?:das?\s+)?fontes?\b[^.!?\n]{0,100}\bdata\b[^.!?\n]{0,80}\b(?:confirmad|comprovad|verificad)|\b(?:todas?\s+(?:as?\s+)?(?:\w+\s+)?fontes?|nenhuma\s+delas?)\b[^.!?\n]{0,80}\bsem data|\b(?:nao da para|nao e possivel)\s+(?:afirmar|confirmar|comprovar)\b[^.!?\n]{0,100}\b(?:recentes?|atuais?|atualidade)\b/;
+export function conferirOperacao(op, texto, { pesquisa = null, entrada = '', objetivo = '' } = {}) {
   const falhas = [], detalhes = [];
   const out = { falhas, detalhes, entregaveis: null, pesquisa: null, objetivo: null };
   if (!op) return out;
@@ -640,6 +645,8 @@ export function conferirOperacao(op, texto, { pesquisa = null, entrada = '' } = 
   if (op.ferramentas?.includes('pesquisa_web')) {
     const fontes = pesquisa?.fontes?.length || 0;
     out.pesquisa = { exigida: true, feita: !!pesquisa?.disponivel && fontes > 0, fontes, motivo: !pesquisa?.disponivel ? pesquisa?.motivo || 'nao_liberada' : fontes ? null : 'sem_fontes' };
+    if (!out.objetivo && PEDE_ATUALIDADE.test(norm(objetivo)) && SEM_DATAS_CONFIRMADAS.test(norm(texto)))
+      out.objetivo = { atingido: false, motivo: 'atualidade_nao_comprovada' };
   }
   return out;
 }

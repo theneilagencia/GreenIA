@@ -825,6 +825,7 @@ const AVISO_OBJETIVO = {
   ferramenta_indisponivel: 'Resultado parcial: a peça final (vídeo ou imagem) não é gerada aqui. O que veio é o material para produzi-la.',
   imagem_nao_gerada: 'Resultado parcial: a imagem final não foi gerada. A peça saiu só com tipografia e cores, com o briefing da imagem para produzir depois.',
   tabela_sem_dados: 'Resultado parcial: a maior parte dos dados pedidos não foi encontrada. O resultado diz o que faltou, sem inventar.',
+  atualidade_nao_comprovada: 'Resultado parcial: a pesquisa trouxe fontes, mas não confirmou as datas necessárias para atender ao pedido de informação recente.',
   conferencia: 'Resultado parcial: o objetivo central não foi atingido. O resultado diz o que não foi possível fazer, sem inventar.',
 };
 // Aviso causado por configuração vem com a AÇÃO: onde liberar ou ajustar (link da tela, já no campo certo) e quem pode
@@ -892,7 +893,7 @@ export async function conferirComCorrecao({ espec, resposta, entrada = '', mensa
   // Contrato de saída + entregáveis da operação (todos determinísticos). A pesquisa não se corrige com uma nova
   // chamada: se ela era exigida e não aconteceu, o resultado fica parcial (nunca aprovado), com o motivo.
   const conferirContratoEOperacao = t => {
-    const d = conferirContrato(e, t, entrada), o = conferirOperacao(e.operacao, t, { pesquisa, entrada });
+    const d = conferirContrato(e, t, entrada), o = conferirOperacao(e.operacao, t, { pesquisa, entrada, objetivo: e.objetivo });
     // Fidelidade às fontes (fonte obrigatória usada; referência não vira fato). Ver src/fontes-conferencia.js.
     const f = conferirFontes(fontes, t, entrada);
     ultimasFontes = f;

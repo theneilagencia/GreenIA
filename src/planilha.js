@@ -4,7 +4,7 @@
 // somas por categoria e a variação entre as duas primeiras colunas numéricas. Genérico: nenhuma coluna, setor ou
 // nome esperado; só tipos (número, categoria, identificador). Vai junto do texto extraído, marcado como conferido.
 export const MIN_LINHAS = 10;
-const MAX_CATEGORIAS = 20, MAX_CARACTERES = 8000;
+const MAX_CATEGORIAS = 20, MAX_CARACTERES = 4000;
 
 // "1.234,50", "1234.5", "R$ 9.773", "-10,9%", "  42 " -> número; texto -> null.
 export function numero(v) {
@@ -57,11 +57,6 @@ export function resumoDeTabela(cabecalho, linhas) {
       .map(r => ({ ...r, p: (r.y / r.x - 1) * 100 })).sort((r, s) => Math.abs(s.p) - Math.abs(r.p));
     if (vari.length) out.push(`- Maiores variações de "${b.nome}" em relação a "${a.nome}": ${vari.slice(0, 8).map(r => `${rotuloDa(null, r.k)} ${pct(r.p)} (${fmt(r.x)} → ${fmt(r.y)})`).join('; ')}.`);
   }
-  // Ranking e participações são contas, não fatos que o modelo deva adivinhar ou remover na conferência.
-  const valor = b || a;
-  const valores = linhas.map((l, k) => ({ n: numero(l[valor.i]), k })).filter(x => x.n !== null).sort((x, y) => y.n - x.n || x.k - y.k);
-  const totalConhecido = valores.reduce((s, x) => s + x.n, 0);
-  out.push(`- Maiores valores de "${valor.nome}", em ordem decrescente: ${valores.slice(0, 8).map(x => `${rotuloDa(null, x.k)} ${fmt(x.n)}${totalConhecido > 0 ? ` (${fmt(x.n / totalConhecido * 100)}% do total conhecido ${fmt(totalConhecido)})` : ''}`).join('; ')}. Valores ausentes não são zero.`);
   for (const cat of cols.filter(c => c.tipo === 'categoria').slice(0, 3)) {
     const grupos = new Map();
     linhas.forEach(l => { const g = String(l[cat.i] ?? '').trim() || '(vazio)'; if (!grupos.has(g)) grupos.set(g, []); grupos.get(g).push(l); });
@@ -70,7 +65,7 @@ export function resumoDeTabela(cabecalho, linhas) {
       // Variação da categoria só nas linhas com os dois valores (comparação de igual para igual).
       const pares = b ? ls.map(l => [numero(l[a.i]), numero(l[b.i])]).filter(([x, y]) => x !== null && y !== null) : [];
       const sx = pares.reduce((t, [x]) => t + x, 0), sy = pares.reduce((t, [, y]) => t + y, 0);
-      const varia = sx ? `, variação ${pct((sy / sx - 1) * 100)}${pares.length < ls.length ? ` (nas ${pares.length} linhas com os dois valores: "${a.nome}" ${fmt(sx)}; "${b.nome}" ${fmt(sy)})` : ''}` : '';
+      const varia = sx ? `, variação ${pct((sy / sx - 1) * 100)}${pares.length < ls.length ? ` (nas ${pares.length} linhas com os dois valores)` : ''}` : '';
       return `${g} (${ls.length} linhas): ${somas.map(s => `${s.c.nome} ${fmt(s.total)}${s.n < ls.length ? ` em ${s.n} valores` : ''}`).join('; ')}${varia}`;
     });
     out.push(`- Por "${cat.nome}": ${linhasCat.join(' | ')}.`);

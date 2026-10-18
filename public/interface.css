@@ -1707,10 +1707,3 @@ body.plataforma .subnav-2 a[aria-current="page"]{border-color:var(--line);backgr
   .app .preferencias-resposta-painel{left:0;right:auto;width:min(320px,100%);max-width:100%;box-sizing:border-box;max-height:min(60vh,360px);overflow:auto}
   .app .preferencias-resposta-painel .entrada{min-width:0;max-width:100%}
 }
-
-/* Nomes completos no painel de detalhe em telas estreitas. */
-@media(max-width:760px){
-  .px-topo{height:auto;min-height:56px;padding-top:10px;padding-bottom:10px}
-  .px-migalha{white-space:normal;overflow:visible;align-items:flex-start}
-  .px-migalha b{overflow:visible;overflow-wrap:anywhere}
-}

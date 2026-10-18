@@ -27,9 +27,9 @@ export function navegador(P, base, host) {
           r.on('data', c => partes.push(c));
           r.on('end', () => {
             for (const sc of [].concat(r.headers['set-cookie'] || [])) { const [kv] = sc.split(';'); const i = kv.indexOf('='); const k = kv.slice(0, i), v = kv.slice(i + 1); if (v) jar.set(k, v); else jar.delete(k); }
-            const bytes = Buffer.concat(partes), texto = bytes.toString('utf8');
+            const texto = Buffer.concat(partes).toString('utf8');
             let d; try { d = JSON.parse(texto); } catch { d = texto; }
-            ok({ status: r.statusCode, dados: d, bytes, headers: { get: h => r.headers[h.toLowerCase()] ?? null } });
+            ok({ status: r.statusCode, dados: d, headers: { get: h => r.headers[h.toLowerCase()] ?? null } });
           });
         });
         q.on('error', falha);

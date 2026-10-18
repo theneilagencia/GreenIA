@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { subir } from './ajuda.js';
 import { openRouterFalso, enviarMensagem } from './openrouter-falso.js';
 import { salvarConfig } from '../src/config.js';
-import { exec, json, todos, um } from '../src/db.js';
+import { json, todos, um } from '../src/db.js';
 import { arquivo, docx } from './arquivos.js';
 
 const enc = encodeURIComponent;
@@ -278,17 +278,15 @@ test('governança soberana: o Quick Win não libera dado bloqueado, credencial n
   r = await executar(carlos, q.id, 'Compare.', { anexos: [arquivo('nota.docx', docx(['api_key = sk-or-v1-' + 'b'.repeat(48)]))] });
   assert.equal(r.status, 422);
   assert.equal(r.chamadas.length, 0);
-  exec(S.app.db,"update modelos set perfil='equilibrado' where id=?",HOMOLOGADO);
   // Dado que a política manda proteger: conversa sigilosa, rota com guardrails na execução E na conferência.
   r = await executar(carlos, q.id, 'Compare o pagamento: agência 1234, conta corrente 56789-0, valor 40.');
-  assert.equal(r.status,200,JSON.stringify({erro:r.erro,rota:um(S.app.db,'select candidatos,requisitos from roteamento where conversa_id=? order by id desc limit 1',r.conv.id)}));
+  assert.equal(r.status, 200, JSON.stringify(r.erro));
   assert.equal(r.chamadas.length, 2);
   for (const c of r.chamadas) {
     assert.deepEqual(c.provider.only, ['Mistral']);
     assert.equal(c.provider.zdr, true);
     assert.equal(c.model, HOMOLOGADO);
   }
-  exec(S.app.db,"update modelos set perfil='rapido' where id=?",HOMOLOGADO);
   // O roteador decide (automático); a classe do Quick Win é só dica e a pessoa não escolhe modelo.
   const rota = um(S.app.db, 'select origem, modo from roteamento where conversa_id = ? order by id desc limit 1', r.conv.id);
   assert.equal(rota.origem, 'auto');

@@ -478,7 +478,7 @@ export function rotasQuickWins(app, r) {
 
   r.get('/api/quick-wins/:id', ({ pessoa, params }) => publico(app.db, pessoa, carregar(pessoa, params.id)));
 
-  r.get('/api/quick-wins/:id/estimativas', ({ pessoa, params }) => ({ unidade: 'creditos', modelos: estimativas(app, carregar(pessoa, params.id, true)).filter(m => m.classe || pessoa.admin) }));
+  r.get('/api/quick-wins/:id/estimativas', ({ pessoa, params }) => ({ modelos: estimativas(app, carregar(pessoa, params.id, true)).filter(m => m.classe || pessoa.admin) }));
 
   // Criar: do zero, de um modelo inicial ou duplicando um existente (inclusive
   // para outra área). Duplicar copia instruções, arquivos e configuração, nunca conversas.

@@ -12,7 +12,7 @@ const caso = id => CASOS.find(c => c.id === id);
 const PREFS = ['economia', 'equilibrio', 'qualidade'];
 const GOVERNANCA = ['nao_homologado', 'plano_na_reserva', 'gratuito_treina_com_dados', 'sem_acesso_a_classe', 'contexto_insuficiente'];
 const classeDe = id => CATALOGO.find(m => m.id === id)?.perfil;
-const semAcessoAvancado = () => { const db = montarBanco({ acesso: false }); exec(db, "update config set valor = ? where chave = 'acessoPerfis'", JSON.stringify({ equilibrado: { todos: true }, avancado: { todos: false } })); return db; };
+const semAcessoAvancado = () => { const db = montarBanco(); exec(db, "update config set valor = ? where chave = 'acessoPerfis'", JSON.stringify({ equilibrado: { todos: true }, avancado: { todos: false } })); return db; };
 
 test('1. tarefa simples não usa modelo avançado, em nenhuma preferência', () => {
   for (const id of ['A', 'B', 'F', 'H', 'M']) for (const p of PREFS) {
@@ -69,8 +69,10 @@ test('4. assunto de alta precisão aumenta a exigência quando aplicável', () =
 
 test('5. pessoa sem acesso à classe necessária recebe o melhor modelo permitido, com a causa registrada', () => {
   const { rota } = rodarCaso(caso('C'), { db: semAcessoAvancado() });
-  assert.equal(rota.modelo, null, 'sem autorização, não reduz a capacidade');
-  assert.ok(rota.candidatos.filter(c => c.classe === 'avancado').every(c => c.motivos.includes('sem_acesso_a_classe')));
+  assert.equal(rota.modelo.perfil, 'equilibrado');
+  assert.equal(rota.fallback.tipo, 'abaixo_do_necessario');
+  assert.deepEqual(rota.fallback.causas, ['sem_acesso_a_classe']);
+  assert.ok(rota.candidatos.filter(c => c.classe === 'avancado').every(c => c.status === 'excluido' && c.motivos.includes('sem_acesso_a_classe')));
   // Pedido que não precisa do Avançado não é afetado pela falta de acesso.
   assert.equal(rodarCaso(caso('O'), { db: semAcessoAvancado() }).rota.fallback, null);
 });
@@ -87,12 +89,12 @@ test('7. a preferência muda a decisão quando há alternativas equivalentes, e 
   const escolha = (id, p) => rodarCaso(caso(id), { preferencia: p }).rota;
   // Economia: o mais barato que atende. Equilíbrio: o padrão curado da classe, se custa até ~2x.
   assert.equal(escolha('C', 'economia').modelo.id, 'x/avancado-curto');
-  assert.equal(escolha('C', 'equilibrio').modelo.id, 'x/avancado-curto');
-  assert.equal(escolha('C', 'equilibrio').motivoEscolha, 'menor_custo');
+  assert.equal(escolha('C', 'equilibrio').modelo.id, 'anthropic/claude-sonnet-5');
+  assert.equal(escolha('C', 'equilibrio').motivoEscolha, 'padrao_da_classe');
   // Qualidade: uma classe de margem em tarefa que não é simples.
   assert.equal(escolha('O', 'equilibrio').modelo.perfil, 'equilibrado');
-  assert.equal(escolha('O', 'qualidade').modelo.perfil, 'equilibrado');
-  assert.ok(escolha('O', 'qualidade').calibracao);
+  assert.equal(escolha('O', 'qualidade').modelo.perfil, 'avancado');
+  assert.equal(escolha('O', 'qualidade').motivoEscolha, 'margem_de_capacidade');
   // Sem justificativa técnica, as três preferências dão o mesmo resultado (não compra margem para traduzir).
   for (const id of ['A', 'B', 'H']) assert.equal(new Set(PREFS.map(p => escolha(id, p).modelo.id)).size, 1, id);
   // Margem nunca passa de uma classe.
@@ -100,16 +102,16 @@ test('7. a preferência muda a decisão quando há alternativas equivalentes, e 
 });
 
 test('8. falha da classificação não quebra a governança', () => {
-  const db = montarBanco(), cfg = lerConfig(db), pessoa = { id: 1, grupos: [], areas: [] };
+  const db = montarBanco(), cfg = lerConfig(db), pessoa = { grupos: [], areas: [] };
   const a = analiseIndisponivel({ texto: 'qualquer coisa', anexos: [] });
   const normal = rotear({ db, cfg, pessoa, pedido: AUTOMATICO, analise: a });
   assert.equal(normal.requisitos.classe, 'equilibrado', 'na dúvida, a exigência padrão');
   assert.deepEqual(normal.requisitos.determinantes, ['analise_indisponivel']);
   exec(db, "update modelos set homologado = 1, homologacao = '{\"fornecedor\":\"x\",\"endpoint\":\"x\",\"retencaoZero\":true,\"semTreino\":true}' where id = 'google/gemini-3.5-flash-lite'");
   const sig = rotear({ db, cfg, pessoa, pedido: AUTOMATICO, analise: a, sigilosa: true });
-  assert.equal(sig.modelo, null, 'rota homologada insuficiente não executa');
-  assert.ok(sig.candidatos.filter(c => c.id !== 'google/gemini-3.5-flash-lite').every(c => c.motivos.includes('nao_homologado')));
-  assert.equal(rotear({ db, cfg, pessoa, pedido: AUTOMATICO, analise: a, reservaDoPlano: true }).modelo, null);
+  assert.equal(sig.modelo.id, 'google/gemini-3.5-flash-lite');
+  assert.ok(sig.candidatos.filter(c => c.id !== sig.modelo.id).every(c => c.motivos.includes('nao_homologado')));
+  assert.equal(rotear({ db, cfg, pessoa, pedido: AUTOMATICO, analise: a, reservaDoPlano: true }).modelo.perfil, 'rapido');
 });
 
 test('9. fallback nunca viola política: o modelo usado não tem motivo de governança; a reserva passa pelas mesmas regras', () => {
@@ -119,15 +121,16 @@ test('9. fallback nunca viola política: o modelo usado não tem motivo de gover
     rodarCaso(caso('G'), { reservaDoPlano: true }).rota,
   ];
   for (const r of situacoes) {
-    assert.equal(r.modelo, null, 'governança não admite redução silenciosa');
+    assert.equal(r.fallback.tipo, 'abaixo_do_necessario');
+    const usado = r.candidatos.find(c => c.status === 'escolhido');
+    assert.ok(!usado.motivos.some(m => GOVERNANCA.includes(m)), JSON.stringify(usado));
   }
   // Reserva de execução: descartada se for de classe inferior, não liberada, ou em conversa sigilosa.
   const db = montarBanco();
-  exec(db, "update modelos set preco_entrada=0.000003,preco_saida=0.000015 where id='x/avancado-curto'");
   exec(db, "update modelos set reserva = 'x/rapido-curto' where id = 'anthropic/claude-sonnet-5'");
   assert.equal(rodarCaso(caso('C'), { db }).rota.reservaDescartada, 'reserva_de_classe_inferior');
   exec(db, "update modelos set reserva = 'x/avancado-curto' where id = 'anthropic/claude-sonnet-5'");
-  assert.equal(rodarCaso(caso('C'), { db }).rota.reserva, null, 'Advanced não delega reserva ao provedor');
+  assert.equal(rodarCaso(caso('C'), { db }).rota.reserva, 'x/avancado-curto');
   exec(db, "update modelos set liberado = 0 where id = 'x/avancado-curto'");
   assert.equal(rodarCaso(caso('C'), { db }).rota.reservaDescartada, 'reserva_nao_liberada');
   // Reserva que não comporta o contexto também é descartada.
@@ -138,7 +141,6 @@ test('9. fallback nunca viola política: o modelo usado não tem motivo de gover
 
 test('10. mudança de configuração da empresa altera o conjunto de candidatos e a escolha', () => {
   const db = montarBanco();
-  exec(db, "update modelos set preco_entrada=0.000003,preco_saida=0.000015 where id='x/avancado-curto'");
   assert.equal(rodarCaso(caso('C'), { db }).rota.modelo.id, 'anthropic/claude-sonnet-5');
   exec(db, "update modelos set liberado = 0 where id = 'anthropic/claude-sonnet-5'");
   const r = rodarCaso(caso('C'), { db }).rota;
@@ -147,7 +149,7 @@ test('10. mudança de configuração da empresa altera o conjunto de candidatos 
   // Trocar o padrão da classe muda o desempate do Equilíbrio.
   exec(db, "update modelos set liberado = 1 where id = 'anthropic/claude-sonnet-5'");
   salvarConfig(db, { padroes: { ...lerConfig(db).padroes, avancado: 'x/avancado-curto' } });
-  assert.equal(rodarCaso(caso('C'), { db }).rota.modelo.id, 'anthropic/claude-sonnet-5', 'padrão não compra capacidade equivalente mais cara');
+  assert.equal(rodarCaso(caso('C'), { db }).rota.modelo.id, 'x/avancado-curto');
 });
 
 test('11. o motivo exibido corresponde à decisão real', () => {
@@ -164,8 +166,7 @@ test('11. o motivo exibido corresponde à decisão real', () => {
     assert.notEqual(explicar(a, { ...d, motivoEscolha: d.motivoEscolha === 'menor_custo' ? 'padrao_da_classe' : 'menor_custo' }), e);
   }
   const lim = rodarCaso(caso('C'), { db: semAcessoAvancado() }).rota;
-  assert.equal(lim.modelo, null);
-  assert.ok(lim.candidatos.some(c => c.motivos.includes('sem_acesso_a_classe')));
+  assert.match(lim.explicacao, /A tarefa pedia a classe Avançado, mas a pessoa não tem acesso à classe/);
 });
 
 test('12. solicitações diferentes, mesma pessoa e mesma configuração, não são obrigadas ao mesmo modelo', () => {
@@ -200,12 +201,16 @@ test('capacidade x classe: cada dimensão tem efeito próprio e registrado', () 
 });
 
 test('quick win: fixo define a classe (com a análise registrada); flexível entra como piso do Automático', () => {
-  const db = montarBanco(), cfg = lerConfig(db), pessoa = { id: 1, grupos: [], areas: [] };
+  const db = montarBanco(), cfg = lerConfig(db), pessoa = { grupos: [], areas: [] };
   const rapido = { id: 'google/gemini-3.5-flash-lite', perfil: 'rapido', liberado: true };
   const contrato = analisarPedido({ texto: caso('C').texto, anexos: caso('C').anexos });
   const fixo = rotear({ db, cfg, pessoa, qw: { modelo: 'classe:rapido', pode_trocar: false }, pedido: 'classe:rapido', analise: contrato, modeloManual: rapido, origem: 'quick_win' });
-  assert.equal(fixo.modelo, null, 'Quick Win fixo insuficiente também bloqueia');
-  assert.equal(fixo.requisitos.classe, 'avancado');
+  assert.equal(fixo.modo, 'quick_win');
+  assert.equal(fixo.modelo.perfil, rapido.perfil, 'a classe fixa do quick win manda');
+  assert.equal(fixo.modelo.id, 'x/rapido-curto', 'seleciona a alternativa mais econômica dentro da classe');
+  assert.equal(fixo.requisitos.classe, 'avancado', 'mas a análise roda');
+  assert.equal(fixo.fallback.tipo, 'abaixo_do_necessario_por_escolha');
+  assert.ok(fixo.politicas.includes('quick_win_define_o_modelo'));
   // Flexível: a classe do quick win é o mínimo; o pedido pode subir, nunca descer.
   const traducao = analisarPedido({ texto: caso('A').texto });
   const piso = rotear({ db, cfg, pessoa, qw: { modelo: 'classe:equilibrado', pode_trocar: true }, pedido: AUTOMATICO, analise: traducao });
@@ -297,7 +302,7 @@ test('nova tentativa é limitada: no máximo uma classe acima do que a tarefa pe
 });
 
 test('quick win fixo com conteúdo grande: troca só dentro da classe dele; com modelo técnico fixado, não troca', () => {
-  const db = montarBanco(), cfg = lerConfig(db), pessoa = { id: 1, grupos: [], areas: [] };
+  const db = montarBanco(), cfg = lerConfig(db), pessoa = { grupos: [], areas: [] };
   const grande = analisarPedido({ texto: 'Resuma este documento.', anexos: [{ texto: 'O lote foi entregue e conferido pela equipe. '.repeat(20000) }] });
   const curto = { id: 'x/rapido-curto', perfil: 'rapido', liberado: true, contexto: 32000 };
   const r = rotear({ db, cfg, pessoa, qw: { modelo: 'classe:rapido', pode_trocar: false }, pedido: 'classe:rapido', analise: grande, modeloManual: curto, origem: 'quick_win' });

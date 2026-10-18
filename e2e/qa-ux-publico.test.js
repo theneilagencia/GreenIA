@@ -71,7 +71,7 @@ test('A8: no celular, "Entrar" fica no topo e o menu compacto leva às seções 
   assert.equal(await painel.isVisible(), false);
   await menu.click();
   await painel.getByRole('link', { name: 'Perguntas' }).click();
-  await p.waitForURL(/\/faq\.html$/);
+  await p.waitForURL(/#perguntas$/);
   assert.equal(await painel.isVisible(), false, 'fecha ao escolher a seção');
   assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   // Na tela larga, a navegação completa no lugar do menu.

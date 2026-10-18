@@ -5,7 +5,6 @@
 //    sugerido (nome e descrição) e a tela oferece "Criar este Quick Win" com o assistente já preenchido.
 //  - Pesquisa na internet: a mesma ferramenta e a mesma liberação dos Quick Wins (Configurações › Políticas), com a
 //    mensagem da pessoa como consulta. Desligada ou barrada pela governança, a resposta diz o motivo e não inventa.
-import { pedePesquisaWeb, proibePesquisaWeb } from './quickwin-operacao.js';
 const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 const AGENTE = /\b(agente|agentes|assistente (virtual|automatico|que)|robo que|bot que)\b/;
@@ -32,19 +31,8 @@ export function quickWinSugerido(texto) {
   return { nome: nome.slice(0, 80), descricao: desc.slice(0, 1000) };
 }
 
-// Datas de execução ("escreva um email hoje") não são pedidos de consulta externa.
-// Criar uma automação que pesquisará depois também não autoriza pesquisar agora.
-const PESQUISA = /\b(busque|buscar na (internet|web)|procure na (internet|web)|ultimas? noticias|novidades (recentes|da semana|do mes)|fontes oficiais|consulte a documentacao|o que (mudou|ha de novo))\b/;
-export function pedePesquisa(texto) {
-  if (pedeAgente(texto) || proibePesquisaWeb(texto)) return false;
-  const t = norm(texto);
-  const semDatas = t.replace(/\b(?:esta semana|nesta semana|este mes|neste mes|hoje|atualmente)\b/g, ' ');
-  return pedePesquisaWeb(semDatas) || PESQUISA.test(t);
-}
-// Uma menção a "hoje" num e-mail não exige consulta externa. Já um pedido explícito
-// de pesquisa não pode ser substituído por conhecimento geral sem escolha da pessoa.
-export const exigePesquisa = texto => !pedeAgente(texto) && !proibePesquisaWeb(texto)
-  && /\b(pesquise|pesquisar|busque|procure na (internet|web)|consulte (a documentacao|as fontes|fontes oficiais)|confira (as fontes|fontes oficiais))\b/.test(norm(texto));
+const PESQUISA = /\b(pesquis\w*|busque|buscar na (internet|web)|procure na (internet|web)|na internet|ultimas? noticias|novidades (recentes|da semana|do mes)|ultimos \d+ dias|ultimas \d+ semanas|esta semana|nesta semana|este mes|neste mes|hoje|atualmente|fontes oficiais|o que (mudou|ha de novo))\b/;
+export const pedePesquisa = texto => PESQUISA.test(norm(texto));
 // Liberação da pesquisa na conversa: as mesmas regras da pesquisa dos Quick Wins.
 export function decisaoPesquisa(cfg, { sigilosa, areaReforcada, protegidos, reserva }) {
   if (!cfg.pesquisaWeb?.ativa) return { pode: false, codigo: 'nao_liberada' };

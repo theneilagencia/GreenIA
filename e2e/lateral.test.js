@@ -53,12 +53,12 @@ const historico = '#lateral .historico-lat .hc-recente';
 for (const [email, n] of [['c0', 0], ['c1', 1], ['c5', 5], ['c10', 10], ['c50', 50], ['c100', 100]]) {
   test(`${n} conversas: histórico completo por data (de 50 em 50), "Ver todas" com conversas, atalhos visíveis (A, B, C, D)`, async () => {
     const { ctx, p, erros } = await abrir(email, '#/nova', 1280, 720);
-    assert.deepEqual(await principais(p), ['quick-wins', 'resultados', 'conhecimento']);
+    assert.deepEqual(await principais(p), ['quick-wins', 'conhecimento']);
     assert.equal(await p.locator(historico).count(), Math.min(n, 50));
     assert.equal(await p.locator('#lateral .ver-todas').count(), n ? 1 : 0);
     assert.equal(await p.locator('#lateral #hist-mais').count(), n > 50 ? 1 : 0, '"Mostrar mais conversas" só quando há mais');
     if (n) assert.deepEqual(await p.$$eval('#lateral .hist-grupo h3', l => l.map(h => h.textContent)), ['Hoje']);
-    for (const sel of ['a.nova', '#abrir-busca', '[data-item="quick-wins"]', '[data-item="resultados"]', '[data-item="conhecimento"]', '#conta']) assert.ok(await visivelNaJanela(p, `#lateral ${sel}`), `${sel} visível sem rolar`);
+    for (const sel of ['a.nova', '#abrir-busca', '[data-item="quick-wins"]', '[data-item="conhecimento"]', '#conta']) assert.ok(await visivelNaJanela(p, `#lateral ${sel}`), `${sel} visível sem rolar`);
     // Atalhos antes do histórico, independentemente da quantidade de conversas.
     const ordem = await p.$$eval('#lateral .lateral-rolagem a', l => l.map(a => a.dataset.item || (a.classList.contains('ver-todas') ? 'ver-todas' : 'conversa')));
     assert.equal(ordem.indexOf('quick-wins'), 0, JSON.stringify(ordem));
@@ -145,13 +145,13 @@ test('Pendências: atalho só com o que resolver (com a contagem); o endereço v
   const pa = await a.newPage();
   await pa.goto(`${N.base}/app#/nova`);
   await pa.waitForSelector('#lateral [data-item="pendencias"]');
-  assert.deepEqual(await principais(pa), ['quick-wins', 'resultados', 'conhecimento', 'pendencias']);
+  assert.deepEqual(await principais(pa), ['quick-wins', 'conhecimento', 'pendencias']);
   assert.equal(await pa.locator('#lateral [data-item="pendencias"] .selo-lat [aria-hidden="true"]').innerText(), String(total));
   assert.match(await pa.locator('#lateral [data-item="pendencias"] .sr').innerText(), new RegExp(`${total} pendência`));
   // Sem pendências, o atalho some; a tela continua no endereço (e o atalho aparece enquanto ela está aberta).
   await pa.route('**/api/acompanhamento', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ passos: [], pendencias: [], avisos: [], atualizado_em: new Date().toISOString() }) }));
   await pa.reload(); await pa.waitForSelector('#lateral .item-lat.item-principal'); await pa.waitForTimeout(400);
-  assert.deepEqual(await principais(pa), ['quick-wins', 'resultados', 'conhecimento']);
+  assert.deepEqual(await principais(pa), ['quick-wins', 'conhecimento']);
   await pa.goto(`${N.base}/app#/pendencias`); await pa.waitForSelector('#pend-lista');
   assert.equal(await pa.getAttribute('#lateral [data-item="pendencias"]', 'aria-current'), 'page');
   // Membro sem acompanhamento: nunca vê o atalho.
@@ -200,9 +200,9 @@ test('celular/tablet 320, 390 e 768px com 100 conversas: menu com a mesma hierar
     await p.waitForSelector('#entrada'); // Aguarda a conversa atual antes de abrir o menu.
     await p.waitForSelector('#lateral .item-lat.item-principal', { state: 'attached' });
     await abrirLateral(p);
-    assert.deepEqual(await principais(p), ['quick-wins', 'resultados', 'conhecimento'], String(largura));
+    assert.deepEqual(await principais(p), ['quick-wins', 'conhecimento'], String(largura));
     assert.equal(await p.locator(historico).count(), 50);
-    for (const sel of ['a.nova', '[data-item="quick-wins"]', '[data-item="resultados"]', '[data-item="conhecimento"]', '.ver-todas', '#conta']) assert.ok(await visivelNaJanela(p, `#lateral ${sel}`), `${sel} visível no menu sem rolar (${largura})`);
+    for (const sel of ['a.nova', '[data-item="quick-wins"]', '[data-item="conhecimento"]', '.ver-todas', '#conta']) assert.ok(await visivelNaJanela(p, `#lateral ${sel}`), `${sel} visível no menu sem rolar (${largura})`);
     const alturas = await p.$$eval('#lateral .item-lat.item-principal, #lateral .lat-acoes .item-lat, #lateral .historico-lat .item-lat.sub, #lateral #conta, #lateral .hc-acoes', l => l.slice(0, 20).map(a => Math.round(a.getBoundingClientRect().height)));
     if (largura < 900) assert.ok(alturas.every(h => h >= 40), `alvos de toque (${largura}): ${alturas}`);
     const principaisAlt = await p.$$eval('#lateral .item-lat, #lateral #conta', l => l.slice(0, 12).map(a => Math.round(a.getBoundingClientRect().height)));
@@ -228,7 +228,7 @@ test('tela baixa (320x568), admin com 100 conversas: atalhos, conta (com a Admin
     await p.waitForSelector('#lateral [data-item="pendencias"]', { state: 'attached' });
     await p.waitForSelector('#lateral a.nova[aria-current="page"]', { state: 'attached' }); await p.waitForTimeout(400);
     await abrirLateral(p);
-    for (const it of ['quick-wins', 'resultados', 'conhecimento', 'pendencias']) assert.ok(await visivelNaJanela(p, `#lateral [data-item="${it}"]`), `${it} visível (${largura}x${altura})`);
+    for (const it of ['quick-wins', 'conhecimento', 'pendencias']) assert.ok(await visivelNaJanela(p, `#lateral [data-item="${it}"]`), `${it} visível (${largura}x${altura})`);
     assert.ok(await visivelNaJanela(p, '#lateral #conta'), `conta visível (${largura}x${altura})`);
     assert.ok(await visivelNaJanela(p, '#lateral .ver-todas'), `"Ver todas" visível (${largura}x${altura})`);
     await abrirConta(p);

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { subirComNavegador } from '../scripts/navegador.js';
 
-test('recomendações são padrão e persistem após salvar, navegar e recarregar', { timeout: 60000 }, async () => {
+test('recomendações são padrão e persistem após salvar, navegar e recarregar', { timeout: 30000 }, async () => {
   const N = await subirComNavegador();
   try {
     const p = await N.entrar('admin@empresa-exemplo.com.br');
@@ -20,9 +20,7 @@ test('recomendações são padrão e persistem após salvar, navegar e recarrega
     await p.waitForFunction(() => document.querySelector('input[name="gov"][value="recomendado"]')?.checked);
     await p.reload(); await recomendado.waitFor(); assert.equal(await recomendado.isChecked(), true);
     await p.goto(N.base + '/app#/modelos/roteamento');
-    await p.locator('#cfg-rota').waitFor();
-    assert.equal(await p.locator('.trabalho-salvar').isVisible(),false,'sem alterações, não oferece gravação desnecessária');
-    assert.equal(await p.locator('#rota-switch').getAttribute('aria-checked'),'true');
+    await Promise.all([p.waitForResponse(r => r.url().endsWith('/api/admin/modelos-config') && r.request().method() === 'PUT'), p.getByRole('button', { name: 'Salvar escolha automática', exact: true }).click()]);
     await p.goto(N.base + '/app#/modelos'); await recomendado.waitFor(); assert.equal(await recomendado.isChecked(), true);
     await manual.check();
     await p.waitForFunction(() => document.querySelector('input[name="gov"][value="manual"]')?.checked && !document.querySelector('input[name="gov"][value="manual"]').disabled);

@@ -1,5 +1,3 @@
-import { FAMILIAS } from './visual/fontes.js';
-import { verificarPublicacoes, notasComPublicacoes } from './pesquisa-fontes.js';
 import { abrirTentativa, finalizarTentativa, registrarDownloadResultado } from './resultados.js';
 import { trabalhoDoPedido } from '../public/trabalhos.js';
 import { acessoAdvanced, prepararPedidoAdvanced, conferirAdvanced } from './advanced.js';
@@ -14,7 +12,7 @@ import { extrairTabelas, gerarCsv, nomesDasTabelas, normalizarTabelas } from '..
 import { docx, MIMES, nomeDoArquivo, pptx, soEntregavel, xlsx, zipar } from './escritorio.js';
 import { NOTA_IMAGEM, pedidoDeImagem, promptDaImagem, ultimaImagemDaConversa } from './imagem-chat.js';
 import { arquivosDoProjeto, blocosDeCodigo, entregaDeCodigo } from './codigo-chat.js';
-import { decisaoPesquisa, exigePesquisa, NOTA_AGENTE, NOTA_PESQUISA, pedeAgente, pedePesquisa, quickWinSugerido } from './chat-recursos.js';
+import { decisaoPesquisa, NOTA_AGENTE, NOTA_PESQUISA, pedeAgente, pedePesquisa, quickWinSugerido } from './chat-recursos.js';
 import { avisoDeCodigo, decisaoDeCodigo, notaDeCodigo, OPERACOES_CODIGO } from './permissoes-codigo.js';
 import { abrirPullRequest, execucoesPendentes, lerRepositorio, marcarExecucoesUsadas, pedeAlterarRepositorio, publicarSite, repositorioDoPedido, reposLiberados, rotasCodigo } from './codigo-operacoes.js';
 import { resolverIdentidade } from './visual/marca.js';
@@ -582,7 +580,6 @@ export function rotasConversas(app, r) {
     const { conv, texto, titulo, cor, fonte } = respostaGuardada(pessoa, params);
     const pronto = um(app.db, 'select id, nome, dados from arquivos_gerados where conversa_id = ? and mensagem_id = ? and mime = ? order by id desc limit 1', conv.id, Number(params.mensagem), MIMES.pptx);
     if (pronto) return { nome: pronto.nome, midia: `/api/conversas/${conv.id}/arquivos/${pronto.id}/midia/`, ...previaDoPptx(Buffer.from(pronto.dados)) };
-    if (um(app.db, "select 1 from artefatos_visuais where conversa_id = ? and mensagem_id = ? and tipo = 'presentation'", conv.id, Number(params.mensagem))) throw erro(409, 'pptx_nao_gerado', 'O PowerPoint desta apresentação não está disponível. Peça para gerar o arquivo novamente; o pedido e os materiais continuam na conversa.');
     if (/O arquivo com o acabamento solicitado não foi gerado/.test(texto)) throw erro(409, 'design_nao_gerado', 'O PowerPoint solicitado não foi gerado.');
     return { nome: nomeDoArquivo(titulo, 'pptx'), midia: null, ...previaDoPptx(pptx(texto, { titulo, cor, fonte, subtitulo: `Gerado na GreenIA em ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` })) };
   });
@@ -591,7 +588,6 @@ export function rotasConversas(app, r) {
     const { conv, texto, titulo, cor, fonte } = respostaGuardada(pessoa, params);
     const pronto = um(app.db, 'select dados from arquivos_gerados where conversa_id = ? and mensagem_id = ? and mime = ? order by id desc limit 1', conv.id, Number(params.mensagem), MIMES[params.formato]);
     if (pronto) return enviarOffice(res, params.formato, titulo, Buffer.from(pronto.dados));
-    if (params.formato === 'pptx' && um(app.db, "select 1 from artefatos_visuais where conversa_id = ? and mensagem_id = ? and tipo = 'presentation'", conv.id, Number(params.mensagem))) throw erro(409, 'pptx_nao_gerado', 'O PowerPoint desta apresentação não está disponível. Peça para gerar o arquivo novamente; o pedido e os materiais continuam na conversa.');
     if (params.formato === 'pptx' && /O arquivo com o acabamento solicitado não foi gerado/.test(texto)) throw erro(409, 'design_nao_gerado', 'O PowerPoint solicitado não foi gerado.');
     if (params.formato === 'xlsx') {
       // Todas as tabelas da resposta, uma por aba.
@@ -899,8 +895,8 @@ export function rotasConversas(app, r) {
     const origem = qwFixo ? 'quick_win' : automatico ? 'auto' : qw?.modelo && pedido === qw.modelo ? 'quick_win'
       : !roteamentoAtivo && (!escolhaSalva || escolhaSalva === AUTOMATICO || pedido === classePadrao) ? 'padrao' : 'pessoa';
     // Ferramenta da execução (pesquisa na internet): só se o Quick Win permite, a empresa liberou e o conteúdo
-    // deixa (o pedido sairia para o serviço de busca). Recusada, a execução é
-    // bloqueada antes da inferência, sem substituir a pesquisa por conhecimento geral.
+    // deixa (o pedido sairia para o serviço de busca). Recusada, a execução segue sem pesquisa e o resultado fica
+    // parcial, com o motivo: nada é simulado.
     const querPesquisa = execucaoQw && !!qw.espec.ferramentas_permitidas?.includes('pesquisa_web');
     const motivoSemPesquisa = !querPesquisa ? null : !cfg.pesquisaWeb?.ativa ? 'nao_liberada' : sigilosa ? 'sigilosa' : areaReforcada ? 'area_reforcada'
       : protegidos.length ? 'dados_protegidos' : plano?.fase === 'reserva' ? 'reserva_do_plano' : null;
@@ -959,12 +955,6 @@ export function rotasConversas(app, r) {
     // tipo de fonte dele, como inferência desta peça (a regra de identidade da empresa continua valendo mais).
     if (pecaChat) {
       const estilo = estiloDaConversa(app, conv.id, anexos);
-      // Sem o PDF de referência, o compositor só possui as fontes empacotadas.
-      // Não troca silenciosamente uma fonte pedida como parte da entrega.
-      if (estilo && /mesmas? fontes?\b/i.test(texto)) {
-        const disponiveis=Object.values(FAMILIAS).map(f=>f.nome.toLowerCase());
-        if (estilo.fontes?.some(f=>!disponiveis.includes(f.toLowerCase()))) throw erro(409,'fonte_layout_indisponivel','Para manter as mesmas fontes, envie também um PDF da apresentação como referência de layout. O pedido não foi executado e nenhum crédito de IA foi consumido.');
-      }
       if (estilo) pecaChat.operacao.entregaveis[0].visual.estilo = estiloComoTexto(estilo);
     }
     const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, execucaoQw, pesquisa, false, !execucaoQw && !edicao && PEDE_ARQUIVO.test(texto))
@@ -994,7 +984,7 @@ export function rotasConversas(app, r) {
     // precisa dele: nenhuma chamada; a execução pergunta o mínimo.
     const emEtapas = !!(execucaoQw && pesquisa?.disponivel && !sigilosa);
     const textosDaPessoa = emEtapas ? [...todos(app.db, "select texto from mensagens where conversa_id = ? and papel = 'user'", conv.id).map(m => m.texto).filter(t => t !== NAO_GUARDADO), texto] : [];
-    const externo = emEtapas ? contextoExternoDaPesquisa({ objetivo: qw.espec.objetivo, op: qw.espec.operacao, perfil: cfg.pesquisaWeb?.perfil, textosDaPessoa, agora: app.agora() }) : null;
+    const externo = emEtapas ? contextoExternoDaPesquisa({ objetivo: qw.espec.objetivo, op: qw.espec.operacao, perfil: cfg.pesquisaWeb?.perfil, textosDaPessoa }) : null;
     const perguntaMercado = externo && !externo.suficiente ? perguntaDeMercado(qw.espec.objetivo) : null;
     const sistemaColeta = emEtapas ? promptColeta(qw.espec.operacao) + notaDeData(app) : null;
     const sistemaProducao = emEtapas ? persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, true, pesquisa, true) + notaDeData(app) + (programada ? NOTA_PROGRAMADA : '') : null;
@@ -1044,19 +1034,6 @@ export function rotasConversas(app, r) {
         VERSAO_ROTEADOR,Number(sigilosa),conv.teste,origem,'bloqueado',solicitado,solicitado?'bloqueado':null,codigo,
         requisitos.classe || 'avancado',JSON.stringify(requisitos),JSON.stringify((decisao?.candidatos || []).map(c=>({...c,status:c.status==='escolhido'?'excluido':c.status}))));
     };
-    const pesquisaBloqueada = pesquisa && !pesquisa.disponivel ? pesquisa
-      : pesquisaChat && !pesquisaChat.pode && exigePesquisa(texto) ? pesquisaChat : null;
-    if (pesquisaBloqueada) {
-      const codigo = `pesquisa_${pesquisaBloqueada.codigo}`;
-      gravarBloqueioPrevio(codigo, { complexidade: analise.complexidade, classe: analise.classe, ferramenta: 'pesquisa_web' });
-      registrar(app, 'research.blocked', pessoa.id, { conversa: conv.id, motivo: pesquisaBloqueada.codigo, ...(qw ? { quick_win: qw.id } : {}) });
-      const proximo = pesquisaBloqueada.codigo === 'nao_liberada'
-        ? 'O administrador pode revisar esse acesso em Configurações › Políticas.'
-        : pesquisaBloqueada.codigo === 'reserva_do_plano'
-          ? 'O administrador pode conferir os créditos e os limites do plano.'
-          : 'A pesquisa externa precisa respeitar a proteção deste conteúdo. Liberar um modelo não remove essa restrição.';
-      throw erro(409, codigo, `A pesquisa solicitada não foi iniciada porque ${MOTIVOS_PESQUISA[pesquisaBloqueada.codigo]}. Nenhuma resposta baseada apenas em conhecimento geral foi gerada no lugar da pesquisa. ${proximo}`);
-    }
     const prepararAdvanced = (requisitos, decisao = null) => {
       gravarBloqueioPrevio('advanced_sem_autorizacao',requisitos,decisao);
       let alternativa=false;
@@ -1271,16 +1248,7 @@ export function rotasConversas(app, r) {
     const vidaResposta = setInterval(() => {
       if (!res.destroyed && !res.writableEnded) linha({ t: 'espera' });
     }, 15000);
-    const encerrarEspera = () => {
-      clearInterval(vidaResposta);
-      res.off('close', encerrarEspera);
-      res.off('finish', encerrarEspera);
-    };
-    // A saída das execuções programadas emite finish, sem uma conexão HTTP para
-    // emitir close. Encerrar só em close deixava um intervalo vivo por execução.
-    res.once('close', encerrarEspera);
-    res.once('finish', encerrarEspera);
-    try {
+    res.once('close', () => clearInterval(vidaResposta));
     const rotaTela = { modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, complexidade: rota.requisitos.complexidade,
       explicacao: pessoa.admin ? rota.explicacao : explicarParaPessoa({ modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, politicas: rota.politicas, fallback: rota.fallback, sigilosa }),
       // A tela de uso (inclusive de quem administra) mostra sempre a simples; a técnica fica na Administração.
@@ -1309,16 +1277,6 @@ export function rotasConversas(app, r) {
     // Etapa 1 (coleta): pesquisa com o plugin web, só com o contexto externo seguro. Falhou ou não trouxe notas: a
     // produção segue sem pesquisa e o resultado fica parcial (nada é simulado). Notas com algo que parece segredo não seguem.
     let notas = null, custoColeta = 0, economiaColeta = 0;
-    // Orçamento, autorização e rota são decisões de governança, não ausência de resultados.
-    // Não consome execução/conferência depois de uma coleta recusada por esses controles.
-    const coletaRecusada = e => /^(advanced_|rota_nao_controlada)/.test(e?.codigo || '') || [401, 402, 403].includes(e?.status);
-    const encerrarColetaRecusada = e => {
-      const codigo = e?.codigo || 'pesquisa_bloqueada';
-      exec(app.db, "update roteamento set resultado = 'bloqueado_na_coleta', motivo_bloqueio = ?, ms_total = ? where id = ?", codigo, Date.now() - inicio, rotaId);
-      linha({ t: 'erro', codigo, mensagem: /^(advanced_|rota_nao_controlada)/.test(codigo) ? e.message : 'A pesquisa não pôde ser autorizada nesta tentativa. O administrador precisa revisar o acesso e os limites antes de continuar.' });
-      return res.end();
-    };
-
     if (emEtapas && !perguntaMercado) {
       linha({ t: 'etapa', v: 'Pesquisando na internet…' });
       // O plugin de busca usa a última mensagem da pessoa como consulta: ela é o contexto externo seguro, e só ele.
@@ -1334,12 +1292,6 @@ export function rotasConversas(app, r) {
         if (notas && contemCredencial(notas)) notas = null;
       } catch (e) {
         registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: m.id, roteamento: rotaId, etapa: 'coleta', erro: erroDoProvedor(e, { guardar: !naoGuardar, conteudo: conteudoDoPedido }) });
-        if (coletaRecusada(e)) return encerrarColetaRecusada(e);
-      }
-      if (notas && /\b(recentes?|atuais?|atualidade|novidades|noticias|em alta|esta semana|[uú]ltim[oa]s?)\b/i.test(String(qw.espec.objetivo).normalize('NFD').replace(/[\u0300-\u036f]/g, ''))) {
-        const verificacoes = await verificarPublicacoes(fontesWeb, { lookup: app.dnsLookup, buscar: app.buscarLink, agora: app.agora() });
-        for (const f of fontesWeb) { const v = verificacoes.find(x => x.url === f.url); if (v) f.verificacaoPublicacao = v; }
-        notas = notasComPublicacoes(notas, verificacoes);
       }
       if (notas) mensagens[0] = { role: 'system', content: montarSistema(sistemaProducao, delimitar('pesquisa', 'Notas da pesquisa desta execução', notas)) };
       // Coleta sem notas: a produção não pesquisa sozinha (levaria o contexto interno para a busca). Resultado parcial.
@@ -1362,7 +1314,6 @@ export function rotasConversas(app, r) {
         else mensagens[0] = { ...mensagens[0], content: `${mensagens[0].content}\n\nA pesquisa na internet não trouxe resultados: diga isso e não invente notícias, datas ou números recentes.` };
       } catch (e) {
         registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: m.id, roteamento: rotaId, etapa: 'coleta_conversa', erro: erroDoProvedor(e, { guardar: !naoGuardar, conteudo: conteudoDoPedido }) });
-        if (coletaRecusada(e)) return encerrarColetaRecusada(e);
         mensagens[0] = { ...mensagens[0], content: `${mensagens[0].content}\n\nA pesquisa na internet falhou nesta tentativa: diga isso e não invente notícias, datas ou números recentes.` };
       }
     }
@@ -1649,7 +1600,7 @@ export function rotasConversas(app, r) {
     // O PPTX solicitado usa o mesmo design que passou pela conferência no
     // navegador. Nunca converte de volta ao template de texto da resposta.
     const visualPptx = !qw && !modeloApr && /\b(pptx|power ?point|apresenta[cç][aã]o|slides?|deck)\b/i.test(texto)
-      ? visuais?.artefatos?.find(a => a.tipo === 'presentation') : null;
+      ? visuais?.artefatos?.find(a => a.tipo === 'presentation' && a.plano?.motor === 'design') : null;
     if (!gerado && visualPptx) {
       linha({ t: 'etapa', v: 'Exportando o design validado para PowerPoint…', arquivo: true });
       try {
@@ -1757,10 +1708,8 @@ export function rotasConversas(app, r) {
     }
     // Materializar antes de anunciar a entrega. Marcadores de formato não são arquivos.
     const officeProntos = [];
-    if (formatosPedidos.length && !modeloAusente && !modeloApr && !edicao && !qualidadeVisualFalhou && !ehPergunta(texto) && PEDE_ENTREGA.test(texto) && soEntregavel(resposta).trim().length > 40) {
+    if (formatosPedidos.length && !visuais?.artefatos?.length && !gerado && !editado && !modeloAusente && !modeloApr && !edicao && !qualidadeVisualFalhou && !ehPergunta(texto) && PEDE_ENTREGA.test(texto) && soEntregavel(resposta).trim().length > 40) {
       for (const formato of formatosPedidos) {
-        if (formato === 'pptx' && (gerado || visuais?.artefatos?.some(a=>a.tipo==='presentation'))) continue;
-        if (visuais?.artefatos?.length && formato !== 'docx' && formato !== 'xlsx') continue;
         try {
           const conteudo = soEntregavel(resposta), titulo = conv.titulo || 'Resposta da GreenIA';
           let dados;
@@ -1885,9 +1834,6 @@ export function rotasConversas(app, r) {
     linha({ t: 'fim', id: respId, guardado: !naoGuardar, modelo: pessoa.admin ? usado : null, classe: m.id === AUTO ? null : m.perfil, fornecedor: pessoa.admin ? fim?.fornecedor : null, fontes: [...ctx.fontes, ...fontesWeb], reserva: usado !== m.id, rota: rotaTela,
       ...(registroQualidade ? { qualidade: resumoQualidade({ ...registroQualidade, quick_win: conv.quick_win_id }) } : {}), ...(artefatos.length ? { artefatos } : {}), ...(arquivos.length ? { arquivos } : {}), ...(integResumo ? { integracoes: integResumo } : {}), ...(acessoCodigo?.pedir.length ? { acesso: acessoCodigo.pedir } : {}), ...(execucao ? { executar: execucao } : {}) });
     res.end();
-    } finally {
-      encerrarEspera();
-    }
   }
 }
 

@@ -41,7 +41,7 @@ test('UI + servidor: pedido → solicitação → aprovação → notificação 
   const p=await N.contexto.newPage();p.on('pageerror',e=>erros.push(e.message));await p.goto(N.base+'/app#/nova');
   assert.equal(await p.getByRole('combobox',{name:'Como responder'}).isVisible(),false);
   await p.getByText('Preferências',{exact:true}).click();
-  assert.equal(await p.locator('#modelo option:checked').textContent(),'Seguir a recomendação');
+  assert.equal(await p.locator('#modelo option:checked').textContent(),'Seguir a recomendação do GreenIA');
   await p.getByText('Preferências',{exact:true}).click();
   await p.fill('#entrada','Crie um relatório completo de altíssimo nível com análise aprofundada de cenários e recomendações.');await p.click('#enviar');
   assert.equal(await p.getByRole('button',{name:'Preparar roteiro',exact:true}).isVisible(),false);

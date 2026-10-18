@@ -97,8 +97,7 @@ test('sugestões preenchem a caixa sem enviar; texto já escrito pede confirmaç
   await p.waitForFunction(() => /^Compare os dois arquivos/.test(document.querySelector('#entrada').value));
   assert.equal(await p.locator('#anexos .anexo-chip').count(), 1, 'o anexo continua');
   // Trocar o nível redesenha a tela sem perder o pedido nem o anexo.
-  await p.locator('summary').filter({hasText:/^Preferências$/}).click();
-  const nivel = p.getByRole('combobox', { name: 'Como responder' });
+  const nivel = p.getByRole('combobox', { name: 'Nível' });
   await nivel.selectOption(await nivel.locator('option:not([disabled])').last().getAttribute('value'));
   assert.match(await p.inputValue('#entrada'), /^Compare os dois arquivos/);
   assert.equal(await p.locator('#anexos .anexo-chip').count(), 1);
@@ -144,15 +143,11 @@ test('nível e "Dados sigilosos" ficam na barra da caixa; ligar pede confirmaç�
   for (const [width, height] of [[1366, 860], [390, 844]]) {
     const p = await pagina('rafael@empresa-exemplo.com.br', { width, height });
     await p.goto(`${N.base}/app#/nova`); await p.waitForSelector('#entrada');
-    const nivel = p.locator('#modelo'), chave = p.getByRole('switch', { name: 'Dados sigilosos' });
+    const nivel = p.getByRole('combobox', { name: 'Nível' }), chave = p.getByRole('switch', { name: 'Dados sigilosos' });
     assert.equal(await p.locator('#caixa-chat .caixa-barra').locator('#modelo, #sigilosa').count(), 2, 'dentro da barra da caixa');
-    assert.equal(await nivel.isVisible(),false,'a decisão técnica começa recolhida');
-    await p.locator('summary').filter({hasText:/^Preferências$/}).click();
-    assert.equal(await nivel.locator('option:checked').innerText(),'Seguir a recomendação');
-    assert.equal(await nivel.isVisible(),true);
-    await p.locator('summary').filter({hasText:/^Preferências$/}).click();
+    assert.equal(await nivel.locator('option:checked').innerText(), 'Automático');
     const barra = await p.locator('.caixa-barra').boundingBox();
-    for (const sel of ['#mais-anexos', '#sigilosa', '#enviar']) {
+    for (const sel of ['#mais-anexos', '#modelo', '#sigilosa', '#enviar']) {
       const r = await p.locator(sel).boundingBox();
       assert.ok(r.y >= barra.y - 1 && r.y + r.height <= barra.y + barra.height + 1, `${sel} na mesma barra (${width})`);
       if (width < 760) assert.ok(r.height >= 44, `${sel}: toque de 44 px (${JSON.stringify(r)})`);

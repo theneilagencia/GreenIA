@@ -1,4 +1,3 @@
-import { autorizarAdvancedFalso } from './advanced-fixture.js';
 // Quem usa não administra a plataforma: em nenhum dos 20 cenários a pessoa recebe instrução técnica, precisa
 // escolher modelo, homologar ou mudar configuração. A GreenIA tenta resolver sozinha, dentro das regras; quando
 // não há alternativa segura, bloqueia, registra e avisa o admin (uma vez por dia por causa). Governança nunca
@@ -132,16 +131,28 @@ test('14. pedido simples usa o nível econômico', async () => {
   await semDecisaoTecnica(conv, r);
 });
 
-for(const [nome,corpo] of [['4. capacidade necessária bloqueada preserva pedido e solicita autorização',{texto:CONTRATO}],['12. escolha forçada não concede acesso',{texto:'Olá',modelo:'classe:avancado'}]])test(nome,async()=>{
-  const conv=await conversa(),n=OR.chamadas.length;
-  const r=await enviarMensagem(ana,conv.id,corpo);
-  assert.equal(r.status,403);assert.equal(r.erro.erro,'advanced_necessario');assert.equal(OR.chamadas.length,n);
-  assert.ok(r.erro.advanced.pedido);assert.equal(ultimaRota().resultado,'bloqueado');
+test('4. o necessário não está disponível para a pessoa: usa o mais capaz permitido e registra a causa', async () => {
+  const conv = await conversa();
+  const r = await enviarMensagem(ana, conv.id, { texto: CONTRATO });
+  assert.equal(r.status, 200);
+  assert.notEqual(OR.chamadas.at(-1).model, AVANCADO, 'o acesso por grupo não é afrouxado');
+  const rota = ultimaRota();
+  assert.equal(rota.fallback.tipo, 'abaixo_do_necessario');
+  assert.ok(rota.fallback.causas.includes('sem_acesso_a_classe'));
+  await semDecisaoTecnica(conv, r);
+});
+
+test('12. nível sem permissão para o grupo da pessoa, pedido à força: não é usado; o automático resolve', async () => {
+  const conv = await conversa();
+  const r = await enviarMensagem(ana, conv.id, { texto: 'Olá', modelo: 'classe:avancado' });
+  assert.equal(r.status, 200);
+  assert.notEqual(OR.chamadas.at(-1).model, AVANCADO);
+  assert.equal(ultimaRota().fallback.tipo, 'escolha_substituida');
+  await semDecisaoTecnica(conv, r);
 });
 
 test('13. pedido que exige mais capacidade: sobe de nível sozinho quando a pessoa tem acesso', async () => {
   await admin.put('/api/admin/modelos-config', { acessoPerfis: { equilibrado: { todos: true }, avancado: { todos: true } } });
-  await autorizarAdvancedFalso(S,admin,ana.pessoa,[AVANCADO]);
   const conv = await conversa();
   const r = await enviarMensagem(ana, conv.id, { texto: CONTRATO });
   assert.equal(r.status, 200);
@@ -237,8 +248,8 @@ test('18. Automático do provedor: nunca usado com dado sigiloso; fora dele, exp
   const conv = await conversa();
   const r2 = await enviarMensagem(ana, conv.id, { texto: 'Olá', modelo: 'openrouter/auto' });
   assert.equal(r2.status, 200);
-  assert.notEqual(OR.chamadas.at(-1).model, 'openrouter/auto');
-  assert.equal(ultimaRota().modo, 'automatico');
+  assert.equal(OR.chamadas.at(-1).model, 'openrouter/auto');
+  assert.match(ultimaRota().explicacao, /fora das classes e das regras de roteamento/, 'o registro técnico diz que ficou fora das regras de roteamento');
   await semDecisaoTecnica(conv, r2);
   await admin.put('/api/admin/modelos-config', { automatico: false });
 });
@@ -250,9 +261,10 @@ test('10. configuração incompleta (quick win fixo numa classe sem modelo liber
   const conv = await conversa({ quick_win_id: q.id });
   const r = await enviarMensagem(ana, conv.id, { texto: 'Analise este cenário.' });
   exec(S.app.db, "update modelos set liberado = 1 where id = ?", AVANCADO);
-  assert.equal(r.status, 503, JSON.stringify(r.erro));
-  assert.equal(r.erro.erro,'advanced_indisponivel');
-  assert.equal(ultimaRota().resultado,'bloqueado');
+  assert.equal(r.status, 200, JSON.stringify(r.erro));
+  assert.notEqual(OR.chamadas.at(-1).model, AVANCADO);
+  assert.equal(alertas('quick_win_sem_modelo'), 1);
+  await semDecisaoTecnica(conv, r);
 });
 
 test('20. falha que exige o admin (nenhum modelo liberado): bloqueio simples, auditado, admin avisado', async () => {

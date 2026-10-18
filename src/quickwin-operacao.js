@@ -103,15 +103,7 @@ const PESQUISA_COMO_MATERIAL = new RegExp([
   '\\bpesquisas?\\s+(anexad[ao]s?|em anexo|enviad[ao]s?|recebid[ao]s?|interna|internas|ja feita|realizada|realizadas)\\b',
   '\\b(revis\\w*|corrij\\w*|corrig\\w*|leia|ler|resum\\w*|avali\\w*|analis\\w*|confir\\w*|melhor\\w*|formate|formatar|padroniz\\w*|traduz\\w*)\\s+(a|as|o|os|minha|nossa)?\\s*pesquisas?\\b',
 ].join('|'));
-// Mencionar uma ferramenta para proibi-la não é pedir essa ferramenta.
-export function proibePesquisaWeb(texto) {
-  const t = norm(texto);
-  return /\bsem\s+(?:fazer\s+|realizar\s+)?(?:pesquisas?|buscas?)\s+(?:na\s+(?:internet|web)|externas?|online)\b/.test(t)
-    || /\b(?:nao|nunca)\s+(?:pesquise|busque|procure)\s+(?:na\s+(?:internet|web)|online)\b/.test(t)
-    || /\b(?:sem\s+(?:(?:usar|acessar|consultar)\s+)?|(?:nao|nunca)\s+(?:use|utilize|acesse|consulte|usar|utilizar|acessar|consultar)\s+)(?:a\s+)?(?:internet|web|fontes\s+externas)\b/.test(t);
-}
 export function pedePesquisaWeb(texto) {
-  if (proibePesquisaWeb(texto)) return false;
   const t = norm(texto);
   // Atualidade é um requisito de pesquisa, mesmo quando a pessoa não sabe pedir uma ferramenta.
   if (/\b(?:temas|pautas|noticias)\s+(?:atuais|recentes)\b/.test(t)) return true;
@@ -477,13 +469,7 @@ export const pesquisaPrecisaDeMercado = (op, objetivo = '') => !!op?.ferramentas
 const GENERICAS = /^(pesquis|levant|mape|identif|liste|lista|compar|mont|gere|gera|cri[ae]|faca|faze|anali|princip|concorr|competi|mercad|setor|segment|empres|noss|matri|posici|tabel|relat|recom|oport|mudan|recent|tenden|impact|quais|qual|pode|expli|sinte|resum|desta|apont|avali|atua|ultim|prep|elab|estrat|difer|pont|fort|frac|amea|swot|quem|sao|dele|cada|outr|sobre|para|entre|como|onde|playe|bench|seman|mes|trimes|ano|execu|docum|entreg|resul|produt|servi|client|negoc|area|lider|perfi|preco|valor|dest|ness|nest|dess|isso|isto|este|esta|esse|essa|aqui|agora|hoje|mais|menos|muito|todo|toda|deve|devem|quer|precis|vamo|vou|favor|ajud|traga|busq|encontr|descubr|inform|dado|gostar|modo|forma|tipo|lado|todos|todas|pelo|pela|seus|suas|meus|minh|tamb|ainda|tema|temas|assunt|conte|segu|plani|mand|envi|anex|arqui|abaix|acima|confor|sempre|melhor|rapid|urgen|obrig|quero|queri|exec|usar|usem|ajust|revis|termin|comec|fazer|feito|pront|certo|beleza|claro|pois|entao|depois|antes|logo)/;
 const temAssunto = texto => norm(texto).split(/[^a-z0-9]+/).some(w => w.length >= 4 && !GENERICAS.test(w));
 const SOBRE_MERCADO = /mercad|setor|segment|categor|regia|pais|nicho|concorr|ramo|atuac/;
-export function recorteTemporalDaPesquisa(objetivo, agora) {
-  if (!PEDE_ATUALIDADE.test(norm(objetivo)) || !(agora instanceof Date) || !Number.isFinite(agora.getTime())) return '';
-  const dia = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: 'numeric', month: 'long', year: 'numeric' }).format(agora);
-  const explicito = /\b(?:d?esta semana|d?este mes|hoje|ontem|ultim[oa]s?\s+(?:\d+|sete|trinta|doze|vinte e quatro)\s+(?:dias?|semanas?|meses?|anos?)|(?:19|20)\d{2})\b/.test(norm(objetivo));
-  return `Referência temporal da busca: ${dia}. ${explicito ? 'Respeite o período explícito no tema da pesquisa.' : 'Sem período explícito no pedido, priorize publicações dos últimos 24 meses como recorte sugerido pela plataforma; esse recorte deve ser declarado no resultado.'} Priorize fontes primárias com data de publicação visível. Material sem data ou fora do período serve só de contexto.`;
-}
-export function contextoExternoDaPesquisa({ objetivo = '', op = null, perfil = null, textosDaPessoa = [], agora = null } = {}) {
+export function contextoExternoDaPesquisa({ objetivo = '', op = null, perfil = null, textosDaPessoa = [] } = {}) {
   const peca = (s, max = 300) => { const t = limpar(s, 2000).replace(/[<>]/g, ''); return t && t.length <= max && pecaSegura(t) ? t : ''; };
   const tema = peca(objetivo, 400);
   const p = perfilPublico(perfil);
@@ -491,7 +477,7 @@ export function contextoExternoDaPesquisa({ objetivo = '', op = null, perfil = n
   const daPessoa = textosDaPessoa.map(t => peca(t)).filter(t => t && temAssunto(t)).slice(-2);
   const precisaMercado = pesquisaPrecisaDeMercado(op, objetivo);
   const suficiente = !precisaMercado || !!(p.setor || p.categoria || p.mercado) || respostas.length > 0 || daPessoa.length > 0 || temAssunto(tema);
-  const linhas = [tema && `Tema da pesquisa: ${tema}`, tema && recorteTemporalDaPesquisa(tema, agora), ...Object.entries(p).map(([k, v]) => `${PERFIL_PUBLICO[k]}: ${v}`),
+  const linhas = [tema && `Tema da pesquisa: ${tema}`, ...Object.entries(p).map(([k, v]) => `${PERFIL_PUBLICO[k]}: ${v}`),
     ...respostas.map(r => `Mercado informado pelo responsável: ${r}`), ...daPessoa.map(t => `Pedido desta execução: ${t}`)].filter(Boolean);
   return { consulta: linhas.join('\n').slice(0, 1200), suficiente, precisaMercado,
     origens: { tema: !!tema, perfil: Object.keys(p), responsavel: respostas.length, pessoa: daPessoa.length } };
@@ -537,7 +523,7 @@ export function promptOperacao(op, { pesquisa = null, notas = false } = {}) {
     partes.push(`Ferramenta indisponível: "${FERRAMENTAS[f].rotulo}" não existe nesta execução. Não simule a ferramenta: entregue ${FERRAMENTAS[f].alternativa} e diga isso no resultado.`);
   if (op.ferramentas?.includes('pesquisa_web')) {
     partes.push(pesquisa?.disponivel
-      ? `Pesquisa: ${notas ? 'a pesquisa na internet desta execução já foi feita, e as notas dela estão entre as marcas <pesquisa>. Use só essas notas' : 'nesta execução você tem acesso a uma pesquisa na internet. Use os resultados dela'} para os temas, fatos e números atuais. Não invente tendências, números, datas ou fontes. Preserve a data de publicação e a evidência da data junto de cada fonte; diferencie publicação, atualização e consulta. Ano no DOI, endereço ou nome de evento não comprova a data de publicação. Fonte sem data comprovada pode servir de contexto, mas não comprova atualidade. Se as notas não sustentarem o período ou a atualidade pedidos, declare a limitação e não anuncie a pesquisa como completa ou as tendências como recentes. ${SEM_MARCADORES} No fim, inclua a seção "## ${SECAO_FONTES}" com o título, o endereço e a data de publicação comprovada de cada fonte usada; quando ausente nas notas, indique "data de publicação não confirmada".`
+      ? `Pesquisa: ${notas ? 'a pesquisa na internet desta execução já foi feita, e as notas dela estão entre as marcas <pesquisa>. Use só essas notas' : 'nesta execução você tem acesso a uma pesquisa na internet. Use os resultados dela'} para os temas, fatos e números atuais. Não invente tendências, números, datas ou fontes. ${SEM_MARCADORES} No fim, inclua a seção "## ${SECAO_FONTES}" com o título e o endereço de cada fonte usada.`
       : `Pesquisa: a pesquisa na internet NÃO está disponível nesta execução (${pesquisa?.motivo || 'não liberada'}). Não simule uma pesquisa e não apresente temas, fatos ou números como atuais ou "em alta". Comece o resultado com a linha "Pesquisa na internet não realizada: ${pesquisa?.motivo || 'não liberada'}." e use só o material, o contexto autorizado e o que for conhecimento geral, deixando claro que não foi pesquisado. A falta da pesquisa não impede o trabalho: faça todos os entregáveis assim, e o tema que não pôde ser confirmado vai como sugestão, nunca como tendência atual. ${SEM_MARCADORES}`);
   }
   return partes.join('\n\n');
@@ -567,19 +553,16 @@ export function promptColeta(op) {
   return ['Etapa 1 de 2 desta execução: pesquisa na internet. O que pesquisar está na mensagem a seguir (tema e contexto público).',
     `Nesta etapa, pesquise o que o trabalho precisa (temas, fatos, números e acontecimentos atuais).${ents}`,
     'Entregue só as notas da pesquisa, em tópicos curtos: o fato ou tema, por que importa para o trabalho e a fonte (título e endereço). Não faça os entregáveis ainda.',
-    'Para cada fonte, procure a data de publicação no conteúdo ou nos metadados apresentados pela pesquisa e registre a data com o trecho que a comprova. Separe data de publicação, atualização e consulta. Não deduza a publicação pelo ano no DOI, endereço, rodapé ou nome de evento.',
-    'Quando o pedido exigir informação recente ou um período, priorize fontes primárias com publicação comprovada no período solicitado. Sem período explícito, use a data atual informada pela plataforma como referência, explique o recorte adotado e não trate material antigo como novidade. Fonte sem data confirmada serve apenas de contexto, não de prova de atualidade. Se os resultados não bastarem, registre a limitação nas notas; não invente datas nem afirme que a pesquisa está completa.',
     'Não invente fatos, números, datas, nomes ou fontes. O que não encontrar, diga que não encontrou.'].join('\n');
 }
 
 // Critérios de qualidade da operação (conferidos pela IA, dentro da mesma conferência).
-export function criteriosOperacao(op, { objetivo = '' } = {}) {
+export function criteriosOperacao(op) {
   if (!op) return [];
   const out = [];
   if (op.entregaveis?.some(e => e.canal)) out.push({ id: 'canais', grupo: 'regras', texto: 'Cada peça está adaptada ao canal dela (linguagem, tamanho e formato), sem repetir o mesmo texto em canais diferentes.' });
   if (usaContextoEmpresa(op)) out.push({ id: 'contexto_empresa', grupo: 'completo', texto: 'O resultado usa o contexto da empresa que está na entrada (nome, atuação, público) e não é genérico. Se a entrada não traz nada sobre a empresa, não conta como falha.' });
   if (op.ferramentas?.includes('pesquisa_web')) out.push({ id: 'pesquisa', grupo: 'invencao', texto: 'Nada é apresentado como pesquisado, atual ou "em alta" sem fonte listada; números e fatos atribuídos à pesquisa aparecem nas fontes ou nas notas da pesquisa.' });
-  if (op.ferramentas?.includes('pesquisa_web') && PEDE_ATUALIDADE.test(norm(objetivo))) out.push({ id: 'atualidade', grupo: 'completo', texto: 'O pedido de atualidade só foi atendido se as conclusões apresentadas como recentes têm fontes datadas no período pedido ou no recorte declarado. Uma busca realizada, uma lista de URLs, um ano no DOI ou admitir que as datas faltam não comprovam conclusão do trabalho. Sem suporte temporal para as conclusões centrais, objetivo_atingido deve ser false.' });
   (op.criterios || []).forEach((t, i) => out.push({ id: `plano_${i + 1}`, grupo: 'completo', texto: t }));
   return out;
 }
@@ -619,12 +602,7 @@ function tabelasSemDados(texto) {
   }
   return total >= 4 && vazias / total >= 0.6;
 }
-// Uma admissão global de ausência de datas impede aceitar um pedido de atualidade.
-// Isso é uma barreira negativa, não uma certificação das datas ou das fontes: a
-// ausência desta admissão não prova recência e não dispensa a conferência.
-const PEDE_ATUALIDADE = /\b(recentes?|atuais?|atualidade|em alta|novidades|noticias|esta semana|hoje|ontem|ultim[oa]s?\s+(?:\d+\s+)?(?:dias?|semanas?|meses?|anos?))\b/;
-const SEM_DATAS_CONFIRMADAS = /\bnenhuma\s+(?:das?\s+)?fontes?\b[^.!?\n]{0,100}\bdata\b[^.!?\n]{0,80}\b(?:confirmad|comprovad|verificad)|\b(?:todas?\s+(?:as?\s+)?(?:\w+\s+)?fontes?|nenhuma\s+delas?)\b[^.!?\n]{0,80}\bsem data|\b(?:nao da para|nao e possivel)\s+(?:afirmar|confirmar|comprovar)\b[^.!?\n]{0,100}\b(?:recentes?|atuais?|atualidade)\b/;
-export function conferirOperacao(op, texto, { pesquisa = null, entrada = '', objetivo = '' } = {}) {
+export function conferirOperacao(op, texto, { pesquisa = null, entrada = '' } = {}) {
   const falhas = [], detalhes = [];
   const out = { falhas, detalhes, entregaveis: null, pesquisa: null, objetivo: null };
   if (!op) return out;
@@ -652,8 +630,6 @@ export function conferirOperacao(op, texto, { pesquisa = null, entrada = '', obj
   if (op.ferramentas?.includes('pesquisa_web')) {
     const fontes = pesquisa?.fontes?.length || 0;
     out.pesquisa = { exigida: true, feita: !!pesquisa?.disponivel && fontes > 0, fontes, motivo: !pesquisa?.disponivel ? pesquisa?.motivo || 'nao_liberada' : fontes ? null : 'sem_fontes' };
-    if (!out.objetivo && PEDE_ATUALIDADE.test(norm(objetivo)) && SEM_DATAS_CONFIRMADAS.test(norm(texto)))
-      out.objetivo = { atingido: false, motivo: 'atualidade_nao_comprovada' };
   }
   return out;
 }

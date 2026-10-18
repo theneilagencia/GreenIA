@@ -157,8 +157,6 @@ test('Aprovar a sugestão: confirmação no modal da plataforma → 2 modelos ap
 test('Modelos: sugestão por nível em palavras simples; "Usar a sugestão" quando difere e "já segue" depois', async () => {
   const p = await pagina();
   await abrir(p, 'modelos');
-  assert.equal(await p.locator('#cfg-modelos > details').getAttribute('open'),null);
-  await p.locator('#cfg-modelos > details > summary').click();
   const bloco = p.locator('#sugestao-niveis');
   await bloco.waitFor();
   assert.match(await bloco.innerText(), /Sugestão para a sua empresa/);
@@ -208,7 +206,6 @@ test('tema escuro e celular (390 px): o cartão cabe, sem rolagem lateral, com c
     const sufixo = `${width}-${tema === 'dark' ? 'escuro' : 'claro'}`;
     await capturar(p, `politicas-${sufixo}`);
     await abrir(p, 'modelos');
-    await p.locator('#cfg-modelos > details > summary').click();
     await p.locator('#sugestao-niveis').waitFor();
     assert.ok(await semRolagemLateral(p), `Modelos sem rolagem lateral em ${width} ${tema}`);
     await p.locator('#sugestao-niveis').scrollIntoViewIfNeeded();

@@ -1,4 +1,3 @@
-import { autorizarAdvancedFalso } from './advanced-fixture.js';
 // Credencial do OpenRouter pelo mecanismo oficial da GreenIA (console da plataforma), usada pelos Quick Wins
 // das empresas: sem variável de ambiente, sem chave real (a chave do teste é gerada na hora e nunca é gravada),
 // com o plugin web e data_collection='deny', nos três níveis, com citações no formato documentado do OpenRouter,
@@ -133,8 +132,6 @@ test('três níveis: Rápido, Equilibrado e Avançado usam o modelo configurado,
   // O Avançado não é liberado para todos por padrão (governança): o admin libera para este teste.
   assert.equal((await ana.put('/api/admin/modelos-config', { acessoPerfis: { avancado: { todos: true, grupos: [], areas: [] } } })).status, 200);
   const padroes = (await ana.get('/api/admin/modelos')).dados.config.padroes;
-  const app=S.P.tenant(A.id),pessoa=um(app.db,"select id from pessoas where email='ana@minadocs.exemplo'");
-  await autorizarAdvancedFalso({app},ana,pessoa,[padroes.avancado]);
   for (const nivel of ['rapido', 'equilibrado', 'avancado']) {
     // O nível do Quick Win é a classe fixada por quem o administra (sem troca na conversa).
     const up = await ana.put(`/api/quick-wins/${q.id}`, { modelo: `classe:${nivel}`, pode_trocar: false });
@@ -177,9 +174,11 @@ test('isolamento: a empresa B não lê a credencial nem a configura; sem liberar
   assert.equal((await bia.put('/api/admin/config', { pesquisaWeb: { ativa: false } })).status, 200);
   const q = await criarQw(bia, PEDIDO_A);
   const r = await executar(bia, q.id, 'Execute agora.');
-  assert.equal(r.status,409);
-  assert.equal(r.erro.erro,'pesquisa_nao_liberada');
-  assert.equal(r.chamadas.length,0,'pesquisa obrigatória bloqueada antes de inferência');
+  assert.equal(r.falha, undefined);
+  assert.ok(r.chamadas.every(b => !b.plugins), 'sem pesquisa quando a empresa não liberou');
+  assert.ok(r.chamadas.every(b => !JSON.stringify(b.messages).includes('Tema da pesquisa:')), 'sem pesquisa, nada de tema');
+  assert.equal(r.fim.qualidade.pesquisa.feita, false);
+  assert.equal(r.fim.fontes?.filter(f => f.url).length ?? 0, 0);
   // Nenhum dado da empresa A no banco da B.
   assert.equal(JSON.stringify(S.P.tenant(B.id).db.prepare('select * from mensagens').all()).includes('organização documental'), false);
 });

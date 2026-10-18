@@ -25,8 +25,6 @@ import { renderizarDesign, exportarDesign, conferirDesign, paginasParaPrompt } f
 import { decodificarDataUrl } from './assets.js';
 import { corValida, HEX, resolverIdentidade } from './marca.js';
 import { lerConfig } from '../config.js';
-import { pptxDoDesign } from './pptx.js';
-import { MIMES } from '../escritorio.js';
 
 const MAX_TEXTO_EDICAO = 800;
 const cache = new Map();
@@ -95,14 +93,6 @@ function enviarArquivo(res, mime, nome, dados, { inline = false } = {}) {
 
 // Exporta uma versão. Devolve { mime, nome, dados }.
 export async function exportar(app, a, formato, pagina = null) {
-  if (formato === 'pptx' && a.tipo === 'presentation') {
-    if (pagina !== null || !['aprovado', 'corrigido'].includes(a.status)) throw erro(422, 'design_nao_validado', 'O PowerPoint exige a apresentação completa com composição conferida.');
-    const plano = json(a.plano, {});
-    let render = null;
-    if (ehDesign(a)) { if (!lerRender(app, a.id, 'doc.pdf')) await renderDoDesign(app, a); render = { pdf: Buffer.from(lerRender(app, a.id, 'doc.pdf').dados) }; }
-    const x = await pptxDoDesign({ ...a, plano, conteudo: json(a.conteudo, {}), identidade: json(a.identidade, {}), opcoes: json(a.opcoes, {}), assets: carregarAssets(app, a.conversa_id, json(a.opcoes, {}).assets), render }, { titulo: a.titulo, agora: app.agora() });
-    return { mime: MIMES.pptx, nome: nomeArquivo(a, 'pptx'), dados: x.dados };
-  }
   if (ehDesign(a)) return exportarDoDesign(app, a, formato, pagina);
   if (EXPORTACOES_FUTURAS.includes(formato)) throw erro(400, 'formato_nao_suportado', `A exportação em ${formato.toUpperCase()} ainda não está disponível. Use PDF, PNG, JPG ou SVG.`);
   if (!EXPORTACOES[formato]) throw erro(400, 'formato', 'Formato de exportação inválido.');

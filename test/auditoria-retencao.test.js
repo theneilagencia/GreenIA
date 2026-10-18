@@ -172,7 +172,6 @@ test('guardar = não com erros: provedor que repete o pedido, tempo esgotado, no
     }
     // 2. Nova tentativa (conversa sigilosa: outro recurso autorizado, pelo roteador) e reserva do fornecedor.
     catalogo({ [EQUILIBRADO]: ROTA('anthropic'), [RAPIDO]: ROTA('google') });
-    exec(S.app.db, 'update modelos set capacidades=? where id=?', JSON.stringify({geral:2,precisao:2,raciocinio:2}), RAPIDO);
     modo = 'uma_falha';
     const x = await enviar('Organize por data o laudo médico do colaborador; diagnóstico: depressão. Paciente Maria Souza, CPF 529.982.247-25.');
     assert.equal(x.r.status, 200);
@@ -180,7 +179,6 @@ test('guardar = não com erros: provedor que repete o pedido, tempo esgotado, no
     assert.equal(x.n, 1, 'a primeira falhou antes do serviço; a nova tentativa, por outro recurso autorizado, respondeu');
     assert.ok(um(S.app.db, "select 1 from eventos where tipo = 'ai.failed' and detalhes like '%nova_rota%' and detalhes like '%status 502%'"));
     semRastro('nova tentativa', antes);
-    exec(S.app.db,'update modelos set capacidades=null where id=?',RAPIDO);
     catalogo({});
     const sonda = await enviar('Resuma em uma linha: o tempo hoje está bom.');
     const principal = um(S.app.db, 'select modelo from roteamento where conversa_id = ?', sonda.conv.id).modelo;

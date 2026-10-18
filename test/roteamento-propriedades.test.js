@@ -1,5 +1,3 @@
-import { catalogoAdvancedFalso } from './advanced-fixture.js';
-import { concederAdvanced } from '../src/advanced.js';
 // Propriedades e monotonicidade do roteador, sobre cenários gerados (semente fixa: reproduzível).
 // Cada cenário sorteia catálogo, preços, janelas, liberação, homologação, reservas, acesso, sigilo,
 // plano, quick win, preferência e o próprio pedido. As propriedades valem para TODOS os cenários.
@@ -13,7 +11,7 @@ import { perfisDe } from '../src/modelos.js';
 const N = Number(process.env.CENARIOS || 400);
 const GOVERNANCA = ['nao_homologado', 'plano_na_reserva', 'gratuito_treina_com_dados', 'sem_acesso_a_classe', 'contexto_insuficiente'];
 const CLASSES = ['rapido', 'equilibrado', 'avancado'];
-const DIMS_CAP = ['geral', 'raciocinio', 'programacao', 'precisao', 'leitura_longa'];
+const DIMS_CAP = ['geral', 'raciocinio', 'programacao', 'precisao', 'volume'];
 
 // Gerador pseudoaleatório com semente (mulberry32).
 function sorteador(semente) {
@@ -57,16 +55,7 @@ export function cenario(semente) {
     roteamento: { ativo: true, preferencia: g.de(['economia', 'equilibrio', 'qualidade']) },
   });
   const cfg = lerConfig(db);
-  const pessoa = { id:1, grupos: [], areas: [] };
-  exec(db,"insert into pessoas(id,email) values(1,'matriz@exemplo.test')");
-  if(cfg.acessoPerfis.avancado.todos){
-    const modelos=ids.filter(id=>db.prepare('select perfil from modelos where id=?').get(id).perfil==='avancado');
-    if(modelos.length){
-      const app={db,agora:()=>new Date()};catalogoAdvancedFalso(app,modelos,['x']);
-      for(const id of modelos){const a=JSON.parse(db.prepare('select atributos from modelos where id=?').get(id).atributos);a.advanced={aprovado:true,provedores:['x']};exec(db,'update modelos set atributos=? where id=?',JSON.stringify(a),id);}
-      concederAdvanced(app,{id:1,admin:true},{pessoa_id:1,modelos,provedores:['x'],limite_usd:100,limite_chamada_usd:10,saida_tokens:32768,expira_em:new Date(Date.now()+86400000).toISOString()});
-    }
-  }
+  const pessoa = { grupos: [], areas: [] };
   const qwTipo = g.de(['nenhum', 'nenhum', 'fixo', 'flexivel']);
   const qw = qwTipo === 'nenhum' ? null : { modelo: `classe:${g.de(CLASSES)}`, pode_trocar: qwTipo === 'flexivel' };
   const texto = g.de(TEXTOS);
@@ -94,16 +83,15 @@ function rotearCenario(c, { analise = analisarPedido(c.pedido), cfg = c.cfg, ...
     analise, modeloManual, origem: qwFixo ? 'quick_win' : 'auto', ...extra });
 }
 
-function* cenarios(){for(let i=0;i<N;i++){const c=cenario(1000+i);try{yield c;}finally{c.db.close();}}}
+const cenarios = () => Array.from({ length: N }, (_, i) => cenario(1000 + i));
 const capDe = (rota, id) => { const c = rota.candidatos.find(x => x.id === id); return c?.capacidades || Object.fromEntries(DIMS_CAP.map(d => [d, NIVEL[c?.classe] || 0])); };
 
 test(`governança, janela e permissão: nunca violadas (${N} cenários)`, () => {
-  let escolhas=0,bloqueios=0,avaliados=0;
-  const classes=new Set();
+  let escolhas = 0;
   for (const c of cenarios()) {
-    const rota=rotearCenario(c);avaliados++;
-    if(!rota?.modelo){bloqueios++;continue;}
-    escolhas++;classes.add(rota.modelo.perfil);
+    const rota = rotearCenario(c);
+    if (!rota?.modelo) continue;
+    escolhas++;
     const esc = rota.candidatos.find(x => x.status === 'escolhido');
     const qwFixo = c.qw && !c.qw.pode_trocar;
     // Quick win fixo: o acesso à classe vem do quick win; as demais regras valem.
@@ -116,10 +104,7 @@ test(`governança, janela e permissão: nunca violadas (${N} cenários)`, () => 
     if (c.cfg.exigirSemTreino) assert.ok(!m.id.endsWith(':free'), 'sem treino');
     assert.ok(!m.contexto || m.contexto * MARGEM_JANELA >= rota.requisitos.janelaMinima, 'janela suficiente');
     const perfis = perfisDe(c.cfg, c.pessoa);
-    if(m.perfil==='avancado'){
-      const a=c.db.prepare("select modelos from advanced_autorizacoes where pessoa_id=? and revogada=0 and expira_em>?").all(c.pessoa.id,new Date().toISOString());
-      assert.ok(a.some(x=>JSON.parse(x.modelos).includes(m.id)),'Advanced exige autorização explícita para o modelo');
-    }else assert.ok(perfis.has(m.perfil) || (c.qw && m.perfil === c.qw.modelo.slice(7)), 'dentro do acesso da pessoa');
+    assert.ok(perfis.has(m.perfil) || (c.qw && m.perfil === c.qw.modelo.slice(7)), 'dentro do acesso da pessoa');
     if (rota.reserva) {
       const r = c.db.prepare('select * from modelos where id = ?').get(rota.reserva);
       assert.ok(!c.sigilosa && r.liberado && (!r.contexto || r.contexto * MARGEM_JANELA >= rota.requisitos.janelaMinima), 'reserva também respeita as regras');
@@ -129,9 +114,7 @@ test(`governança, janela e permissão: nunca violadas (${N} cenários)`, () => 
     if (qwFixo && !rota.fallback) assert.equal(rota.motivoEscolha, 'melhor_modelo_no_nivel', 'quick win com classe fixa usa a seleção no seu conjunto');
     if (qwFixo) assert.equal(rota.modelo.perfil, c.qw.modelo.slice(7), 'quick win fixo: nem trocando por janela sai da classe');
   }
-  assert.equal(avaliados,N);
-  assert.ok(escolhas>0&&bloqueios>0,'exercita execução e bloqueio, sem exigir redução de capacidade para atingir uma taxa arbitrária');
-  assert.deepEqual([...classes].sort(),['avancado','equilibrado','rapido']);
+  assert.ok(escolhas > N * 0.3, `cenários com escolha: ${escolhas}`);
 });
 
 test(`capacidade: sem fallback, o escolhido atende a todos os requisitos (${N} cenários)`, () => {
@@ -147,8 +130,7 @@ test(`capacidade: sem fallback, o escolhido atende a todos os requisitos (${N} c
 
 test(`quick win flexível: a classe dele é piso e não impede subir (${N} cenários)`, () => {
   let subiu = 0;
-  for (const c of cenarios()) {
-    if(!c.qw?.pode_trocar) continue;
+  for (const c of cenarios().filter(x => x.qw?.pode_trocar)) {
     const rota = rotearCenario(c);
     if (!rota?.modelo || rota.fallback) continue;
     assert.ok(NIVEL[rota.modelo.perfil] >= NIVEL[c.qw.modelo.slice(7)], 'piso do quick win');

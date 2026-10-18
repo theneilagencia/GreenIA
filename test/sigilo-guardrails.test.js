@@ -1,4 +1,3 @@
-import { autorizarAdvancedFalso } from './advanced-fixture.js';
 // Informações sigilosas com guardrails de proteção. Invariante:
 //   sigilosa E política ligada E guardrails satisfeitos E recurso autorizado E rota elegível → ENVIA;
 //   qualquer outra combinação → NÃO ENVIA (e a chamada externa não acontece).
@@ -201,7 +200,6 @@ test('política ON + guardrail inválido, autorização ausente ou desconhecida:
 
 test('economia nunca supera autorização: o barato não autorizado nunca é usado, mesmo para pedido simples', async () => {
   politica(true);
-  await autorizarAdvancedFalso(S,admin,ana.pessoa,[AVANCADO],['Anthropic','AnthropicB']);
   catalogo({ [AVANCADO]: ROTA('Anthropic') });   // só o caro é autorizado
   for (const pedido of [undefined, RAPIDO, 'classe:rapido']) {
     const x = await enviar(await sigilosa(), "Traduza 'bom dia' para o inglês.", pedido ? { modelo: pedido } : {});

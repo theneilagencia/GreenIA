@@ -225,11 +225,8 @@ test('pedido de PowerPoint ou Word: o arquivo aparece como cartão de anexo logo
   const p = await pagina(pessoa);
   await p.goto(`${S.base}/app#/c/${c.id}`); await p.waitForSelector('.rodape-resposta');
   const cartoes = ultima(p).locator('.arquivos-resposta .anexo-resposta');
-  const nomes=(await cartoes.allInnerTexts()).map(t=>t.split('\n')[0]);
-  assert.equal(nomes.length,2);assert.ok(nomes.some(n=>/\.docx$/.test(n)));assert.ok(nomes.some(n=>/\.pptx$/.test(n)));
-  const [word]=await Promise.all([p.waitForEvent('download'),cartoes.filter({hasText:/\.docx/}).click()]);
-  assert.ok(deszipar(readFileSync(await word.path())).has('word/document.xml'));
-  const [pptx] = await Promise.all([p.waitForEvent('download'), cartoes.filter({hasText:/\.pptx/}).click()]);
+  assert.deepEqual((await cartoes.allInnerTexts()).map(t => t.split('\n')[0]), ['Documento Word', 'Apresentação PowerPoint']);
+  const [pptx] = await Promise.all([p.waitForEvent('download'), cartoes.nth(1).click()]);
   assert.match(pptx.suggestedFilename(), /\.pptx$/);
   const z = deszipar(readFileSync(await pptx.path()));
   assert.ok(z.has('ppt/slides/slide2.xml'));

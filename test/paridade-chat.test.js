@@ -59,26 +59,15 @@ test('sugestão de agente/automação usa só recursos da GreenIA, sem APIs de t
 
 test('imagem: gerada na conversa com a proporção pedida; "troque a roupa" edita a última; anexada é editada', async () => {
   const conv = await nova();
-  const pedido = 'Gere uma imagem fotorrealista em 16:9 de uma profissional de 40 anos num escritório, com espaço livre à direita.';
-  const chamadasAntes = OR.chamadas.length;
-  const semAcesso = await enviarMensagem(ana, conv.id, { texto: pedido });
-  assert.equal(semAcesso.status, 403);
-  assert.equal(OR.chamadas.length, chamadasAntes);
-  const modelo = 'anthropic/claude-opus-5.5';
-  salvarConfig(S.app.db, { advanced: { limiteMensalUsd: 20 } });
-  assert.equal((await admin.put(`/api/admin/modelos/${encodeURIComponent(modelo)}`, { liberado: true, perfil: 'avancado' })).status, 200);
-  assert.equal((await admin.put(`/api/admin/advanced/modelos/${encodeURIComponent(modelo)}`, { aprovado: true, provedores: ['anthropic'], justificativa: 'Rota controlada do provedor simulado neste teste.' })).status, 200);
-  const autorizacao = await admin.post('/api/admin/advanced/autorizacoes', { pessoa_id: ana.pessoa.id, modelos: [modelo], provedores: ['anthropic'], limite_usd: 10, limite_chamada_usd: 2, saida_tokens: 32768, expira_em: new Date(Date.now() + 86400000).toISOString() });
-  assert.equal(autorizacao.status, 200, JSON.stringify(autorizacao.dados));
   const antes = imagens().length;
-  const r = await enviarMensagem(ana, conv.id, { texto: pedido });
-  assert.equal(r.status, 200, JSON.stringify(r));
+  const r = await enviarMensagem(ana, conv.id, { texto: 'Gere uma imagem fotorrealista em 16:9 de uma profissional de 40 anos num escritório, com espaço livre à direita.' });
+  assert.equal(r.status, 200);
   const a = r.fim.arquivos?.[0];
   assert.equal(a?.tipo, 'imagem', 'a imagem chega como arquivo da resposta');
-  const chamadaImagem = imagens().at(-1);
+  const pedido = imagens().at(-1);
   assert.equal(imagens().length, antes + 1);
-  assert.equal(chamadaImagem.image_config?.aspect_ratio, '16:9');
-  assert.match(texto(chamadaImagem.messages[0].content), /profissional de 40 anos/);
+  assert.equal(pedido.image_config?.aspect_ratio, '16:9');
+  assert.match(texto(pedido.messages[0].content), /profissional de 40 anos/);
   assert.match(texto(OR.chamadas.filter(b => !b.modalities).at(-1).messages[0].content), /vai gerar a imagem/, 'o texto não diz que não consegue');
   const ver = await ana.req('GET', `/api/conversas/${conv.id}/arquivos/${a.id}?ver=1`);
   assert.equal(ver.status, 200);
@@ -245,11 +234,10 @@ test('agente e automação viram Quick Win (não código); pesquisa atual usa a 
   await enviarMensagem(ana, conv.id, { texto: 'Crie um agente para analisar propostas comerciais e reutilizar depois.' });
   assert.match(texto(OR.chamadas.filter(b => !b.modalities).at(-1).messages[0].content), /um agente reutilizável é um Quick Win/);
   salvarConfig(S.app.db, { pesquisaWeb: { ativa: false } });
-  const antesBloqueio = OR.chamadas.length;
-  const bloqueio = await enviarMensagem(ana, (await nova()).id, { texto: 'Pesquise as novidades dos últimos 30 dias sobre IA.' });
-  assert.equal(bloqueio.status, 409);
-  assert.equal(bloqueio.erro.erro, 'pesquisa_nao_liberada');
-  assert.equal(OR.chamadas.length, antesBloqueio, 'não inspeciona uma chamada antiga como se fosse a execução bloqueada');
+  await enviarMensagem(ana, (await nova()).id, { texto: 'Pesquise as novidades dos últimos 30 dias sobre IA.' });
+  let b = OR.chamadas.filter(x => !x.modalities).at(-1);
+  assert.match(texto(b.messages[0].content), /A pesquisa na internet não foi usada.*não está liberada pela empresa/s);
+  assert.equal(b.plugins, undefined);
   salvarConfig(S.app.db, { pesquisaWeb: { ativa: true } });
   try {
     const antes = OR.chamadas.length;

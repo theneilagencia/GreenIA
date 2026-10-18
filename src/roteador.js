@@ -587,7 +587,6 @@ export const MOTIVO_SUBSTITUICAO = {
 export const MOTIVO_DA_CAUSA = {
   nao_homologado: 'requested_model_not_homologated', plano_na_reserva: 'requested_model_plan_restricted', gratuito_treina_com_dados: 'requested_model_policy_restricted', protecao_insuficiente: 'requested_model_area_protection',
   sem_acesso_a_classe: 'requested_model_permission_restricted', contexto_insuficiente: 'requested_model_context_limit', capacidade_insuficiente: 'requested_model_insufficient_capacity',
-  qualidade_nao_disponivel: 'requested_model_insufficient_capacity',
   modelo_pedido_fora_da_lista: 'requested_model_not_available',
 };
 

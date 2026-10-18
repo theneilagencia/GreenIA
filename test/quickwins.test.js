@@ -1,4 +1,3 @@
-import { autorizarAdvancedFalso } from './advanced-fixture.js';
 // Quick wins: configuração, arquivos, teste, conversas com retomada e ajustes,
 // feedback, uso, visibilidade por área, filtro, perfis e conversas sigilosas.
 import { test, before, after } from 'node:test';
@@ -91,15 +90,15 @@ test('quick win de ponta a ponta: configurar com arquivo, testar, ativar, conver
   assert.equal(uso.pessoas, 1);
   assert.deepEqual(uso.feedback, { serviu: 0, ajustes: 1, nao_serviu: 0, sem: 0 });
   // Quem gerencia compara por nível; o nome técnico do modelo fica só com quem administra.
-  assert.equal(uso.porNivel.length, 2, 'nova tentativa também registra o nível que efetivamente respondeu');
+  assert.equal(uso.porNivel.length, 1);
   assert.equal(uso.porNivel[0].nomeNivel, 'Rápido');
   assert.equal(uso.porNivel[0].conversas, 1);
   assert.equal(uso.porNivel[0].ajustes, 1, 'a conversa conta uma vez, mesmo com três respostas');
   assert.deepEqual(uso.porModelo, []);
   assert.ok(!JSON.stringify(uso.porNivel).includes('/'), 'sem identificador técnico de modelo');
   const usoAdmin = (await admin.get(`/api/quick-wins/${qw.id}/uso`)).dados;
-  assert.equal(usoAdmin.porModelo.length, 2);
-  assert.deepEqual(usoAdmin.porModelo.map(m=>m.nivel).sort(),['equilibrado','rapido']);
+  assert.equal(usoAdmin.porModelo.length, 1);
+  assert.equal(usoAdmin.porModelo[0].nivel, 'rapido');
   assert.ok(usoAdmin.porModelo[0].modelo);
   assert.ok(uso.custo > 0);
   // Quem usa não vê o uso nem a configuração completa.
@@ -137,13 +136,20 @@ test('perfis: sem o Avançado, a pessoa usa o Avançado que é padrão do quick 
   const q = (await ana.post('/api/quick-wins', { nome: 'Análise avançada', areas: [A.id], modelo: 'classe:avancado', pode_trocar: true })).dados;
   await ana.put(`/api/quick-wins/${q.id}`, { status: 'ativo' });
   const conv = (await carlos.post('/api/conversas', { quick_win_id: q.id })).dados.conversa;
-  const n=OR.chamadas.length;
-  let r=await enviarMensagem(carlos,conv.id,{texto:'Analise este cenário'});
-  assert.equal(r.status,403);assert.equal(OR.chamadas.length,n);
-  const grant=await autorizarAdvancedFalso(S,admin,carlos.pessoa,[AVANCADO]);
-  try{r=await enviarMensagem(carlos,conv.id,{texto:'Analise este cenário'});assert.equal(r.status,200,JSON.stringify(r));assert.equal(OR.chamadas.at(-1).model,AVANCADO);
-    const antes=OR.chamadas.length;r=await enviarMensagem(carlos,conv.id,{texto:'De novo',modelo:AVANCADO2});assert.equal(r.status,403);assert.equal(OR.chamadas.length,antes);
-  }finally{await admin.post(`/api/admin/advanced/autorizacoes/${grant}/revogar`);}
+  let r = await enviarMensagem(carlos, conv.id, { texto: 'Analise este cenário' });
+  assert.equal(r.status, 200);
+  assert.equal(OR.chamadas.at(-1).model, AVANCADO);
+  const opcoes = (await carlos.get(`/api/modelos?quick_win=${q.id}`)).dados.opcoes.map(o => o.id);
+  assert.ok(opcoes.includes('classe:avancado') && !opcoes.includes(AVANCADO2));
+  // Pedido forçado a outro Avançado: não é usado; a GreenIA resolve com o que ele pode usar, sem perguntar.
+  r = await enviarMensagem(carlos, conv.id, { texto: 'De novo', modelo: AVANCADO2 });
+  assert.equal(r.status, 200);
+  assert.notEqual(OR.chamadas.at(-1).model, AVANCADO2);
+  // No chat, sem o perfil, a classe Avançado não é usada: o pedido segue no automático.
+  const chat = (await carlos.post('/api/conversas', {})).dados.conversa;
+  r = await enviarMensagem(carlos, chat.id, { texto: 'Olá', modelo: 'classe:avancado' });
+  assert.equal(r.status, 200);
+  assert.notEqual(r.fim.classe, 'avancado');
   // O admin define quais perfis podem ser padrão de quick win.
   await admin.put('/api/admin/modelos-config', { perfisQuickWin: ['rapido', 'equilibrado'] });
   assert.equal((await ana.put(`/api/quick-wins/${q.id}`, { modelo: 'classe:avancado' })).status, 400);
@@ -195,8 +201,7 @@ test('estimativa de custo por conversa típica, por modelo, a partir do preço d
   const est = (await ana.get(`/api/quick-wins/${qw.id}/estimativas`)).dados.modelos;
   assert.ok(est.every(m => m.classe));
   const g = est.find(m => m.id === 'classe:rapido');
-  assert.ok(g.custo > 0, String(g.custo));
-  assert.equal((await ana.get(`/api/quick-wins/${qw.id}/estimativas`)).dados.unidade,'creditos');
+  assert.ok(g.custo > 0 && g.custo < 0.05, String(g.custo));
   assert.ok(est.find(m => m.id === 'classe:avancado').custo > g.custo, 'a classe Avançado custa mais que a Rápido');
   const doAdmin = (await admin.get(`/api/quick-wins/${qw.id}/estimativas`)).dados.modelos;
   assert.equal(doAdmin.find(m => m.id === AVANCADO2).custo, null, 'sem preço no catálogo: sem estimativa');

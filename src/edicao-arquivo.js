@@ -10,7 +10,6 @@
 import { pedeRedesignApresentacao } from '../public/qualidade-entrega.js';
 import { inflateRawSync } from 'node:zlib';
 import { zipar, formulaDaCelula, MIMES } from './escritorio.js';
-import { normalizarXmlPlanilha } from './xml-planilha.js';
 
 const TETO_DESCOMPACTADO = 250 * 1024 * 1024;
 export const TIPOS_EDITAVEIS = ['docx', 'pptx', 'xlsx'];
@@ -339,7 +338,7 @@ export function deslocarFormula(f, dl, dc) {
   return out;
 }
 function abasDoLivro(m) {
-  const livro = normalizarXmlPlanilha(texto(m, 'xl/workbook.xml')) || '';
+  const livro = texto(m, 'xl/workbook.xml') || '';
   const rels = relacoes(texto(m, 'xl/_rels/workbook.xml.rels'));
   return [...livro.matchAll(/<sheet\b[^>]*>/g)].map(x => ({ nome: ent(/\bname="([^"]+)"/.exec(x[0])?.[1] || ''), parte: alvoRelativo('xl/workbook.xml', rels.find(r => r.id === /r:id="([^"]+)"/.exec(x[0])?.[1])?.alvo || '') }))
     .filter(a => m.has(a.parte));
@@ -347,7 +346,6 @@ function abasDoLivro(m) {
 const RE_CELULA = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
 const attr = (s, n) => new RegExp(`\\b${n}="([^"]*)"`).exec(s)?.[1];
 function celulasDaAba(xml, compart) {
-  xml = normalizarXmlPlanilha(xml);
   const cel = new Map(), mestres = new Map();
   for (const m of xml.matchAll(RE_CELULA)) {
     const ref = attr(m[1], 'r'); if (!ref) continue;
@@ -365,7 +363,7 @@ function celulasDaAba(xml, compart) {
   }
   return cel;
 }
-const compartilhados = m => [...(normalizarXmlPlanilha(texto(m, 'xl/sharedStrings.xml')) || '').matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g)].map(x => ent([...x[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(t => t[1]).join('')));
+const compartilhados = m => [...(texto(m, 'xl/sharedStrings.xml') || '').matchAll(/<si>([\s\S]*?)<\/si>/g)].map(x => ent([...x[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(t => t[1]).join('')));
 function conteudoXlsx(m) {
   const compart = compartilhados(m), linhas = [];
   for (const a of abasDoLivro(m)) {
@@ -457,7 +455,7 @@ function aplicarXlsx(m, pacote, ops) {
   for (const o of ops) {
     const a = achar(o.aba);
     if (!a) { ignoradas.push({ ...o, motivo: 'aba_nao_encontrada' }); continue; }
-    let xml = normalizarXmlPlanilha(texto(m, a.parte));
+    let xml = texto(m, a.parte);
     if (o.op === 'celula') {
       const r = definirCelula(xml, o.ref, o);
       if (!r.ok) { ignoradas.push({ ...o, motivo: r.motivo }); continue; }
@@ -473,7 +471,7 @@ function aplicarXlsx(m, pacote, ops) {
   }
   if (feitas) {
     // O Excel recalcula tudo ao abrir (os valores guardados das fórmulas mudadas não existem mais) e refaz a cadeia de cálculo.
-    let livro = normalizarXmlPlanilha(texto(m, 'xl/workbook.xml'));
+    let livro = texto(m, 'xl/workbook.xml');
     livro = /<calcPr\b/.test(livro) ? livro.replace(/<calcPr\b([^>]*?)(\/?)>/, (x, at, f) => `<calcPr${at.replace(/\s*fullCalcOnLoad="[^"]*"/, '')} fullCalcOnLoad="1"${f}>`) : livro.replace(/(<\/sheets>)/, '$1<calcPr fullCalcOnLoad="1"/>');
     gravar(m, 'xl/workbook.xml', livro);
     if (m.has('xl/calcChain.xml')) {

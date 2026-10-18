@@ -134,8 +134,6 @@ export function emCreditos(v, chave) {
     for (const [k, x] of Object.entries(v)) {
       if(k==='financeiro')continue;
       if(k==='detalhes'&&v.tipo==='model.price_changed'){out[k]='Revisão do catálogo registrada. Informações financeiras restritas à Administração Geral.';continue;}
-      // Faixa descritiva da sugestão não é um valor monetário.
-      if (k==='custo' && ['econômico','médio','alto'].includes(x)) {out[k]=x;continue;}
       if (CHAVES_PRECO.has(k) || /^(preco|price|pricing|margem|receita|lucro|conversao|ai_credit_base_cost|precosAlternativos)/i.test(k)) continue;
       if (/_usd$/i.test(k) || /Usd$/.test(k)) { out[k.replace(/_usd$/i,'_creditos').replace(/Usd$/,'Creditos')]=typeof x==='number'?x/CREDITO_USD:x; continue; }
       if ((['porChamada','estimativa','saldoDisponivel','reservado'].includes(k)||k==='limite'&&'validadeDias' in v) && typeof x==='number') { out[k]=x/CREDITO_USD; continue; }

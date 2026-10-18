@@ -14,23 +14,26 @@ import { chromium } from 'playwright-core';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 import { subirPlataforma } from '../test/ajuda-plataforma.js';
 import { enviarMensagem } from '../test/openrouter-falso.js';
 import { arquivo, docx, xlsx } from '../test/arquivos.js';
 import { criarOpenRouter, criarIndisponivel } from '../src/ia.js';
-import { json, um } from '../src/db.js';
+import { json, um, todos } from '../src/db.js';
 import { limparCacheInterpretacao } from '../src/quickwin-interpretacao.js';
 import { rotuloEntregavel, MARCADOR_PERGUNTA } from '../src/quickwin-operacao.js';
 import { observarResposta, falhasDaEntrega, consolidarRecibos, canaisNaoPedidos } from './qa-real-evidencias.mjs';
 import { verificarPlanilhaQa } from './qa-planilha-oraculo.mjs';
 import { prepararAdvancedQa } from './qa-advanced-real.mjs';
+import { verificarFacilitiesQa } from './qa-facilities-oraculo.mjs';
 import { lerModelos } from '../src/modelos.js';
+import { extrairMaterialRetomada } from './qa-baixar-candidata.mjs';
 import { BATERIA, SURPRESA, CONTRATO, PROPOSTAS, TRANSCRICAO, CVS, planilha, SMOKE15, MATERIAIS_TEXTO, SURPRESA10 } from './qa-cenarios.mjs';
 // QA_PARTES=homologacao: só os 15 casos principais e os 10 surpresa (com as classes); padrão: tudo.
 const PARTES = (process.env.QA_PARTES || 'tudo').split(',');
 const roda = p => PARTES.includes('tudo') || PARTES.includes(p);
 const SELECAO = process.env.QA_CASOS ? new Set(process.env.QA_CASOS.split(',')) : null;
+const SELECAO_CLASSES = process.env.QA_CLASSES ? new Set(process.env.QA_CLASSES.split(',')) : null;
 
 const RODADA = new Date().toISOString().replace(/[:.]/g, '-');
 const SAIDA = join(process.cwd(), 'qa-candidato-saida', RODADA); mkdirSync(SAIDA, { recursive: true });
@@ -42,6 +45,7 @@ const ISOLADO = process.env.QA_KEY_FD === '3';
 if (ISOLADO && process.env.QA_AUTOTESTE === '1') throw new Error('O modo real não aceita IA simulada.');
 R.escopo = { candidato: process.env.QA_COMMIT || null, bancoTemporario: true, autenticacao: 'contas fictícias locais', iaRealSolicitada: ISOLADO, designIA: process.env.DESIGN_IA === '1', liberacaoProducao: false,
   selecao: SELECAO ? [...SELECAO] : null,
+  selecaoClasses: SELECAO_CLASSES ? [...SELECAO_CLASSES] : null,
   pendente: ['login e permissões no ambiente implantado', 'download e inspeção dos arquivos gerados', 'aceitação dos resultados pelo tipo de trabalho', 'casos negativos com configuração real do cliente'] };
 const salvar = () => {
   R.recibos = chamadas.map(({ pronto, ...c }) => c);
@@ -181,8 +185,20 @@ async function executar(qwId, corpo, rot, conv = null) {
   for (let i = 0; ; i++) { r = await enviarMensagem(ana, conv.id, { executar_quick_win: true, ...corpo }); if (r.status !== 429 || i >= 3) break; log('   (limite de rajada: aguardando 65 s)'); await new Promise(ok => setTimeout(ok, 65e3)); }
   await esperar();
   const minhas = chamadas.slice(antes), soma = t => minhas.filter(x => x.tipo === t).reduce((s, x) => s + (x.ms || 0), 0);
+  // Preserva os arquivos sintéticos antes de apagar o banco temporário. Isso não substitui testar
+  // download, conteúdo e aparência: os bytes ficam disponíveis para essa inspeção posterior.
+  const artefatos = [];
+  if (ISOLADO) for (const a of todos(db, 'select id,nome,mime,dados from arquivos_gerados where conversa_id = ? order by id', conv.id)) {
+    const nome = `${a.id}-${String(a.nome).replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const destino = join(SAIDA, 'artefatos'); mkdirSync(destino, { recursive: true });
+    const bytes = Buffer.from(a.dados); writeFileSync(join(destino, nome), bytes);
+    artefatos.push({ id: a.id, nome: a.nome, mime: a.mime, bytes: bytes.length, arquivo: `artefatos/${nome}`, sha256: createHash('sha256').update(bytes).digest('hex'), inspecaoConteudo: 'pendente', downloadHTTP: 'pendente' });
+  }
+  if (artefatos.length) (R.artefatosPreservados ??= []).push({ caso: rot, conversa: conv.id, arquivos: artefatos });
+  const rt = um(db, 'select classe_necessaria,classe_pedida,motivo_bloqueio,requisitos,fallback from roteamento where conversa_id = ? order by id desc limit 1', conv.id);
+  const roteamento = rt ? { ...rt, requisitos: json(rt.requisitos, {}), fallback: json(rt.fallback, null) } : null;
   const texto = r.texto || '';
-  return { conv, http: r.status, finalizou: !!r.fim, custosPendentes: minhas.filter(c => c.custo === null).length, erroCodigo: r.erro?.erro || r.falha?.codigo || null, erroDetalhes: r.erro || r.falha || null, chamadasReais: minhas.filter(c => c.status === 200 && c.geracao && c.modeloResposta && !c.erroStream && !c.erroProvedor).length, ms: Date.now() - t0, texto, status: r.fim?.qualidade?.status || (r.falha || r.erro ? 'erro' : null), falha: r.falha?.mensagem || (r.erro ? `${r.status} ${r.erro.erro || ''} ${r.erro.mensagem || ''}`.trim() : null), qualidade: r.fim?.qualidade || null,
+  return { conv, roteamento, http: r.status, finalizou: !!r.fim, custosPendentes: minhas.filter(c => c.custo === null).length, erroCodigo: r.erro?.erro || r.falha?.codigo || null, erroDetalhes: r.erro || r.falha || null, chamadasReais: minhas.filter(c => c.status === 200 && c.geracao && c.modeloResposta && !c.erroStream && !c.erroProvedor).length, ms: Date.now() - t0, texto, status: r.fim?.qualidade?.status || (r.falha || r.erro ? 'erro' : null), falha: r.falha?.mensagem || (r.erro ? `${r.status} ${r.erro.erro || ''} ${r.erro.mensagem || ''}`.trim() : null), qualidade: r.fim?.qualidade || null,
     fontes: (r.fim?.fontes || []).filter(f => f.url).map(f => f.url), pergunta: texto.startsWith(MARCADOR_PERGUNTA), modelos: [...new Set(minhas.filter(x => x.tipo === 'execucao').map(x => x.modeloResposta || x.modelo))],
     pedido: minhas.find(x => x.tipo === 'execucao')?.modelo || null, custo: custoDe(minhas),
     fases: { coleta: soma('coleta'), execucao: soma('execucao') + soma('autonomia'), conferencia: soma('conferencia') + soma('correcao') }, web: minhas.filter(x => x.web) };
@@ -238,7 +254,7 @@ const materialDe = chave => chave === 'contrato' ? { texto: 'Material anexo (fic
   : chave === 'curriculos' ? { texto: 'Vaga (fictícia): planejador de manutenção. Requisitos: 4+ anos em planejamento, SAP PM, inglês intermediário.', anexos: CVS.map((c, i) => arquivo(`cv-qa-${i + 1}.docx`, docx(c))) }
   : chave ? { texto: MATERIAIS_TEXTO[chave] } : { texto: 'Execute agora.' };
 if (roda('homologacao')) {
-  log('\n[H1] 15 casos principais');
+  log(`\n[H1] ${SMOKE15.filter(([id]) => !SELECAO || SELECAO.has(id)).length} casos principais selecionados`);
   for (const [id, pedido, material, esperado] of SMOKE15) {
     if (SELECAO && !SELECAO.has(id)) { R.homologacao.principais.push({ id, estado: 'fora_desta_rodada', utilizavel: null }); continue; }
     if (casoSuspenso(R.homologacao.principais, id)) continue;
@@ -255,18 +271,26 @@ if (roda('homologacao')) {
       log(falhas.length ? 'FAIL' : 'PASS', id, it.fonte, x.status, `${x.ms}ms`, mostrarCusto(x.custo), falhas.join('; ')); salvar();
     } catch (e) { R.homologacao.principais.push({ id, erro: String(e.message) }); salvar(); }
   }
-  log('\n[H2] 10 surpresa (motor congelado; material do "Exemplo pronto")');
+  log(`\n[H2] ${SURPRESA10.filter(([id]) => !SELECAO || SELECAO.has(id)).length} casos surpresa selecionados`);
   for (const [id, pedido] of SURPRESA10) {
+    if (SELECAO && !SELECAO.has(id)) { R.homologacao.surpresa.push({ id, estado: 'fora_desta_rodada', utilizavel: null }); continue; }
     if (casoSuspenso(R.homologacao.surpresa, id)) continue;
     try {
       const it = await interpretar(pedido); if (casoSuspenso(R.homologacao.surpresa, id)) continue;
       const qw = await criar(pedido, it);
-      rotulo = `h_${id}_exemplo`; const ex = (await ana.post(`/api/quick-wins/${qw.id}/exemplo-teste`, {})).dados; await esperar();
+      rotulo = `h_${id}_exemplo`;
+      const ex = process.env.QA_MATERIAIS
+        ? { modo: 'texto', texto: extrairMaterialRetomada(readFileSync(join(process.env.QA_MATERIAIS, `h-${id}.md`), 'utf8')), origem: 'rodada_anterior' }
+        : { ...(await ana.post(`/api/quick-wins/${qw.id}/exemplo-teste`, {})).dados, origem: 'exemplo_gerado' };
+      await esperar();
+      if (ex.texto) writeFileSync(join(SAIDA, `material-${id}.txt`), ex.texto);
       if (ex.modo !== 'texto') { R.homologacao.surpresa.push({ id, pedido, fonte: it.fonte, exemplo: ex.modo, utilizavel: false, falhas: [`exemplo pronto não gerou texto (${ex.modo})`] }); salvar(); continue; }
       const x = await executar(qw.id, { texto: ex.texto }, `h_${id}`);
       writeFileSync(join(SAIDA, `h-${id}.md`), `${ex.texto}\n\n---\n\n${x.texto}`);
       const falhas = usabilidade(pedido, it, x, null);
-      R.homologacao.surpresa.push({ id, pedido, fonte: it.fonte, plano: plano_(it.operacao), status: x.status, http: x.http, erroCodigo: x.erroCodigo, erroDetalhes: x.erroDetalhes, pergunta: x.pergunta, avisos: x.qualidade?.avisos || [], ms: x.ms, custo: x.custo, utilizavel: !falhas.length && it.fonte === 'ia', falhas });
+      const conferenciaDados = id === 'U05' ? verificarFacilitiesQa(ex.texto, x.texto) : null;
+      if (conferenciaDados) falhas.push(...conferenciaDados.falhas);
+      R.homologacao.surpresa.push({ id, pedido, fonte: it.fonte, plano: plano_(it.operacao), material: { origem: ex.origem, sha256: createHash('sha256').update(ex.texto).digest('hex') }, conferenciaDados, qualidade: x.qualidade, status: x.status, http: x.http, erroCodigo: x.erroCodigo, erroDetalhes: x.erroDetalhes, pergunta: x.pergunta, avisos: x.qualidade?.avisos || [], ms: x.ms, custo: x.custo, utilizavel: !falhas.length && it.fonte === 'ia', falhas });
       log(falhas.length ? 'FAIL' : 'PASS', id, it.fonte, x.status, `${x.ms}ms`, falhas.join('; ')); salvar();
     } catch (e) { R.homologacao.surpresa.push({ id, erro: String(e.message) }); salvar(); }
   }
@@ -355,13 +379,15 @@ const AMOSTRA = [['contrato', 'Analise este contrato e destaque riscos, obrigaç
   ['social', 'Crie conteúdo para LinkedIn e Instagram com copy, carrossel e Reels.', { texto: 'Tema (fictício): lançamento do módulo de compliance documental.' }]];
 if (R.classesDistintas && !R.interrompido) for (const [id, pedido, corpo] of AMOSTRA) {
   if (R.interrompido) break;
+  if (SELECAO_CLASSES && !['rapido', 'equilibrado', 'avancado'].some(c => SELECAO_CLASSES.has(`${c}/${id}`))) continue;
   const it = await interpretar(pedido); const qw = await criar(pedido, it);
   for (const classe of ['rapido', 'equilibrado', 'avancado']) {
     if (R.interrompido) break;
+    if (SELECAO_CLASSES && !SELECAO_CLASSES.has(`${classe}/${id}`)) continue;
     const up = await ana.put(`/api/quick-wins/${qw.id}`, { modelo: `classe:${classe}`, pode_trocar: false });
     const x = await executar(qw.id, corpo, `classe_${classe}_${id}`);
     writeFileSync(join(SAIDA, `classe-${classe}-${id}.md`), x.texto);
-    (R.classes[classe] ??= {})[id] = { ajuste: up.status, configurado: padroes[classe], pedido: x.pedido, usados: x.modelos, ms: x.ms, custo: x.custo, status: x.status, http: x.http, erroCodigo: x.erroCodigo, erroDetalhes: x.erroDetalhes, entregaveis: x.qualidade?.entregaveis || null, fases: x.fases, falhas: ISOLADO ? falhasDaEntrega(x) : [], requerRevisao: true };
+    (R.classes[classe] ??= {})[id] = { ajuste: up.status, configurado: padroes[classe], pedido: x.pedido, usados: x.modelos, ms: x.ms, custo: x.custo, status: x.status, roteamento: x.roteamento, http: x.http, erroCodigo: x.erroCodigo, erroDetalhes: x.erroDetalhes, entregaveis: x.qualidade?.entregaveis || null, fases: x.fases, falhas: ISOLADO ? falhasDaEntrega(x) : [], requerRevisao: true };
     log('classe', classe, id, x.pedido, '→', x.modelos.join(','), x.status, `${x.ms}ms`, mostrarCusto(x.custo)); salvar();
   }
 } else R.classes = R.interrompido ? 'NAO_EXECUTADO — rodada interrompida' : 'NAO_COBERTO — as classes não resolvem para modelos distintos';
@@ -376,7 +402,7 @@ R.performance.total_execucao = { ms: resumo(Object.values(R.execucoes).filter(x 
 R.custoTotal = consolidarRecibos(chamadas).custoTotalUsd; R.chamadas = chamadas.length; R.falhasHttp = chamadas.filter(c => c.status && c.status !== 200).length;
 salvar();
 log(`\nFim. ${chamadas.length} chamadas. Custo confirmado: US$${consolidarRecibos(chamadas).custoConfirmadoUsd.toFixed(4)}; total: ${R.custoTotal === null ? 'PENDENTE' : R.custoTotal}. Relatório em ${join(SAIDA, 'relatorio.json')}`);
-if (ISOLADO && (R.interrompido || R.erros.length || R.falhasHttp || R.custoTotal === null || !chamadas.length || !R.classesDistintas || R.homologacao.principais.length !== SMOKE15.length || R.homologacao.surpresa.length !== SURPRESA10.length || [...R.homologacao.principais, ...R.homologacao.surpresa].some(c => !c.utilizavel) || Object.values(R.classes).some(classe => Object.values(classe).some(c => c.falhas?.length)))) process.exitCode = 2;
+if (ISOLADO && (R.interrompido || R.erros.length || R.falhasHttp || R.custoTotal === null || !chamadas.length || !R.classesDistintas || R.homologacao.principais.length !== SMOKE15.length || R.homologacao.surpresa.length !== SURPRESA10.length || [...R.homologacao.principais, ...R.homologacao.surpresa].some(c => c.estado !== 'fora_desta_rodada' && !c.utilizavel) || Object.values(R.classes).some(classe => Object.values(classe).some(c => c.falhas?.length)))) process.exitCode = 2;
 await encerrar();
 
 async function encerrar() {

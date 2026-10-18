@@ -32,8 +32,16 @@ const env = { PATH: process.env.PATH, LANG: 'C.UTF-8', TMPDIR: temporario, NODE_
   QA_KEY_FD: '3', QA_PARTES: 'homologacao', QA_COMMIT: candidato, QA_MAX_CHAMADAS: '180', QA_PARAR_CUSTO_USD: '2',
   CHROMIUM_PATH: process.env.CHROMIUM_PATH || '/usr/bin/chromium', RENDER_GIT_COMMIT: candidato };
 if (process.env.QA_CASOS) {
-  if (!/^[a-z0-9,-]+$/.test(process.env.QA_CASOS)) throw new Error('Seleção de casos inválida.');
+  if (!/^[A-Za-z0-9,-]+$/.test(process.env.QA_CASOS)) throw new Error('Seleção de casos inválida.');
   env.QA_CASOS = process.env.QA_CASOS;
+}
+if (process.env.QA_CLASSES) {
+  if (process.env.QA_CLASSES !== 'nenhuma' && !/^(rapido|equilibrado|avancado)\/[a-z0-9_-]+(,(rapido|equilibrado|avancado)\/[a-z0-9_-]+)*$/.test(process.env.QA_CLASSES)) throw new Error('Seleção de classes inválida.');
+  env.QA_CLASSES = process.env.QA_CLASSES;
+}
+if (process.env.QA_MATERIAIS) {
+  if (!/^\/tmp\/greenia-candidata-[A-Za-z0-9]+\/qa-candidato-saida\/[A-Za-z0-9T-]+$/.test(process.env.QA_MATERIAIS)) throw new Error('Pasta dos materiais anteriores inválida.');
+  env.QA_MATERIAIS = process.env.QA_MATERIAIS;
 }
 let filho;
 try {

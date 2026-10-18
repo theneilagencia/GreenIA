@@ -112,7 +112,15 @@ const REGRAS = {
 // Dado pessoal sensível e marcação explícita de confidencialidade: reconhecidos em qualquer área, pelo contexto
 // (termos compostos, não palavras soltas: "diagnóstico de vendas" não é dado de saúde).
 const semAcento = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-REGRAS.sensivel = t => /\b(?:laudo medico|prontuario|atestado medico|cid[- ]?10|cid[- ]?[a-z]\d{2}(?:\.\d)?\b|exame (?:medico|admissional|demissional|toxicologico)|diagnostico (?:medico|clinico|de (?:cancer|depressao|ansiedade|hiv|diabetes))|soropositiv|hiv positivo|dados biometricos|biometria (?:facial|digital)|orientacao sexual|conviccao religiosa|religiao d[oa] (?:colaborador|funcionari|candidat|empregad)|filiacao (?:sindical|partidaria)|opiniao politica d[oa]|origem racial|origem etnica)/.test(semAcento(t));
+const SINAL_SENSIVEL = /\b(?:laudo medico|prontuario|atestado medico|cid[- ]?10|cid[- ]?[a-z]\d{2}(?:\.\d)?\b|exame (?:medico|admissional|demissional|toxicologico)|diagnostico (?:medico|clinico|de (?:cancer|depressao|ansiedade|hiv|diabetes))|soropositiv|hiv positivo|dados biometricos|biometria (?:facial|digital)|orientacao sexual|conviccao religiosa|religiao d[oa] (?:colaborador|funcionari|candidat|empregad)|filiacao (?:sindical|partidaria)|opiniao politica d[oa]|origem racial|origem etnica)/;
+REGRAS.sensivel = t => {
+  let s = semAcento(t);
+  // Registro de capacitação profissional não é um prontuário clínico. A exceção é só da expressão;
+  // sinais médicos no mesmo material impedem a exceção e os demais detectores continuam ativos.
+  if (!/\b(?:saude|medic(?:o|a|os|as|acao|acoes|amento\w*|ina)\b|clinic\w*|pacient\w*|enferm\w*|hospital\w*|atestado|exame|cid\b|biometr\w*|hiv|health|patient|doctor)/.test(s))
+    s = s.replace(/\bprontuarios? de treinamento\b/g, 'registros de treinamento');
+  return SINAL_SENSIVEL.test(s);
+};
 REGRAS.confidencial = t => /\b(?:estritamente confidencial|documento confidencial|informacao confidencial|confidencial\s*[-–:|]|^\s*confidencial\s*$|classificacao:\s*confidencial)|\bconfidencial\b(?=[^\n]{0,3}$)/m.test(semAcento(t))
   || /\bCONFIDENCIAL\b/.test(t);
 

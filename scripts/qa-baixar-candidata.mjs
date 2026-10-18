@@ -6,9 +6,22 @@ import { pipeline } from 'node:stream/promises';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
+export function selecionarRetomada(anterior) {
+  const pendente = c => c.estado !== 'fora_desta_rodada' && (c.utilizavel !== true || c.custo === null || (c.id === '03-planilha' && !c.conferenciaNumerica) || (c.id === 'U05' && !c.conferenciaDados));
+  const casos = [...(anterior.homologacao?.principais || []), ...(anterior.homologacao?.surpresa || [])].filter(pendente).map(c => c.id);
+  const classes = [];
+  if (anterior.classes && typeof anterior.classes === 'object') for (const [classe, entradas] of Object.entries(anterior.classes))
+    for (const [id, c] of Object.entries(entradas)) if (c.falhas?.length || c.status === 'erro') classes.push(`${classe}/${id}`);
+  return { casos: [...new Set(casos)], classes: [...new Set(classes)] };
+}
+export function extrairMaterialRetomada(texto) {
+  const separador = '\n\n---\n\n', i = texto.lastIndexOf(separador);
+  if (i < 0 || !texto.slice(0, i).trim()) throw new Error('Material anterior não pôde ser separado com segurança; não gerar outra amostra silenciosamente.');
+  return texto.slice(0, i);
+}
 export async function executar(commit, { retomar = null, hashAnterior = null } = {}) {
   if (!/^[a-f0-9]{40}$/.test(commit || '')) throw new Error('Commit inválido.');
-  let selecao = null, planilhaAnterior = null;
+  let selecao = null, selecaoClasses = null, planilhaAnterior = null;
   if (retomar) {
     if (/^\/tmp\/greenia-candidata-[A-Za-z0-9]+\/qa-candidato-saida$/.test(retomar)) {
       const rodadas = readdirSync(retomar).sort();
@@ -20,9 +33,11 @@ export async function executar(commit, { retomar = null, hashAnterior = null } =
     const hash = createHash('sha256').update(original).digest('hex');
     if (hashAnterior && hash !== hashAnterior) throw new Error('O relatório anterior difere do hash informado. Não iniciar nova rodada.');
     const anterior = JSON.parse(original);
-    selecao = anterior.homologacao.principais.filter(c => c.utilizavel !== true || c.custo === null || (c.id === '03-planilha' && !c.conferenciaNumerica)).map(c => c.id).join(',');
+    const pendencias = selecionarRetomada(anterior);
+    if (!pendencias.casos.length && !pendencias.classes.length) throw new Error('Nenhuma pendência selecionada; não iniciar chamadas repetidas.');
+    selecao = pendencias.casos.join(',') || 'nenhum'; selecaoClasses = pendencias.classes.join(',') || 'nenhuma';
     console.log('RODADA_ANTERIOR', hash);
-    console.log('Principais a retomar:', selecao, '; as aprovações anteriores não contam como novas execuções.');
+    console.log('Casos a retomar:', selecao, '; classes:', selecaoClasses, '; aprovações anteriores ficam fora desta rodada.');
     // Guarda o resultado real que a conferência reprovou, sem presumir que a própria conferência esteja certa.
     try { planilhaAnterior = readFileSync(join(retomar, 'h-03-planilha.md'), 'utf8'); } catch { console.log('Material anterior da planilha indisponível.'); }
   }
@@ -39,7 +54,7 @@ export async function executar(commit, { retomar = null, hashAnterior = null } =
   console.log('US$ 2 não é teto rígido: a última chamada pode ultrapassar o valor. Recibo pendente impede a próxima chamada.');
   let erro = null;
   try {
-    await rodar(process.execPath, ['--disable-warning=ExperimentalWarning', join(pasta, 'scripts/qa-render-isolado.mjs')], { env: { ...process.env, QA_COMMIT: commit, ...(selecao ? { QA_CASOS: selecao } : {}) } });
+    await rodar(process.execPath, ['--disable-warning=ExperimentalWarning', join(pasta, 'scripts/qa-render-isolado.mjs')], { env: { ...process.env, QA_COMMIT: commit, ...(selecao ? { QA_CASOS: selecao } : {}), ...(selecaoClasses ? { QA_CLASSES: selecaoClasses } : {}), ...(retomar ? { QA_MATERIAIS: retomar } : {}) } });
   } catch (e) { erro = e; }
   const saida = join(pasta, 'qa-candidato-saida');
   let rodadas = [];
@@ -54,6 +69,7 @@ export async function executar(commit, { retomar = null, hashAnterior = null } =
         autorizacoesLocais: completo.autorizacoesLocais, padroesClasse: completo.padroesClasse,
         homologacao: { principais: completo.homologacao?.principais?.map(caso), surpresa: completo.homologacao?.surpresa?.map(caso) }, classes: completo.classes,
         recibosPendentes: completo.recibos?.filter(c => c.custo === null || c.erroStream),
+        artefatosPreservados: completo.artefatosPreservados,
         planilhaAnterior,
       };
       try { resumo.planilhaAtual = readFileSync(join(saida, rodada, 'h-03-planilha.md'), 'utf8'); } catch {}

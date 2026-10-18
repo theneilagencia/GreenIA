@@ -1264,7 +1264,15 @@ export function rotasConversas(app, r) {
     const vidaResposta = setInterval(() => {
       if (!res.destroyed && !res.writableEnded) linha({ t: 'espera' });
     }, 15000);
-    res.once('close', () => clearInterval(vidaResposta));
+    // A saída do agendador termina com finish, sem uma conexão HTTP para fechar.
+    // Limpa nos dois caminhos para não acumular um intervalo por execução.
+    const encerrarEspera = () => {
+      clearInterval(vidaResposta);
+      res.off('close', encerrarEspera);
+      res.off('finish', encerrarEspera);
+    };
+    res.once('close', encerrarEspera);
+    res.once('finish', encerrarEspera);
     const rotaTela = { modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, complexidade: rota.requisitos.complexidade,
       explicacao: pessoa.admin ? rota.explicacao : explicarParaPessoa({ modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, politicas: rota.politicas, fallback: rota.fallback, sigilosa }),
       // A tela de uso (inclusive de quem administra) mostra sempre a simples; a técnica fica na Administração.

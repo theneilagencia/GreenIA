@@ -35,7 +35,7 @@ test('bootstrap: reconfere planilha salva, conserva pendências e usa materiais 
       const pasta = fileURLToPath(new URL('../qa-candidato-saida/2026-10-18T15-00-00-000Z/', import.meta.url));
       mkdirSync(pasta, { recursive: true });
       writeFileSync(pasta + '/relatorio.json', JSON.stringify({
-        escopo: { selecao: process.env.QA_CASOS, selecaoClasses: process.env.QA_CLASSES, materiais: process.env.QA_MATERIAIS },
+        escopo: { selecao: process.env.QA_CASOS, selecaoClasses: process.env.QA_CLASSES, materiais: process.env.QA_MATERIAIS, revalidarArquivos: process.env.QA_REVALIDAR_ARQUIVOS },
         pendenciasAnteriores: JSON.parse(readFileSync(process.env.QA_CONTEXTO_ANTERIOR, 'utf8')),
       }));
     `);
@@ -59,6 +59,12 @@ test('bootstrap: reconfere planilha salva, conserva pendências e usa materiais 
     const focal = JSON.parse(readFileSync(join(raizes.at(-1), 'qa-candidato-saida/2026-10-18T15-00-00-000Z/relatorio.json'), 'utf8'));
     assert.equal(focal.escopo.selecaoClasses, 'avancado/pesquisa');
     assert.deepEqual(focal.pendenciasAnteriores.classesPendentesForaDestaRodada, ['rapido/contrato', 'avancado/reuniao']);
+    await executar('a'.repeat(40), { retomar: anterior, hashAnterior, revalidarArquivos: true });
+    const visual = JSON.parse(readFileSync(join(raizes.at(-1), 'qa-candidato-saida/2026-10-18T15-00-00-000Z/relatorio.json'), 'utf8'));
+    assert.equal(visual.escopo.selecao, '12-apresentacao,14-social');
+    assert.equal(visual.escopo.selecaoClasses, 'nenhuma'); assert.equal(visual.escopo.revalidarArquivos, '1');
+    assert.deepEqual(visual.pendenciasAnteriores.revalidacaoArquivos.pendenciasForaDestaRodada.casos, ['U05', 'U09', 'U10']);
+    assert.equal(visual.pendenciasAnteriores.recibosPendentes[0].custo, null);
     await assert.rejects(executar('a'.repeat(40), { retomar: anterior, hashAnterior, materiaisDe: materiais, hashMateriais, somenteClasses: ['avancado/contrato'] }), /não é uma pendência/);
     rmSync(join(materiais, 'h-U10.md'));
     await assert.rejects(executar('a'.repeat(40), { retomar: anterior, hashAnterior, materiaisDe: materiais, hashMateriais }), /ENOENT/);

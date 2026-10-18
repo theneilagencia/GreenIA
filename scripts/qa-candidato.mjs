@@ -22,7 +22,7 @@ import { criarOpenRouter, criarIndisponivel } from '../src/ia.js';
 import { json, um, todos } from '../src/db.js';
 import { limparCacheInterpretacao } from '../src/quickwin-interpretacao.js';
 import { rotuloEntregavel, MARCADOR_PERGUNTA } from '../src/quickwin-operacao.js';
-import { observarResposta, falhasDaEntrega, consolidarRecibos, canaisNaoPedidos, preservarArtefatosQa } from './qa-real-evidencias.mjs';
+import { observarResposta, falhasDaEntrega, consolidarRecibos, canaisNaoPedidos, preservarArtefatosQa, baixarArtefatosQa } from './qa-real-evidencias.mjs';
 import { verificarPlanilhaQa } from './qa-planilha-oraculo.mjs';
 import { prepararAdvancedQa } from './qa-advanced-real.mjs';
 import { verificarFacilitiesQa } from './qa-facilities-oraculo.mjs';
@@ -35,6 +35,7 @@ const PARTES = (process.env.QA_PARTES || 'tudo').split(',');
 const roda = p => PARTES.includes('tudo') || PARTES.includes(p);
 const SELECAO = process.env.QA_CASOS ? new Set(process.env.QA_CASOS.split(',')) : null;
 const SELECAO_CLASSES = process.env.QA_CLASSES ? new Set(process.env.QA_CLASSES.split(',')) : null;
+const REVALIDAR_ARQUIVOS = process.env.QA_REVALIDAR_ARQUIVOS === '1';
 
 const RODADA = new Date().toISOString().replace(/[:.]/g, '-');
 const SAIDA = join(process.cwd(), 'qa-candidato-saida', RODADA); mkdirSync(SAIDA, { recursive: true });
@@ -200,10 +201,12 @@ async function executar(qwId, corpo, rot, conv = null) {
   // download, conteúdo e aparência: os bytes ficam disponíveis para essa inspeção posterior.
   const artefatos = ISOLADO ? preservarArtefatosQa(db, conv.id, SAIDA) : [];
   if (artefatos.length) (R.artefatosPreservados ??= []).push({ caso: rot, conversa: conv.id, arquivos: artefatos });
+  const downloads = REVALIDAR_ARQUIVOS ? await baixarArtefatosQa(artefatos, conv.id, SAIDA, p => ana.get(p), { apresentacao: rot === 'h_12-apresentacao' }) : [];
+  if (REVALIDAR_ARQUIVOS) (R.downloadsPreservados ??= []).push({ caso: rot, arquivos: downloads });
   const rt = um(db, 'select classe_necessaria,classe_pedida,motivo_bloqueio,requisitos,fallback from roteamento where conversa_id = ? order by id desc limit 1', conv.id);
   const roteamento = rt ? { ...rt, requisitos: json(rt.requisitos, {}), fallback: json(rt.fallback, null) } : null;
   const texto = r.texto || '';
-  return { conv, roteamento, http: r.status, finalizou: !!r.fim, custosPendentes: minhas.filter(c => c.custo === null).length, erroCodigo: r.erro?.erro || r.falha?.codigo || null, erroDetalhes: r.erro || r.falha || null, chamadasReais: minhas.filter(c => c.status === 200 && c.geracao && c.modeloResposta && !c.erroStream && !c.erroProvedor).length, ms: Date.now() - t0, texto, status: r.fim?.qualidade?.status || (r.falha || r.erro ? 'erro' : null), falha: r.falha?.mensagem || (r.erro ? `${r.status} ${r.erro.erro || ''} ${r.erro.mensagem || ''}`.trim() : null), qualidade: r.fim?.qualidade || null,
+  return { conv, roteamento, downloads, http: r.status, finalizou: !!r.fim, custosPendentes: minhas.filter(c => c.custo === null).length, erroCodigo: r.erro?.erro || r.falha?.codigo || null, erroDetalhes: r.erro || r.falha || null, chamadasReais: minhas.filter(c => c.status === 200 && c.geracao && c.modeloResposta && !c.erroStream && !c.erroProvedor).length, ms: Date.now() - t0, texto, status: r.fim?.qualidade?.status || (r.falha || r.erro ? 'erro' : null), falha: r.falha?.mensagem || (r.erro ? `${r.status} ${r.erro.erro || ''} ${r.erro.mensagem || ''}`.trim() : null), qualidade: r.fim?.qualidade || null,
     fontes: (r.fim?.fontes || []).filter(f => f.url).map(f => f.url), fontesVerificadas: (r.fim?.fontes || []).filter(f => f.verificacaoPublicacao).map(f => f.verificacaoPublicacao), pergunta: texto.startsWith(MARCADOR_PERGUNTA), modelos: [...new Set(minhas.filter(x => x.tipo === 'execucao').map(x => x.modeloResposta || x.modelo))],
     pedido: minhas.find(x => x.tipo === 'execucao')?.modelo || null, custo: custoDe(minhas),
     fases: { coleta: soma('coleta'), execucao: soma('execucao') + soma('autonomia'), conferencia: soma('conferencia') + soma('correcao') }, web: minhas.filter(x => x.web) };
@@ -260,7 +263,9 @@ const materialDe = chave => chave === 'contrato' ? { texto: 'Material anexo (fic
   : chave ? { texto: MATERIAIS_TEXTO[chave] } : { texto: 'Execute agora.' };
 if (roda('homologacao')) {
   log(`\n[H1] ${SMOKE15.filter(([id]) => !SELECAO || SELECAO.has(id)).length} casos principais selecionados`);
-  for (const [id, pedido, material, esperado] of SMOKE15) {
+  for (const [id, pedidoBase, material, esperado] of SMOKE15) {
+    const pedido = REVALIDAR_ARQUIVOS && id === '12-apresentacao' ? pedidoBase + ' Gere também o arquivo PowerPoint PPTX final para baixar, com design visual completo.'
+      : REVALIDAR_ARQUIVOS && id === '14-social' ? pedidoBase + ' Gere também uma peça visual final em PNG para baixar; Reels deve ser entregue como roteiro, sem prometer vídeo renderizado.' : pedidoBase;
     if (SELECAO && !SELECAO.has(id)) { R.homologacao.principais.push({ id, estado: 'fora_desta_rodada', utilizavel: null }); continue; }
     if (casoSuspenso(R.homologacao.principais, id)) continue;
     try {
@@ -269,6 +274,11 @@ if (roda('homologacao')) {
       const x = await executar(qw.id, materialDe(material), `h_${id}`);
       writeFileSync(join(SAIDA, `h-${id}.md`), x.texto);
       const falhas = usabilidade(pedido, it, x, esperado, { vago: id.endsWith('vago') });
+      if (REVALIDAR_ARQUIVOS) {
+        const extensao = id === '12-apresentacao' ? '.pptx' : '.png';
+        if (!x.downloads.some(d => d.integridade === 'confere' && d.arquivo?.endsWith(extensao))) falhas.push(`Arquivo ${extensao} final não foi baixado e preservado pela API`);
+        if (x.downloads.some(d => d.integridade === 'falhou')) falhas.push('Um download de arquivo final falhou');
+      }
       const conferenciaNumerica = id === '03-planilha' ? verificarPlanilhaQa(x.texto, planilha()) : null;
       if (conferenciaNumerica) falhas.push(...conferenciaNumerica.falhas);
       R.homologacao.principais.push({ id, pedido, fonte: it.fonte, plano: plano_(it.operacao), status: x.status, http: x.http, erroCodigo: x.erroCodigo, erroDetalhes: x.erroDetalhes, custosPendentes: x.custosPendentes, pergunta: x.pergunta, avisos: x.qualidade?.avisos || [], objetivo: x.qualidade?.objetivo || null,

@@ -95,3 +95,28 @@ export function preservarArtefatosQa(db, conversa, saida) {
   }
   return arquivos;
 }
+
+// Baixa pela API autenticada da empresa sintética; não usa o banco como prova de download.
+export async function baixarArtefatosQa(arquivos, conversa, saida, obter, { apresentacao = false } = {}) {
+  const downloads = [], rotas = new Map();
+  for (const a of arquivos) {
+    if (a.origem === 'arquivos_gerados') rotas.set(`arquivo-${a.id}`, { rota: `/api/conversas/${conversa}/arquivos/${a.id}`, sha256: a.sha256, mime: a.mime });
+    if (a.origem === 'artefatos_visuais') rotas.set(`visual-${a.id}`, { rota: `/api/artefatos/${a.id}/baixar?formato=${apresentacao ? 'pptx' : 'png'}` });
+  }
+  for (const [nome, a] of rotas) {
+    try {
+      const r = await obter(a.rota), mime = String(r.headers.get('content-type') || '').split(';')[0], dados = r.bytes;
+      if (r.status !== 200 || !Buffer.isBuffer(dados) || !dados.length) throw new Error(`Download HTTP ${r.status} sem bytes válidos`);
+      const sha256 = createHash('sha256').update(dados).digest('hex');
+      if (a.sha256 && (sha256 !== a.sha256 || mime !== a.mime)) throw new Error('Download difere dos bytes ou MIME preservados');
+      const ext = ({ 'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx', 'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg' })[mime];
+      if (!ext) throw new Error('Tipo de arquivo não atende à inspeção visual');
+      if (ext === 'pptx' && dados.subarray(0, 2).toString() !== 'PK' || ext === 'pdf' && dados.subarray(0, 5).toString() !== '%PDF-' || ext === 'png' && dados.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a' || ext === 'jpg' && dados.subarray(0, 2).toString('hex') !== 'ffd8') throw new Error('Assinatura do arquivo não confere com o MIME');
+      mkdirSync(join(saida, 'downloads'), { recursive: true, mode: 0o700 });
+      const arquivo = `downloads/${conversa}-${nome}.${ext}`;
+      writeFileSync(join(saida, arquivo), dados, { mode: 0o600, flag: 'wx' });
+      downloads.push({ rota: a.rota, http: r.status, arquivo, mime, bytes: dados.length, sha256, integridade: 'confere', inspecaoVisual: 'pendente' });
+    } catch (e) { downloads.push({ rota: a.rota, integridade: 'falhou', motivo: e.message }); }
+  }
+  return downloads;
+}

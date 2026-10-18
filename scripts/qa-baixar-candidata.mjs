@@ -43,9 +43,15 @@ function lerRodada(pasta, esperado) {
   if (!/^[a-f0-9]{64}$/.test(esperado || '') || hash !== esperado) throw new Error('O relatório anterior difere do hash informado. Não iniciar nova rodada.');
   return { pasta, hash, relatorio: JSON.parse(original) };
 }
-export async function executar(commit, { retomar = null, hashAnterior = null, materiaisDe = null, hashMateriais = null, limiteReservaUsd = 2, somenteClasses = null } = {}) {
+export function selecionarRevalidacaoArquivos(anterior) {
+  return { casos: ['12-apresentacao', '14-social'], classes: [],
+    pendenciasForaDestaRodada: selecionarRetomada(anterior),
+    motivo: 'Nova execução direcionada para preservar e baixar arquivos finais ausentes; não aprova as entregas antigas.' };
+}
+export async function executar(commit, { retomar = null, hashAnterior = null, materiaisDe = null, hashMateriais = null, limiteReservaUsd = 2, somenteClasses = null, revalidarArquivos = false } = {}) {
   if (!/^[a-f0-9]{40}$/.test(commit || '')) throw new Error('Commit inválido.');
   if (![2, 3].includes(limiteReservaUsd)) throw new Error('Reserva de QA inválida; informe explicitamente 2 ou 3.');
+  if (typeof revalidarArquivos !== 'boolean' || revalidarArquivos && (!retomar || somenteClasses !== null)) throw new Error('Revalidação de arquivos exige retomada e não aceita seleção de classes.');
   if (somenteClasses !== null && (!retomar || !Array.isArray(somenteClasses) || !somenteClasses.length || somenteClasses.some(x => !/^(rapido|equilibrado|avancado)\/(contrato|fornecedores|pesquisa|reuniao|social)$/.test(x)))) throw new Error('Seleção de classes inválida; selecione pendências da retomada.');
   let selecao = null, selecaoClasses = null, planilhaAnterior = null, anterior = null, materiais = null, contexto = null, revisaoPlanilha = null;
   if (retomar) {
@@ -103,7 +109,8 @@ export async function executar(commit, { retomar = null, hashAnterior = null, ma
         console.log('PLANILHA_RECONFERIDA_SEM_INFERENCIA', JSON.stringify(revisaoPlanilha));
       }
     }
-    const pendencias = selecionarRetomada(anterior.relatorio);
+    const pendencias = revalidarArquivos ? selecionarRevalidacaoArquivos(anterior.relatorio) : selecionarRetomada(anterior.relatorio);
+    if (revalidarArquivos) contexto.revalidacaoArquivos = pendencias;
     if (somenteClasses !== null) {
       if (somenteClasses.some(x => !pendencias.classes.includes(x))) throw new Error('Classe selecionada não é uma pendência comprovada desta retomada.');
       contexto.classesPendentesForaDestaRodada = pendencias.classes.filter(x => !somenteClasses.includes(x));
@@ -128,7 +135,7 @@ export async function executar(commit, { retomar = null, hashAnterior = null, ma
   console.log('US$ 2 não é teto rígido: a última chamada pode ultrapassar o valor. Recibo pendente impede a próxima chamada.');
   let erro = null;
   try {
-    await rodar(process.execPath, ['--disable-warning=ExperimentalWarning', join(pasta, 'scripts/qa-render-isolado.mjs')], { env: { ...process.env, QA_COMMIT: commit, QA_RESERVA_USD: String(limiteReservaUsd), ...(selecao ? { QA_CASOS: selecao } : {}), ...(selecaoClasses ? { QA_CLASSES: selecaoClasses } : {}), ...(retomar ? { QA_MATERIAIS: materiais.pasta, QA_CONTEXTO_ANTERIOR: join(pasta, 'qa-contexto-anterior.json') } : {}) } });
+    await rodar(process.execPath, ['--disable-warning=ExperimentalWarning', join(pasta, 'scripts/qa-render-isolado.mjs')], { env: { ...process.env, QA_COMMIT: commit, QA_RESERVA_USD: String(limiteReservaUsd), QA_REVALIDAR_ARQUIVOS: revalidarArquivos ? '1' : '0', ...(selecao ? { QA_CASOS: selecao } : {}), ...(selecaoClasses ? { QA_CLASSES: selecaoClasses } : {}), ...(retomar ? { QA_MATERIAIS: materiais.pasta, QA_CONTEXTO_ANTERIOR: join(pasta, 'qa-contexto-anterior.json') } : {}) } });
   } catch (e) { erro = e; }
   const saida = join(pasta, 'qa-candidato-saida');
   let rodadas = [];
@@ -143,7 +150,7 @@ export async function executar(commit, { retomar = null, hashAnterior = null, ma
         autorizacoesLocais: completo.autorizacoesLocais, padroesClasse: completo.padroesClasse,
         homologacao: { principais: completo.homologacao?.principais?.map(caso), surpresa: completo.homologacao?.surpresa?.map(caso) }, classes: completo.classes,
         recibosPendentes: completo.recibos?.filter(c => c.custo === null || c.erroStream),
-        artefatosPreservados: completo.artefatosPreservados, diagnosticos: completo.diagnosticos,
+        artefatosPreservados: completo.artefatosPreservados, downloadsPreservados: completo.downloadsPreservados, diagnosticos: completo.diagnosticos,
         planilhaAnterior,
       };
       try { resumo.planilhaAtual = readFileSync(join(saida, rodada, 'h-03-planilha.md'), 'utf8'); } catch {}

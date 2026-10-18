@@ -38,6 +38,10 @@ if (process.env.QA_CASOS) {
   if (!/^[A-Za-z0-9,-]+$/.test(process.env.QA_CASOS)) throw new Error('Seleção de casos inválida.');
   env.QA_CASOS = process.env.QA_CASOS;
 }
+if (process.env.QA_REVALIDAR_ARQUIVOS === '1') {
+  if (process.env.QA_CASOS !== '12-apresentacao,14-social' || process.env.QA_CLASSES !== 'nenhuma') throw new Error('Revalidação deve selecionar somente os dois casos de arquivos.');
+  env.QA_REVALIDAR_ARQUIVOS = '1';
+}
 if (process.env.QA_CLASSES) {
   if (process.env.QA_CLASSES !== 'nenhuma' && !/^(rapido|equilibrado|avancado)\/[a-z0-9_-]+(,(rapido|equilibrado|avancado)\/[a-z0-9_-]+)*$/.test(process.env.QA_CLASSES)) throw new Error('Seleção de classes inválida.');
   env.QA_CLASSES = process.env.QA_CLASSES;

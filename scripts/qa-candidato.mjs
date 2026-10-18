@@ -27,6 +27,7 @@ import { verificarPlanilhaQa } from './qa-planilha-oraculo.mjs';
 import { prepararAdvancedQa } from './qa-advanced-real.mjs';
 import { verificarFacilitiesQa } from './qa-facilities-oraculo.mjs';
 import { lerModelos } from '../src/modelos.js';
+import { consultarGeracao } from './qa-consultar-recibo.mjs';
 import { extrairMaterialRetomada } from './qa-baixar-candidata.mjs';
 import { BATERIA, SURPRESA, CONTRATO, PROPOSTAS, TRANSCRICAO, CVS, planilha, SMOKE15, MATERIAIS_TEXTO, SURPRESA10 } from './qa-cenarios.mjs';
 // QA_PARTES=homologacao: só os 15 casos principais e os 10 surpresa (com as classes); padrão: tudo.
@@ -47,6 +48,7 @@ R.escopo = { candidato: process.env.QA_COMMIT || null, bancoTemporario: true, au
   selecao: SELECAO ? [...SELECAO] : null,
   selecaoClasses: SELECAO_CLASSES ? [...SELECAO_CLASSES] : null,
   pendente: ['login e permissões no ambiente implantado', 'download e inspeção dos arquivos gerados', 'aceitação dos resultados pelo tipo de trabalho', 'casos negativos com configuração real do cliente'] };
+if (process.env.QA_CONTEXTO_ANTERIOR) R.pendenciasAnteriores = JSON.parse(readFileSync(process.env.QA_CONTEXTO_ANTERIOR, 'utf8'));
 const salvar = () => {
   R.recibos = chamadas.map(({ pronto, ...c }) => c);
   R.evidenciaProvedor = consolidarRecibos(chamadas);
@@ -93,7 +95,7 @@ async function espiao(url, init = {}) {
   try { r = await fetch(url, init); } catch { c.erroTransporte = true; c.ms = Date.now() - c.t0; throw new Error('Falha de transporte para o provedor; custo pendente.'); }
   c.status = r.status;
   if (!r.ok) { c.ms = Date.now() - c.t0; return r; }
-  return observarResposta(c, r, b.stream);
+  return observarResposta(c, r, b.stream, ISOLADO ? () => consultarGeracao(c, new Headers(init.headers).get('authorization')?.replace(/^Bearer /i, '') || '') : null);
 }
 const esperar = async () => {
   await Promise.all(chamadas.map(c => c.pronto));
@@ -280,7 +282,7 @@ if (roda('homologacao')) {
       const qw = await criar(pedido, it);
       rotulo = `h_${id}_exemplo`;
       const ex = process.env.QA_MATERIAIS
-        ? { modo: 'texto', texto: extrairMaterialRetomada(readFileSync(join(process.env.QA_MATERIAIS, `h-${id}.md`), 'utf8')), origem: 'rodada_anterior' }
+        ? { modo: 'texto', texto: existsSync(join(process.env.QA_MATERIAIS, `material-${id}.txt`)) ? readFileSync(join(process.env.QA_MATERIAIS, `material-${id}.txt`), 'utf8') : extrairMaterialRetomada(readFileSync(join(process.env.QA_MATERIAIS, `h-${id}.md`), 'utf8')), origem: 'rodada_anterior' }
         : { ...(await ana.post(`/api/quick-wins/${qw.id}/exemplo-teste`, {})).dados, origem: 'exemplo_gerado' };
       await esperar();
       if (ex.texto) writeFileSync(join(SAIDA, `material-${id}.txt`), ex.texto);

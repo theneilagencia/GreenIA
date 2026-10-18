@@ -43,6 +43,10 @@ if (process.env.QA_MATERIAIS) {
   if (!/^\/tmp\/greenia-candidata-[A-Za-z0-9]+\/qa-candidato-saida\/[A-Za-z0-9T-]+$/.test(process.env.QA_MATERIAIS)) throw new Error('Pasta dos materiais anteriores inválida.');
   env.QA_MATERIAIS = process.env.QA_MATERIAIS;
 }
+if (process.env.QA_CONTEXTO_ANTERIOR) {
+  if (process.env.QA_CONTEXTO_ANTERIOR !== join(raiz, 'qa-contexto-anterior.json')) throw new Error('Contexto anterior fora da candidata temporária.');
+  env.QA_CONTEXTO_ANTERIOR = process.env.QA_CONTEXTO_ANTERIOR;
+}
 let filho;
 try {
   filho = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', join(raiz, 'scripts/qa-candidato.mjs')], {

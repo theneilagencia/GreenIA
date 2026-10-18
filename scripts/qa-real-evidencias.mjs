@@ -10,7 +10,7 @@ export function registrarRecibo(c, d) {
   }
 }
 // Mantém o corpo original intacto para a aplicação. Imagens usam JSON, texto normalmente SSE.
-export function observarResposta(c, resposta, stream = true) {
+export function observarResposta(c, resposta, stream = true, consultarCusto = null) {
   c.formatoResposta = stream === false || /application\/json/i.test(resposta.headers.get('content-type') || '') ? 'json' : 'sse';
   const copia = resposta.clone();
   c.pronto = (async () => {
@@ -27,6 +27,12 @@ export function observarResposta(c, resposta, stream = true) {
         const linhas = resto.split('\n'); resto = linhas.pop(); linhas.forEach(linha);
       }
       resto += dec.decode(); if (resto.trim()) linha(resto);
+    }
+    if (c.custo == null && consultarCusto) {
+      try {
+        c.consultaCusto = await consultarCusto();
+        if (c.consultaCusto?.comprovado && typeof c.consultaCusto.custoUsd === 'number' && Number.isFinite(c.consultaCusto.custoUsd) && c.consultaCusto.custoUsd >= 0) c.custo = c.consultaCusto.custoUsd;
+      } catch { c.consultaCusto = { comprovado: false, motivo: 'Consulta de metadados não concluída' }; }
     }
   })().catch(() => { c.erroStream = 'Falha na coleta da resposta do provedor'; }).finally(() => { c.ms = Date.now() - c.t0; });
   return resposta;

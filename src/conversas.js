@@ -1272,6 +1272,7 @@ export function rotasConversas(app, r) {
     // emitir close. Encerrar só em close deixava um intervalo vivo por execução.
     res.once('close', encerrarEspera);
     res.once('finish', encerrarEspera);
+    try {
     const rotaTela = { modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, complexidade: rota.requisitos.complexidade,
       explicacao: pessoa.admin ? rota.explicacao : explicarParaPessoa({ modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, politicas: rota.politicas, fallback: rota.fallback, sigilosa }),
       // A tela de uso (inclusive de quem administra) mostra sempre a simples; a técnica fica na Administração.
@@ -1857,6 +1858,9 @@ export function rotasConversas(app, r) {
     linha({ t: 'fim', id: respId, guardado: !naoGuardar, modelo: pessoa.admin ? usado : null, classe: m.id === AUTO ? null : m.perfil, fornecedor: pessoa.admin ? fim?.fornecedor : null, fontes: [...ctx.fontes, ...fontesWeb], reserva: usado !== m.id, rota: rotaTela,
       ...(registroQualidade ? { qualidade: resumoQualidade({ ...registroQualidade, quick_win: conv.quick_win_id }) } : {}), ...(artefatos.length ? { artefatos } : {}), ...(arquivos.length ? { arquivos } : {}), ...(integResumo ? { integracoes: integResumo } : {}), ...(acessoCodigo?.pedir.length ? { acesso: acessoCodigo.pedir } : {}), ...(execucao ? { executar: execucao } : {}) });
     res.end();
+    } finally {
+      encerrarEspera();
+    }
   }
 }
 

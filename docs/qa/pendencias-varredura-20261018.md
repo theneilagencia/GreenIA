@@ -1,0 +1,81 @@
+# Reprovações observadas na varredura ampla
+
+Esta lista preserva reprovações observadas durante a varredura de 18/10/2026. Não é um laudo de que cada reprovação representa um defeito do produto: cada caso precisa de reprodução, confronto com os requisitos atuais e classificação. Nenhuma ocorrência desta lista foi convertida em aprovação por quantidade de testes verdes.
+
+A rodada foi interrompida sem resultado global aprovado. Incluiu testes com preparações antigas de Advanced e expectativas comerciais anteriores; não devem ser corrigidos por afrouxamento de permissão. Os retestes específicos do relatório de correções têm precedência nos cenários correspondentes. A última ampliação da limpeza do streaming ainda requer uma nova varredura global.
+
+## Fila de investigação
+
+- **guardar = não com erros: provedor que repete o pedido, tempo esgotado, nova tentativa, reserva, leitor e OCR** — `test/auditoria-retencao.test.js` — pendente de classificação e reteste
+- **acesso por perfil: sem o Avançado, a pessoa não vê nem usa modelo Avançado no chat** — `test/chat.test.js` — pendente de classificação e reteste
+- **sigilosa pela chave manual** — `test/chat.test.js` — pendente de classificação e reteste
+- **área com proteção reforçada: conteúdo comum segue as regras gerais, mesmo sem recurso para dado sigiloso** — `test/chat.test.js` — pendente de classificação e reteste
+- **registro: cada claim sustentado está na superfície, com evidência no código e teste existente** — `test/claims-lp.test.js` — pendente de classificação e reteste
+- **trechos sensíveis (dados, segurança, privacidade, custo, conferência, fornecedores) só entram com registro sustentado** — `test/claims-lp.test.js` — pendente de classificação e reteste
+- **as páginas não fazem promessa jurídica, não generalizam garantias e não expõem o provedor** — `test/claims-lp.test.js` — pendente de classificação e reteste
+- **credenciais: a promessa é sobre senhas e chaves reconhecidas, em todas as partes do envio, sem absoluto (P1 resolvida)** — `test/claims-lp.test.js` — pendente de classificação e reteste
+- **ambiente: sem "infraestrutura privada/dedicada", servidor dedicado ou isolamento físico** — `test/claims-lp.test.js` — pendente de classificação e reteste
+- **roteamento e créditos: sem troca automática de recurso; continuidade sempre com a ressalva da reserva** — `test/claims-lp.test.js` — pendente de classificação e reteste
+- **telas ilustrativas: cada bloco com números tem o aviso de exemplo; o menu é o da Administração atual** — `test/claims-lp.test.js` — pendente de classificação e reteste
+- **três níveis: Rápido, Equilibrado e Avançado usam o modelo configurado, a mesma chave, web e deny** — `test/credencial-quickwin-plataforma.test.js` — pendente de classificação e reteste
+- **isolamento: a empresa B não lê a credencial nem a configura; sem liberar pesquisa, nada de plugin e resultado parcial** — `test/credencial-quickwin-plataforma.test.js` — pendente de classificação e reteste
+- **nenhum nome de cliente, área fixa ou ERP no código da aplicação** — `test/generico.test.js` — pendente de classificação e reteste
+- **invariante (10 casos): modelo proibido nunca é executado; com alternativa é substituído, sem alternativa bloqueia** — `test/governanca-api.test.js` — pendente de classificação e reteste
+- **invariante 7b: Automático do OpenRouter ligado pela empresa nunca recebe dado sigiloso** — `test/governanca-api.test.js` — pendente de classificação e reteste
+- **invariante (propriedade): 120 entradas aleatórias de API nunca executam modelo proibido** — `test/governanca-api.test.js` — pendente de classificação e reteste
+- **caso A: solicitado elegível é usado (solicitado == selecionado)** — `test/governanca-api.test.js` — pendente de classificação e reteste
+- **caso B2: o selecionado cai no fornecedor e a reserva responde: registrado como substituição por indisponibilidade** — `test/governanca-api.test.js` — pendente de classificação e reteste
+- **uma só rota de execução: toda chamada à IA passa pelo roteador e pela governança** — `test/governanca-api.test.js` — pendente de classificação e reteste
+- **admin leigo: nova empresa, recomendações, tarefas, sigilo, bloqueio, alerta legível, manual e volta** — `test/governanca-api.test.js` — pendente de classificação e reteste
+- **ignorância deliberada: as tarefas se resolvem só com a intenção** — `test/governanca-api.test.js` — pendente de classificação e reteste
+- **matriz da pessoa leiga: nenhum cenário pede decisão técnica, homologação, política, permissão ou reserva** — `test/governanca-api.test.js` — pendente de classificação e reteste
+- **LP: acesso da equipe sem aprovação prévia inventada; retenção sem prazo na página; nada de "equipe GreenIA" no app das empresas** — `test/legais.test.js` — pendente de classificação e reteste
+- **rede de segurança: resposta em roteiro "Slide 1, 2, 3" numa conversa com PDF de apresentação vira o arquivo no layout do PDF** — `test/modelo-pdf.test.js` — pendente de classificação e reteste
+- **correção pedida no chat edita a última versão da apresentação; "não aplicou o meu pedido" reaplica o pedido anterior** — `test/modelo-pdf.test.js` — pendente de classificação e reteste
+- **pediu arquivo, recebe arquivo: slides dentro de bloco de código viram o PowerPoint registrado na resposta** — `test/pedido-apresentacao-real.test.js` — pendente de classificação e reteste
+- **catálogo confirmado amplia para três modelos por nível e registra uma única inclusão idempotente** — `test/pools-modelos.test.js` — pendente de classificação e reteste
+- **escolha de cada nível compara seus modelos em vez de fixar o padrão; Automático usa o menor nível suficiente** — `test/pools-modelos.test.js` — pendente de classificação e reteste
+- **modelo retirado do catálogo não participa; falha de consulta preserva catálogo conhecido** — `test/pools-modelos.test.js` — pendente de classificação e reteste
+- **"no mesmo layout" do material enviado: a peça e o PowerPoint seguem as cores e a fonte do material** — `test/producao-visual.test.js` — pendente de classificação e reteste
+- **economia escolhe dentro da capacidade suficiente, sem baratear uma entrega premium** — `test/qualidade-entrega.test.js` — pendente de classificação e reteste
+- **uma chamada por objetivo novo; mesmo objetivo salvo = 0 chamadas; objetivo alterado = 1; consumo registrado** — `test/quickwin-estrutura.test.js` — pendente de classificação e reteste
+- **governança soberana: o Quick Win não libera dado bloqueado, credencial nem troca a rota de dado protegido** — `test/quickwins-v2.test.js` — pendente de classificação e reteste
+- **quick win de ponta a ponta: configurar com arquivo, testar, ativar, conversar com anexo, ajustar, retomar, feedback e uso** — `test/quickwins.test.js` — pendente de classificação e reteste
+- **perfis: sem o Avançado, a pessoa usa o Avançado que é padrão do quick win, mas não troca para outro Avançado** — `test/quickwins.test.js` — pendente de classificação e reteste
+- **estimativa de custo por conversa típica, por modelo, a partir do preço do catálogo** — `test/quickwins.test.js` — pendente de classificação e reteste
+- **2. tarefa complexa não usa modelo insuficiente, em nenhuma preferência** — `test/roteamento-matriz.test.js` — pendente de classificação e reteste
+- **3. contexto grande: escolhe janela suficiente; volume sozinho não sobe a classe** — `test/roteamento-matriz.test.js` — pendente de classificação e reteste
+- **5. pessoa sem acesso à classe necessária recebe o melhor modelo permitido, com a causa registrada** — `test/roteamento-matriz.test.js` — pendente de classificação e reteste
+- **6. sigilo exclui os modelos não homologados; a escolha segue a capacidade entre os homologados** — `test/roteamento-matriz.test.js` — pendente de classificação e reteste
+- **7. a preferência muda a decisão quando há alternativas equivalentes, e só então** — `test/roteamento-matriz.test.js` — pendente de classificação e reteste
+- **8. falha da classificação não quebra a governança** — `test/roteamento-matriz.test.js` — pendente de classificação e reteste
+- **9. fallback nunca viola política: o modelo usado não tem motivo de governança; a reserva passa pelas mesmas regras** — `test/roteamento-matriz.test.js` — pendente de classificação e reteste
+- **10. mudança de configuração da empresa altera o conjunto de candidatos e a escolha** — `test/roteamento-matriz.test.js` — pendente de classificação e reteste
+- **11. o motivo exibido corresponde à decisão real** — `test/roteamento-matriz.test.js` — pendente de classificação e reteste
+- **12. solicitações diferentes, mesma pessoa e mesma configuração, não são obrigadas ao mesmo modelo** — `test/roteamento-matriz.test.js` — pendente de classificação e reteste
+- **quick win: fixo define a classe (com a análise registrada); flexível entra como piso do Automático** — `test/roteamento-matriz.test.js` — pendente de classificação e reteste
+- **todo sinal da análise muda a escolha em pelo menos um caso de referência (nenhum sinal decorativo)** — `test/roteamento-matriz.test.js` — pendente de classificação e reteste
+- **capacidades explícitas: modelo Equilibrado forte em programação atende código difícil antes de um Avançado mais caro** — `test/roteamento-matriz.test.js` — pendente de classificação e reteste
+- **dominância: um desempate nunca escolhe modelo menos capaz e mais caro** — `test/roteamento-matriz.test.js` — pendente de classificação e reteste
+- **governança, janela e permissão: nunca violadas (400 cenários)** — localizar cenário pelo nome — pendente de classificação e reteste
+- **monotonicidade de capacidade: aumentar uma exigência nunca escolhe capacidade inferior (400 cenários × 6 exigências)** — localizar cenário pelo nome — pendente de classificação e reteste
+- **fluxo completo: pedido simples no Rápido, contrato com riscos no Avançado; o modelo chamado é o decidido** — `test/roteamento.test.js` — pendente de classificação e reteste
+- **sem acesso à classe necessária: a mais capaz permitida, com a causa na auditoria e na explicação** — `test/roteamento.test.js` — pendente de classificação e reteste
+- **classe escolhida pela pessoa: respeitada, analisada e sinalizada quando fica abaixo do necessário** — `test/roteamento.test.js` — pendente de classificação e reteste
+- **nova tentativa na mesma conversa sobe a partir da classe usada antes** — `test/roteamento.test.js` — pendente de classificação e reteste
+- **roteamento desligado: padrão da empresa, registrado como padrão (não como escolha da pessoa)** — `test/roteamento.test.js` — pendente de classificação e reteste
+- **falha na análise do pedido: responde com a exigência padrão e a governança intacta** — `test/roteamento.test.js` — pendente de classificação e reteste
+- **reserva de execução: só vai ao fornecedor se passar pelas regras; o uso da reserva fica no registro** — `test/roteamento.test.js` — pendente de classificação e reteste
+- **Automático do serviço de IA: fora das regras de roteamento, identificado como tal e fora dos indicadores do roteador** — `test/roteamento.test.js` — pendente de classificação e reteste
+- **admin: Automático é o padrão; liga, desliga e muda a preferência; a preferência chega à decisão** — `test/roteamento.test.js` — pendente de classificação e reteste
+- **feedback "não serviu" vale só para a próxima mensagem; a tentativa fica ligada à anterior; latência registrada** — `test/roteamento.test.js` — pendente de classificação e reteste
+- **economia nunca supera autorização: o barato não autorizado nunca é usado, mesmo para pedido simples** — `test/sigilo-guardrails.test.js` — pendente de classificação e reteste
+- **fallback: principal indisponível → outro recurso SÓ se autorizado e elegível; senão, nada mais é enviado** — `test/sigilo-guardrails.test.js` — pendente de classificação e reteste
+- **API, nova tentativa, anexo e streaming: a mesma governança em todo envio** — `test/sigilo-guardrails.test.js` — pendente de classificação e reteste
+- **4. o necessário não está disponível para a pessoa: usa o mais capaz permitido e registra a causa** — `test/usuario-leigo.test.js` — pendente de classificação e reteste
+- **12. nível sem permissão para o grupo da pessoa, pedido à força: não é usado; o automático resolve** — `test/usuario-leigo.test.js` — pendente de classificação e reteste
+- **13. pedido que exige mais capacidade: sobe de nível sozinho quando a pessoa tem acesso** — `test/usuario-leigo.test.js` — pendente de classificação e reteste
+- **18. Automático do provedor: nunca usado com dado sigiloso; fora dele, explicado sem termos técnicos** — `test/usuario-leigo.test.js` — pendente de classificação e reteste
+- **10. configuração incompleta (quick win fixo numa classe sem modelo liberado): atende no automático e avisa o admin** — `test/usuario-leigo.test.js` — pendente de classificação e reteste
+- **a página não promete o que não existe nem mostra custo de fornecedor** — `test/vendas.test.js` — pendente de classificação e reteste
+- **a LP mantém a demonstração e condições de integração com uma estrutura comercial curta** — `test/vendas.test.js` — pendente de classificação e reteste

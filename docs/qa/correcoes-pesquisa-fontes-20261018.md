@@ -34,6 +34,6 @@ Na máquina desta rodada, o Chromium completo não inicia por restrição de soc
 
 ## Limites e pendências
 
-A varredura ampla também encontrou reprovações fora destas correções, incluindo testes de roteamento/Advanced, retenção, adaptação de apresentações e consistência da LP. Não foram convertidas em aprovação, ignoradas ou removidas. A lista está em [pendencias-varredura-20261018.md](pendencias-varredura-20261018.md) e deve ser reproduzida e classificada antes da liberação.
+A varredura ampla também encontrou reprovações fora destas correções, incluindo testes de roteamento/Advanced, retenção, adaptação de apresentações e consistência da LP. Não foram convertidas em aprovação, ignoradas ou removidas. A lista está em [pendencias-varredura-20261018.md](pendencias-varredura-20261018.md) e foi investigada na continuação, documentada em [fechamento-pendencias-20261018.md](fechamento-pendencias-20261018.md). Este relatório preserva os resultados da primeira bateria e não representa o estado final da continuação.
 
 Não foram executadas chamadas ao provedor real nem publicação. Não há aprovação para liberar o cliente. A infraestrutura de homologação adicional não é condição para aceitar estas correções locais e não foi criada nesta rodada.

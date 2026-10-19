@@ -107,6 +107,7 @@ const PESQUISA_COMO_MATERIAL = new RegExp([
 export function proibePesquisaWeb(texto) {
   const t = norm(texto);
   return /\bsem\s+(?:fazer\s+|realizar\s+)?(?:pesquisas?|buscas?)\s+(?:na\s+(?:internet|web)|externas?|online)\b/.test(t)
+    || /\b(?:nao|nunca)\s+(?:faca|fazer|realize|realizar)\s+(?:uma\s+)?(?:pesquisas?|buscas?)\s+(?:na\s+(?:internet|web)|externas?|online)\b/.test(t)
     || /\b(?:nao|nunca)\s+(?:pesquise|busque|procure)\s+(?:na\s+(?:internet|web)|online)\b/.test(t)
     || /\b(?:sem\s+(?:(?:usar|acessar|consultar)\s+)?|(?:nao|nunca)\s+(?:use|utilize|acesse|consulte|usar|utilizar|acessar|consultar)\s+)(?:a\s+)?(?:internet|web|fontes\s+externas)\b/.test(t);
 }
@@ -400,7 +401,8 @@ export function visualDoPedido(texto) {
   if (!achado) return null;
   const n = /\b(\d{1,2})\s*(slides?|paginas?|telas|cards|laminas|quadros)\b/.exec(t);
   // Proporção pedida com todas as letras (1:1, 4:5, 16:9, 9:16, 1.91:1, stories): vale para a peça.
-  const f = /\b(1:1|4:5|16:9|9:16|1\.91:1)\b/.exec(t)?.[1] || (/\bstor(y|ies)\b/.test(t) ? '9:16' : null);
+  const f = /\b(1:1|4:5|16:9|9:16|1\.91:1)\b/.exec(t)?.[1]
+    || (/\bquadrad[oa]s?\b/.test(t) ? '1:1' : /\bstor(y|ies)\b/.test(t) ? '9:16' : null);
   return { tipo: achado[1], tiposEntregavel: achado[2], ...(n ? { paginas: Number(n[1]) } : {}), ...(f ? { formato: f } : {}) };
 }
 export function garantirVisual(op, pedido) {

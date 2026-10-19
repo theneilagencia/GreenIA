@@ -58,14 +58,16 @@ test('sugestão de agente/automação usa só recursos da GreenIA, sem APIs de t
   assert.match(NOTA_AGENTE('automacao'), /não invente números, estudos ou benchmarks/);
 });
 
-test('restrição sem imagens em planilha não aciona gerador nem aviso de proteção de imagem', async () => {
+test('restrições sem imagens e sem pesquisa não acionam ferramentas nem avisos de bloqueio', async () => {
   const conv = await nova();
   const antes = imagens().length;
-  const r = await enviarMensagem(ana, conv.id, { texto: 'Gere uma planilha XLSX com Item e Valor. Sem fórmulas, gráficos ou imagens.' });
+  const inicio = OR.chamadas.length;
+  const r = await enviarMensagem(ana, conv.id, { texto: 'Gere uma planilha XLSX com Item e Valor. Sem fórmulas, gráficos ou imagens. Não faça pesquisa na internet.' });
   assert.equal(r.status, 200);
   assert.equal(imagens().length, antes);
   const avisos = todos(S.app.db, "select texto from mensagens where conversa_id = ? and papel = 'aviso'", conv.id);
-  assert.ok(!avisos.some(a => /imagem não foi gerada/.test(a.texto)));
+  assert.ok(!avisos.some(a => /imagem não foi gerada|pesquisa na internet não foi usada/i.test(a.texto)));
+  assert.ok(OR.chamadas.slice(inicio).every(c => !c.plugins?.some(p => p.id === 'web')));
 });
 
 test('imagem: gerada na conversa com a proporção pedida; "troque a roupa" edita a última; anexada é editada', async () => {
@@ -192,6 +194,9 @@ test('unidades: proporção, pedido de imagem, peças por formato, código, fór
   assert.equal(pedidoDeImagem('Deixe a iluminação mais quente', { ultima: { dataUrl: 'x' }, ultimaFoiImagem: false }), null, 'sem imagem na última resposta não é edição');
   const pecas = pecaDaConversa('Crie uma campanha para LinkedIn com peças visuais nos formatos quadrado e horizontal.').operacao.entregaveis;
   assert.deepEqual(pecas.map(e => e.visual.formato), ['1:1', '1.91:1']);
+  const multiplas = pecaDaConversa('Crie um carrossel de exatamente 3 páginas quadradas em PNG e PDF, e um post único quadrado em PNG e PDF. Use o tema Aurora.').operacao.entregaveis;
+  assert.deepEqual(multiplas.map(e => [e.visual.tipo, e.visual.formato, e.visual.paginas || null]), [['carousel', '1:1', 3], ['social_post', '1:1', null]]);
+  assert.equal(pecaDaConversa('Crie um carrossel sobre como escrever um post único quadrado.').operacao.entregaveis.length, 1);
   assert.deepEqual(nomesDasTabelas('### Premissas\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n| c |\n|---|\n| 3 |'), ['Premissas', null]);
   assert.equal(formulaDaCelula('=SOMA(B2;B5)'), 'SUM(B2,B5)');
   assert.equal(formulaDaCelula('=WEBSERVICE("http://x")'), null);
@@ -256,6 +261,8 @@ test('agente e automação viram Quick Win (não código); pesquisa atual usa a 
   assert.deepEqual(quickWinSugerido('Resumo.\n\n## Quick Win sugerido\n\nNome: Analisador de propostas\nDescrição: Lê a proposta e gera o relatório.\nPergunta o que faltar.\n\n## O que foi feito\n- x'),
     { nome: 'Analisador de propostas', descricao: 'Lê a proposta e gera o relatório.\nPergunta o que faltar.' });
   assert.ok(pedePesquisa('Pesquise as principais mudanças dos últimos 30 dias'));
+  assert.ok(!pedePesquisa('Crie um carrossel e não faça pesquisa na internet.'));
+  assert.ok(!pedePesquisa('Faça um resumo; nunca realize buscas externas.'));
   assert.ok(!pedePesquisa('Escreva um e-mail para o cliente'));
   // Na conversa: agente → nota de Quick Win; pesquisa desligada → diz o motivo; ligada → ferramenta de busca no envio.
   const conv = await nova();

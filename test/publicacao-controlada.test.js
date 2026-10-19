@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { subirPlataforma } from './ajuda-plataforma.js';
-import { validarPublicacao } from '../src/publicacao-controlada.js';
+import { validarPublicacao, PUBLICACAO_CONTROLADA } from '../src/publicacao-controlada.js';
 test('publicação restrita bloqueia outras empresas, inclusive sessão existente, sem ampliar permissões da homologação', async () => {
   const S = await subirPlataforma({ subdominioBase: 'empresas.teste' });
   try {
@@ -33,6 +33,15 @@ test('publicação restrita bloqueia outras empresas, inclusive sessão existent
     assert.equal((await leitor.get('/api/plataforma/empresas')).status, 401);
     assert.equal((await ops.get('/api/plataforma/empresas')).status, 200);
     assert.equal((await ops.get('/api/saude')).dados.acessoRestrito, true);
+    // Encerrar a publicação controlada restaura a empresa sem conceder sessão ou privilégios.
+    assert.equal(PUBLICACAO_CONTROLADA, null);
+    S.P.publicacaoControlada = validarPublicacao(PUBLICACAO_CONTROLADA);
+    assert.equal((await cliente.get('/api/eu')).status, 200);
+    assert.equal((await S.navegador().get('/cliente-bloqueado')).status, 200);
+    assert.equal((await S.navegador('cliente-bloqueado.empresas.teste').get('/api/eu')).status, 401);
+    assert.equal((await leitor.get('/api/admin/modelos')).status, 403);
+    assert.equal((await leitor.get('/api/plataforma/empresas')).status, 401);
+    assert.equal((await ops.get('/api/saude')).dados.acessoRestrito, false);
   } finally { await S.fechar(); }
 });
 test('configuração inválida não abre acesso por fallback', () => {

@@ -237,6 +237,7 @@ export function conferirDesign(medidas, { conteudo, paginas, formato, extras = [
   // Cobertura: cada fragmento do conteúdo de cada página aparece na página certa.
   for (const [k, p] of paginas.entries()) {
     const alvo = norm(medidas[k]?.texto || ''), faltam = [];
+    if (p.titulo && !alvo.includes(norm(p.titulo))) add('titulo_omitido', `Página ${k + 1}: faltou o título, literalmente: "${limpar(p.titulo, 120)}".`);
     for (const it of p.itens) for (const f of fragmentos(it)) if (!alvo.includes(norm(f))) faltam.push(f);
     if (faltam.length) add('conteudo_omitido', `Página ${k + 1}: faltou, literalmente: ${faltam.slice(0, 6).map(f => `"${limpar(f, 70)}"`).join('; ')}${faltam.length > 6 ? ` e mais ${faltam.length - 6}` : ''}.`);
   }

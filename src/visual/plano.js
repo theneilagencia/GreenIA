@@ -175,11 +175,17 @@ export function planejar(conteudo, tr, { titulo = '' } = {}) {
     }
     pag({ papel: 'conteudo', layout: tr.impacto ? 'destaque' : 'painel', titulo: tituloGeral, subtitulo: limpar(subtitulo, 240), refs: refSubtitulo, blocos });
   }
-  return finalizarPlano({ paginas }, tr);
+  return finalizarPlano({ paginas }, tr, tituloGeral);
 }
 const textoDoItemTotal = s => s.itens.map(textoDoItem).join(' ').length;
 
-function finalizarPlano(p, tr) {
+function finalizarPlano(p, tr, titulo = '') {
+  // O título do trabalho não pode existir só nos metadados do download.
+  if (titulo && p.paginas.length && !p.paginas.some(pg => norm(pg.titulo || '').includes(norm(titulo)))) {
+    const primeira = p.paginas[0];
+    primeira.subtitulo = limpar([primeira.titulo, primeira.subtitulo].filter(Boolean).join(' · '), 240);
+    primeira.titulo = limpar(titulo, 90);
+  }
   let b = 0;
   for (const pg of p.paginas) for (const bl of pg.blocos) bl.id = `b${++b}`;
   return { v: 1, tipo: tr.tipo, rotulo: tr.rotulo, formato: tr.formato, canvas: { w: FORMATOS[tr.formato].w, h: FORMATOS[tr.formato].h }, multipagina: tr.multipagina,
@@ -315,7 +321,17 @@ export function lerPlano(texto, conteudo, tr, { titulo = '' } = {}) {
     alvo.blocos.splice(pos >= 0 ? pos + 1 : alvo.blocos.length, 0, b);
     alvo.completada = true;
   }
-  const plano = finalizarPlano({ paginas }, tr);
+  // Carrossel com uma seção por página: a IA não pode mover a etapa 1 para
+  // a página 2 nem consumir uma página numa capa adicional.
+  const porPagina = conteudo.secoes.filter(s => s.itens.length);
+  if (tr.tipo === 'carousel' && tr.paginas && porPagina.length === tr.paginas) {
+    if (paginas.length !== tr.paginas || paginas.some((pg, i) => {
+      const refs = new Set([...pg.refs, ...pg.blocos.flatMap(b => b.refs)]);
+      return porPagina[i].itens.some(it => !refs.has(it.id))
+        || [...refs].some(id => itens.get(id)?.secao !== porPagina[i].id);
+    })) return null;
+  }
+  const plano = finalizarPlano({ paginas }, tr, limpar(titulo || conteudo.titulo, 90));
   plano.origem = 'ia';
   return plano;
 }

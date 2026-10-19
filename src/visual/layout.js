@@ -92,7 +92,10 @@ export function desenharBloco(b, largura, C, itens, { alturaLivre = null, assets
       default: return blocoParagrafo(it.texto || '', largura, C);
     }
   })();
-  if (!b.titulo || b.semTitulo) return corpo;
+  // Uma chamada curta já desenhada no corpo não precisa reaparecer como título.
+  const normalizarTexto = s => String(s || '').normalize('NFC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('pt-BR');
+  const corpoTexto = corpo.prims.filter(p => p.t === 'text').flatMap(p => p.linhas).join(' ');
+  if (!b.titulo || b.semTitulo || normalizarTexto(b.titulo) === normalizarTexto(corpoTexto)) return corpo;
   const t = blocoTituloBloco(b.titulo, largura, C);
   const g = C.tip.corpo * 0.55;
   return { ...corpo, h: t.h + g + corpo.h, prims: [...t.prims, ...mover(corpo.prims, 0, t.h + g)], tituloH: t.h + g };
@@ -263,11 +266,12 @@ function destaque(C, pg, itens, assets, { numero, total }) {
   p.prims.push({ t: 'rect', x: 0, y: 0, w, h, fill: fundo, papel: 'fundo' });
   const heroi = numero === 1 ? assets.heroi : null;
   let topo = M;
-  // Imagem final: a imagem ocupa a peça inteira; o texto fica sobre uma faixa escura translúcida (legível).
+  // Fundo sólido sob o texto: a imagem gerada pode conter letras apesar do briefing.
+  // Transparência deixava essas letras atravessarem a chamada e não permitia provar o contraste.
   if (heroi && C.plano.imagemFinal) {
     p.prims.push({ t: 'image', x: 0, y: 0, w, h, href: heroi.dataUrl, nw: heroi.w, nh: heroi.h, ajuste: 'cover', papel: 'imagem', assetId: heroi.id || null });
     p.blocos.push({ id: 'heroi', tipo: 'imagem', refs: [], x: 0, y: 0, w, h, sangria: true });
-    p.prims.push({ t: 'rect', x: 0, y: h * 0.38, w, h: h * 0.62, fill: T.primaria, opacidade: 0.82, papel: 'fundo' });
+    p.prims.push({ t: 'rect', x: 0, y: h * 0.32, w, h: h * 0.68, fill: T.primaria, papel: 'fundo' });
     topo = h * 0.38 + M * 0.6;
   } else if (heroi) {
     const ih = h * 0.42;
@@ -287,11 +291,12 @@ function destaque(C, pg, itens, assets, { numero, total }) {
   const st = pg.subtitulo ? texto(pg.subtitulo, { familia: T.fonteCorpo, peso: 400, tam: tip.h3, cor: corTexto, largura: larg, lh: 1.35, papel: 'subtitulo' }) : null;
   const tituloH = (tt ? tt.h + tip.corpo * 1.2 : 0) + (st ? st.h + tip.corpo * 1.1 : 0);
   const area = { x: M, y: 0, w: larg, h: fundoY - topo - tip.corpo * 1.5 - tituloH };
-  let dist = distribuir(pg.blocos, { ...area, y: 0 }, C2, itens, assets, 'uma_coluna'), Cb = C2;
+  const blocos = pg.blocos.map(b => b.titulo && pg.titulo && b.titulo.trim().toLocaleLowerCase('pt-BR') === pg.titulo.trim().toLocaleLowerCase('pt-BR') ? { ...b, semTitulo: true } : b);
+  let dist = distribuir(blocos, { ...area, y: 0 }, C2, itens, assets, 'uma_coluna'), Cb = C2;
   // Página de leitura rápida com pouco texto: o corpo cresce (em degraus), sem passar da área.
   if (C.op.preencher !== false && dist.h < area.h * 0.45) {
     for (const f of [1.45, 1.25, 1.1]) {
-      const C3 = escalarCorpo(C2, f), d = distribuir(pg.blocos, { ...area, y: 0 }, C3, itens, assets, 'uma_coluna');
+      const C3 = escalarCorpo(C2, f), d = distribuir(blocos, { ...area, y: 0 }, C3, itens, assets, 'uma_coluna');
       if (d.h <= area.h * 0.7) { dist = d; Cb = C3; p.escalaCorpo = f; break; }
     }
   }

@@ -53,6 +53,11 @@ export function conferirVisual({ paginas, plano: pl, conteudo, tr, identidade = 
   const tamanhosPorPapel = new Map();
   for (const pg of paginas) {
     const n = pg.numero;
+    // Uma peça de divulgação com tema ainda não informado exige revisão do conteúdo.
+    // Guardar o aviso na própria peça não a torna pronta para publicação.
+    if (['carousel', 'social_post', 'image'].includes(pl.tipo) && /\btema:\s*n[aã]o informado\b/i.test(textoDe(pg.prims))) {
+      f('objetivo', 'erro', n, 'O tema da peça continua não informado; complete o conteúdo antes de publicar.');
+    }
     if (Math.round(pg.w) !== fmt.w || Math.round(pg.h) !== fmt.h) f('dimensoes', 'erro', n, `${pg.w}x${pg.h} em vez de ${fmt.w}x${fmt.h}`);
     const area = pg.areaUtil || { x: 0, y: 0, w: pg.w, h: pg.h };
     const M = Math.min(pg.w, pg.h) * 0.03;

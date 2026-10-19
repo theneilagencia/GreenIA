@@ -7,13 +7,14 @@ import { inflateRawSync } from 'node:zlib';
 import { subir } from './ajuda.js';
 import { openRouterFalso, enviarMensagem, PNG_FALSO } from './openrouter-falso.js';
 import { salvarConfig } from '../src/config.js';
-import { um } from '../src/db.js';
+import { um, todos } from '../src/db.js';
 import { soEntregavel, blocos, slides, formulaDaCelula } from '../src/escritorio.js';
 import { pedidoDeImagem, proporcaoDoPedido } from '../src/imagem-chat.js';
 import { entregaDeCodigo } from '../src/codigo-chat.js';
 import { nomesDasTabelas } from '../public/tabelas.js';
 import { analisarPedido, requisitosDe } from '../src/roteador.js';
 import { pecaDaConversa } from '../src/conversas.js';
+import { catalogoAdvancedFalso } from './advanced-fixture.js';
 
 const texto = c => (typeof c === 'string' ? c : (c || []).map(p => p.text || '').join('\n'));
 const SITE = 'Entendi: você quer um site institucional. Vou entregar a página completa.\n\n## Código\n\n```html\n<!DOCTYPE html>\n<html><head><title>X</title><link rel="stylesheet" href="style.css"></head><body><h1>Olá</h1><script src="app.js"></script></body></html>\n```\n\n**style.css**\n```css\nh1{color:red}\n```\n\n**app.js**\n```js\ndocument.title="ok";\n```\n\n## O que foi feito\n- Site com uma página.';
@@ -57,6 +58,16 @@ test('sugestão de agente/automação usa só recursos da GreenIA, sem APIs de t
   assert.match(NOTA_AGENTE('automacao'), /não invente números, estudos ou benchmarks/);
 });
 
+test('restrição sem imagens em planilha não aciona gerador nem aviso de proteção de imagem', async () => {
+  const conv = await nova();
+  const antes = imagens().length;
+  const r = await enviarMensagem(ana, conv.id, { texto: 'Gere uma planilha XLSX com Item e Valor. Sem fórmulas, gráficos ou imagens.' });
+  assert.equal(r.status, 200);
+  assert.equal(imagens().length, antes);
+  const avisos = todos(S.app.db, "select texto from mensagens where conversa_id = ? and papel = 'aviso'", conv.id);
+  assert.ok(!avisos.some(a => /imagem não foi gerada/.test(a.texto)));
+});
+
 test('imagem: gerada na conversa com a proporção pedida; "troque a roupa" edita a última; anexada é editada', async () => {
   const conv = await nova();
   const pedido = 'Gere uma imagem fotorrealista em 16:9 de uma profissional de 40 anos num escritório, com espaço livre à direita.';
@@ -65,6 +76,7 @@ test('imagem: gerada na conversa com a proporção pedida; "troque a roupa" edit
   assert.equal(semAcesso.status, 403);
   assert.equal(OR.chamadas.length, chamadasAntes);
   const modelo = 'anthropic/claude-opus-5.5';
+  catalogoAdvancedFalso(S.app, [modelo]);
   salvarConfig(S.app.db, { advanced: { limiteMensalUsd: 20 } });
   assert.equal((await admin.put(`/api/admin/modelos/${encodeURIComponent(modelo)}`, { liberado: true, perfil: 'avancado' })).status, 200);
   assert.equal((await admin.put(`/api/admin/advanced/modelos/${encodeURIComponent(modelo)}`, { aprovado: true, provedores: ['anthropic'], justificativa: 'Rota controlada do provedor simulado neste teste.' })).status, 200);
@@ -172,6 +184,11 @@ test('unidades: proporção, pedido de imagem, peças por formato, código, fór
   assert.equal(proporcaoDoPedido('imagem em 16:9'), '16:9');
   assert.equal(pedidoDeImagem('Crie uma apresentação com imagens'), null);
   assert.equal(pedidoDeImagem('Analise a imagem anexada'), null);
+  for (const pedido of ['Gere uma planilha, sem imagens.', 'Crie um XLSX. Sem fórmulas, gráficos ou imagens.', 'Crie um relatório; não gere imagens.', 'Faça uma tabela, evite imagens.', 'Não faça imagens. Crie uma tabela.', 'Não quero imagens; faça um resumo.'])
+    assert.equal(pedidoDeImagem(pedido), null, pedido);
+  assert.equal(pedidoDeImagem('Gere uma imagem de uma montanha, sem texto.').modo, 'nova');
+  assert.equal(pedidoDeImagem('Sem texto e gere uma imagem de uma montanha.').modo, 'nova');
+  assert.equal(pedidoDeImagem('Não crie imagens; crie uma imagem de uma montanha.').modo, 'nova');
   assert.equal(pedidoDeImagem('Deixe a iluminação mais quente', { ultima: { dataUrl: 'x' }, ultimaFoiImagem: false }), null, 'sem imagem na última resposta não é edição');
   const pecas = pecaDaConversa('Crie uma campanha para LinkedIn com peças visuais nos formatos quadrado e horizontal.').operacao.entregaveis;
   assert.deepEqual(pecas.map(e => e.visual.formato), ['1:1', '1.91:1']);

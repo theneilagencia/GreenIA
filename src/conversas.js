@@ -271,11 +271,21 @@ export function fonteDeApresentacao(deck) {
 
 export function pecaDaConversa(texto) {
   if (!PEDE_CRIAR.test(String(texto || '')) && !pedeRedesignApresentacao(texto)) return null;
+  // Duas peças nomeadas no pedido são duas entregas, não só o primeiro tipo
+  // encontrado. Cada trecho mantém sua própria contagem e proporção.
+  const t = String(texto).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const cabecas = [...t.matchAll(/(?:\b(?:crie|gere|produza|entregue|monte)\s+|[:,;]\s*(?:e\s+)?|\s+e\s+)(?:um|uma)\s+(?:post|carrossel|banner|infografico|apresentacao|cartaz|fluxograma)\b/g)];
+  const trechos = cabecas.map((m, i) => t.slice(m.index, cabecas[i + 1]?.index).split(/\.(?:\s|$)|\n/)[0]);
+  const pecas = trechos.map(s => visualDoPedido(s)).filter(v => v && v.tipo !== 'image');
+  if (pecas.length > 1) return {
+    objetivo: String(texto).slice(0, 500), invariantes: {},
+    operacao: { entregaveis: pecas.map((v, i) => ({ id: `peca_${i + 1}`, tipo: v.tiposEntregavel[0] || 'outro', rotulo: TIPOS_VISUAIS[v.tipo].rotulo, canal: null, config: {},
+      visual: { tipo: v.tipo, ...(v.paginas ? { paginas: v.paginas } : {}), ...(v.formato ? { formato: v.formato } : {}) } })) },
+  };
   const v = visualDoPedido(texto);
   if (!v || v.tipo === 'image') return null;
   const visual = { tipo: v.tipo, ...(v.paginas ? { paginas: v.paginas } : {}), ...(v.formato ? { formato: v.formato } : {}) };
   // Peça pedida em mais de um formato ("quadrado e horizontal"): uma peça por formato, com o mesmo conteúdo.
-  const t = String(texto).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   const formatos = v.tipo === 'social_post' ? [...new Set([[/\bquadrad\w*|\b1:1\b/, '1:1'], [/\bhorizonta\w*|\b1\.91:1\b/, '1.91:1'], [/\bvertica\w*|\b4:5\b/, '4:5'], [/\bstor(y|ies)\b|\b9:16\b/, '9:16']].filter(([re]) => re.test(t)).map(([, f]) => f))] : [];
   const entregaveis = formatos.length > 1
     ? formatos.map((f, i) => ({ id: `peca_${i + 1}`, tipo: v.tiposEntregavel[0] || 'outro', rotulo: `Peça ${FORMATOS_VISUAIS[f].rotulo.toLowerCase()}`, canal: null, config: {}, visual: { ...visual, formato: f } }))

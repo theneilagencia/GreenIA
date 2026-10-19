@@ -189,7 +189,7 @@ export function conferirDestino(destino, { proibidos = [] } = {}) {
 export async function ensaiar({ fonte, destino, chave = {}, esperado = null, ultimaEscrita = null, proibidos = [], log = () => {} }) {
   const rel = { inicio: new Date().toISOString(), etapas: {}, bancos: [], verificacoes: [], falhas: [] };
   const ok = (nome, cond, detalhe = '') => { rel.verificacoes.push({ nome, ok: !!cond, detalhe }); if (!cond) rel.falhas.push(nome); log(`${cond ? 'ok   ' : 'FALHA'} ${nome}${detalhe ? ` (${detalhe})` : ''}`); return !!cond; };
-  const rede = bloquearRedeExterna();
+  let rede = null;
   const t0 = performance.now();
   let P = null;
   try {
@@ -232,6 +232,9 @@ export async function ensaiar({ fonte, destino, chave = {}, esperado = null, ult
     rel.chave = { origem: origemChave, impressao, registrada: impressaoRegistrada };
     ok('chave-mestra recuperada confere com a impressão digital do banco restaurado', !!mestra && impressao === impressaoRegistrada, `${impressao || 'sem chave'} / ${impressaoRegistrada || 'sem registro'}`);
 
+    // A recuperação acima precisa acessar o S3. Só a aplicação restaurada fica
+    // isolada: bloquear antes impediria baixar backups e o envelope reais.
+    rede = bloquearRedeExterna();
     // Aplicação no ar sobre a cópia, isolada.
     const logs = [];
     const admins = [];
@@ -319,7 +322,7 @@ export async function ensaiar({ fonte, destino, chave = {}, esperado = null, ult
     log(`FALHA ${e.code || ''} ${e.message}`);
   } finally {
     if (P) await fecharPlataforma(P).catch(() => {});
-    rede.desfazer();
+    rede?.desfazer();
   }
   rel.ok = rel.falhas.length === 0;
   return rel;
@@ -369,7 +372,7 @@ export async function ensaioSintetico({ subirS3Falso, lifecycleXml, regraLifecyc
     const depois = hashArquivos(origem);
     ensaio.verificacoes.push({ nome: 'origem intocada (SHA-256 dos bancos e da chave antes e depois)', ok: JSON.stringify(antes) === JSON.stringify(depois), detalhe: `${Object.keys(antes).length} arquivos` });
     if (JSON.stringify(antes) !== JSON.stringify(depois)) { ensaio.falhas.push('origem alterada'); ensaio.ok = false; }
-    ensaio.rpo.ultima_escrita_antes_do_backup = new Date(ultimaEscritaAntes).toISOString();
+    if (ensaio.rpo) ensaio.rpo.ultima_escrita_antes_do_backup = new Date(ultimaEscritaAntes).toISOString();
     Object.assign(rel, { ensaio, impressao: O.impressao, empresas: O.empresas.map(e => e.id), s3: { pedidos: s3.pedidos.length, lifecycle: 'Expiration 6 d + NoncurrentVersionExpiration 1 d, versionamento ligado' } });
     rel.logs_backup = logsBackup;
   } finally {

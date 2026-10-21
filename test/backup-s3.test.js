@@ -252,3 +252,37 @@ test('chave-mestra: impressão digital no banco; chave diferente na volta vira a
   assert.throws(() => abrirEnvelope({ ...e, impressao: impressaoMestra(k2) }, 'um-segredo-de-envelope-bem-comprido-123'));
   rmSync(p, { recursive: true, force: true });
 });
+
+test('repetição recopia só bancos pendentes; destino novo e nova diária recopiariam todos', async () => {
+  let agora = new Date('2026-10-15T06:00:00Z');
+  const P = criarPlataforma({ log: () => {}, agora: () => agora });
+  const pasta = mkdtempSync(join(tmpdir(), 'backup-pendentes-'));
+  try {
+    let calls = 0, falhar = true;
+    const copiar = async () => { calls++; if (falhar) throw Object.assign(new Error('falha'), { code: 'S3_HTTP_507', etapa: 's3' }); return { tamanho: 1, sha256: 'a'.repeat(64), remoto: 's3://qa/copia', envio: { objeto: 'copia' } }; };
+    const rodar = (repeticao, destino = 's3://qa') => backupDaPlataforma(P, { pasta, repeticao, destino, env: {} }, copiar);
+    await rodar(false);assert.equal(calls, 1);
+    falhar = false;agora = new Date('2026-10-15T07:01:00Z');
+    await rodar(true);assert.equal(calls, 2);
+    agora = new Date('2026-10-15T08:01:00Z');
+    const reutilizado = await rodar(true);assert.equal(calls, 2);assert.equal(reutilizado.reutilizados, 1);
+    await rodar(true, 's3://outro');assert.equal(calls, 3);
+    await rodar(false, 's3://outro');assert.equal(calls, 4);
+  } finally { P.db.close();rmSync(pasta, { recursive: true, force: true }); }
+});
+
+test('repetição mantém sucessos de outras empresas e não reutiliza cópia local quando S3 ficou bloqueado', async () => {
+  let agora = new Date('2026-10-15T06:00:00Z');
+  const P = criarPlataforma({ log: () => {}, agora: () => agora });
+  P.tenants.set('a', { db: {} }); P.tenants.set('b', { db: {} });
+  const pasta = mkdtempSync(join(tmpdir(), 'backup-parcial-'));
+  try {
+    let parcial = true;const calls = [];
+    const copiar = async (db, op) => { calls.push(op.banco);if (op.banco === 'a' && parcial) return { tamanho: 1, sha256: 'a'.repeat(64), s3Bloqueado: 'regra ausente' };return { tamanho: 1, sha256: 'a'.repeat(64), remoto: 's3://qa/copia', envio: { objeto: op.banco } }; };
+    await backupDaPlataforma(P, { pasta, destino: 's3://qa', env: {} }, copiar);
+    parcial = false;agora = new Date('2026-10-15T07:01:00Z');
+    const r = await backupDaPlataforma(P, { pasta, destino: 's3://qa', env: {}, repeticao: true }, copiar);
+    assert.deepEqual(calls, ['plataforma', 'a', 'b', 'a']);assert.equal(r.reutilizados, 2);assert.equal(r.falhas, 0);assert.equal(r.concluidos, 3);
+    assert.equal(lerEstado(P).bancos.a.falha, null);
+  } finally { P.db.close();rmSync(pasta, { recursive: true, force: true }); }
+});

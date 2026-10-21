@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: GreenIA private S3 backup destination; review and deploy separately from Render.
+Resources:
+  BackupBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub 'greenia-backups-${AWS::AccountId}-${AWS::Region}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      # Fresh bucket: versioning and Object Lock are deliberately not enabled.
+      LifecycleConfiguration:
+        Rules:
+          - Id: greenia-seven-days
+            Status: Enabled
+            Prefix: greenia/
+            ExpirationInDays: 7
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+      Tags:
+        - Key: Application
+          Value: GreenIA
+        - Key: Purpose
+          Value: EncryptedBackup
+  BackupBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref BackupBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: RequireTLS
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource:
+              - !GetAtt BackupBucket.Arn
+              - !Sub '${BackupBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+  BackupClientPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: GreenIA backup only; not attached and no identity or credentials created.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: BackupObjects
+            Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+            Resource: !Sub '${BackupBucket.Arn}/greenia/*'
+          - Sid: ListBackupPrefix
+            Effect: Allow
+            Action: s3:ListBucket
+            Resource: !GetAtt BackupBucket.Arn
+            Condition:
+              StringLike:
+                s3:prefix: greenia/*
+          - Sid: VerifyRetention
+            Effect: Allow
+            Action:
+              - s3:GetLifecycleConfiguration
+              - s3:GetBucketVersioning
+              - s3:GetBucketObjectLockConfiguration
+            Resource: !GetAtt BackupBucket.Arn
+          - Sid: NoObjectDeletion
+            Effect: Deny
+            Action:
+              - s3:DeleteObject
+              - s3:DeleteObjectVersion
+            Resource: !Sub '${BackupBucket.Arn}/greenia/*'
+          - Sid: NoBucketAdministration
+            Effect: Deny
+            Action:
+              - s3:DeleteBucket
+              - s3:PutLifecycleConfiguration
+              - s3:PutBucketVersioning
+              - s3:PutBucketObjectLockConfiguration
+              - s3:PutBucketPolicy
+              - s3:PutBucketPublicAccessBlock
+            Resource: !GetAtt BackupBucket.Arn
+Outputs:
+  BackupDestination:
+    Value: !Sub 's3://${BackupBucket}/greenia'
+  BackupEndpoint:
+    Value: !Sub 'https://s3.${AWS::Region}.${AWS::URLSuffix}'
+  BackupRegion:
+    Value: !Ref AWS::Region
+  BackupClientPolicyArn:
+    Value: !Ref BackupClientPolicy

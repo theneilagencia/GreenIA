@@ -41,13 +41,17 @@ test('404 no endereço de uma empresa: marca da empresa, sem GreenIA, e "Entrar"
     assert.match(h, /href="\/icone"/);
     assert.match(h, /href="\/entrar">Entrar</);
   }
-  // Pelo caminho /<slug> no host da plataforma, as saídas voltam para o endereço da empresa.
+});
+
+test('404 no endereço da plataforma com uma empresa aberta antes: marca GreenIA, nunca a do cliente; saída volta ao ambiente', async () => {
+  // QA em produção: greenia.com.br/help/manual.html saiu com o nome e o logo do último cliente aberto no navegador.
   const nav = P.navegador();
   await nav.get('/empresa-quatro');
-  const h = html404(await nav.get('/outra/coisa'));
-  assert.doesNotMatch(h, /GreenIA/);
-  assert.match(h, /href="\/empresa-quatro">Ir para o início</);
-  assert.match(h, /href="\/empresa-quatro\/entrar">Entrar</);
+  const h = html404(await nav.get('/help/manual.html'));
+  assert.match(h, /<title>Página não encontrada · GreenIA<\/title>/);
+  assert.doesNotMatch(h, /Empresa Quatro|\/icone/);
+  assert.match(h, /href="\/">Ir para o início</);
+  assert.match(h, /href="\/empresa-quatro">Voltar ao ambiente da empresa</);
 });
 
 test('404 da instalação única também é HTML com saída', async () => {

@@ -416,7 +416,11 @@ async function tratar(P, rPlat, rEmp, req, res) {
     if (!caminho.startsWith('/api/')) {
       if (caminho === '/admin') { res.writeHead(302, { location: '/app#/visao-geral' }); return res.end(); }
       if (req.method === 'GET' && PAGINAS_EMPRESA[caminho]) return await servirPagina(res, PAGINAS_EMPRESA[caminho]);
-      return pagina404(P, res, porHost || { id: companyId });
+      // No endereço da plataforma, a página não encontrada é da GreenIA mesmo com o contexto de uma empresa no navegador
+      // (QA em produção: greenia.com.br/<caminho inexistente> saiu com a marca do último cliente aberto); a saída leva de
+      // volta ao ambiente da empresa, sem expor a marca dela.
+      if (!porHost) { const c = E.lerEmpresa(P, companyId); return paginaNaoEncontrada(res, { saida: c ? { href: `/${c.slug}`, texto: 'Voltar ao ambiente da empresa' } : undefined }); }
+      return pagina404(P, res, porHost);
     }
     if (rEmp.achar(req.method, caminho)) return await despachar(P, rEmp, req, res, url, cookies, companyId);
 

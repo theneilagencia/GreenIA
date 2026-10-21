@@ -15,7 +15,7 @@ services:
     disk:
       name: dados
       mountPath: /app/dados
-      sizeGB: 1
+      sizeGB: 5
     envVars:
       - key: ADMIN_EMAIL
         sync: false         # um ou mais emails de admin (vírgula); entram de qualquer domínio
@@ -95,7 +95,7 @@ services:
         value: "7"
 
   # Receptor de backup: guarda a cópia cifrada dos backups num disco separado do de produção (src/receptor-backup.js).
-  # Menor custo: plano Starter + disco de 1 GB (o disco de produção também tem 1 GB). Sem endereço público.
+  # Plano Starter e disco de 3 GB para sete rodadas atuais e margem de escrita. Sem endereço público.
   - type: pserv
     name: greenia-backup
     runtime: docker
@@ -107,7 +107,7 @@ services:
     disk:
       name: backups
       mountPath: /app/dados
-      sizeGB: 1
+      sizeGB: 3
     envVars:
       - key: S3_CHAVE
         value: greenia-backup

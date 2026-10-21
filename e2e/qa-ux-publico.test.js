@@ -46,13 +46,13 @@ test('A7: endereço inexistente mostra página em pt-BR, legível no celular, co
   assert.equal(await p.getByRole('link', { name: 'Ir para o início' }).getAttribute('href'), '/');
   await p.getByRole('link', { name: 'Encontrar meu ambiente' }).click();
   await p.waitForURL(/\/encontrar$/);
-  // No endereço da plataforma com uma empresa aberta: marca GreenIA (nunca a do cliente) e saída de volta ao ambiente.
+  // No endereço da plataforma com uma empresa aberta: só GreenIA, sem marca nem link do cliente.
   const e = await pagina(CELULAR, admin);
   assert.equal((await e.goto(`${S.base}/pagina/que/nao/existe`)).status(), 404);
   assert.equal(await e.title(), 'Página não encontrada · GreenIA');
-  assert.doesNotMatch(await e.content(), /Empresa Pública/i);
+  assert.doesNotMatch(await e.content(), /Empresa Pública|empresa-publica/i);
   assert.equal(await e.getByRole('link', { name: 'Ir para o início' }).getAttribute('href'), '/');
-  assert.equal(await e.getByRole('link', { name: 'Voltar ao ambiente da empresa' }).getAttribute('href'), '/empresa-publica');
+  assert.equal(await e.getByRole('link', { name: 'Encontrar meu ambiente' }).getAttribute('href'), '/encontrar');
 });
 
 test('A8: no celular, "Entrar" fica no topo e o menu compacto leva às seções (fecha ao escolher e com Esc)', async () => {

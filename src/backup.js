@@ -22,12 +22,23 @@ export function fazerBackupLocal(db, { pasta = 'dados/backups', manter = 14, ago
   const carimbo = carimboDe(agora);
   const nome = `greenia-${carimbo}.sqlite.gz`;
   const temp = join(pasta, `.${nome}.tmp`);
-  rmSync(temp, { force: true });
-  db.exec(`VACUUM INTO '${temp.replace(/'/g, "''")}'`);
-  const gz = gzipSync(readFileSync(temp), { level: 9 });
-  rmSync(temp);
   const local = join(pasta, nome);
-  writeFileSync(local, gz);
+  const compactado = join(pasta, `.${nome}.gz.tmp`);
+  let gz;
+  try {
+    rmSync(temp, { force: true });
+    rmSync(compactado, { force: true });
+    db.exec(`VACUUM INTO '${temp.replace(/'/g, "''")}'`);
+    gz = gzipSync(readFileSync(temp), { level: 9 });
+    // Libera a cópia bruta antes da escrita compactada. Só substitui uma
+    // cópia anterior após concluir a gravação, no mesmo sistema de arquivos.
+    rmSync(temp);
+    writeFileSync(compactado, gz, { flag: 'wx', mode: 0o600 });
+    renameSync(compactado, local);
+  } finally {
+    rmSync(temp, { force: true });
+    rmSync(compactado, { force: true });
+  }
   // Retenção local: fica com os mais recentes.
   const antigos = readdirSync(pasta).filter(f => /^greenia-\d{8}-\d{6}\.sqlite\.gz$/.test(f)).sort().reverse().slice(Math.max(1, manter));
   for (const f of antigos) rmSync(join(pasta, f));

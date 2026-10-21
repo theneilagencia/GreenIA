@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 import { criarPlataforma, origemChaveOpenRouter } from './plataforma/servidor.js';
 import { criarProvedorRender, pendentes, verificarDominio } from './plataforma/dominio.js';
 import { criarApp } from './servidor.js';
@@ -107,9 +107,20 @@ export async function backupDaPlataforma(P, { pasta, env = process.env, repetica
   const r = { total: bancos.length, concluidos: 0, falhas: 0, s3: !!op.destino, ...(repeticao ? { repeticao } : {}) };
   const verificacao = {};
   const agora = op.agora || (P.agora ? P.agora() : new Date());
+  const estadoAnterior = real ? lerEstado(P) : null;
+  const destinoId = createHash('sha256').update(JSON.stringify([op.destino || '', env.S3_ENDPOINT || '', env.S3_REGIAO || ''])).digest('hex');
+  const mesmaRodada = repeticao && estadoAnterior?.rodada?.destino_id === destinoId && Number.isFinite(Date.parse(estadoAnterior.rodada.iniciada_em));
+  const iniciada = mesmaRodada ? estadoAnterior.rodada.iniciada_em : agora.toISOString();
+  if (real) Object.assign(r, { iniciada_em: iniciada, destino_id: destinoId });
   let mestra = null;
   try { mestra = P.mestra?.() || null; } catch { /* sem chave-mestra: a cifra do S3 é conferida só contra CHAVE_MESTRA */ }
   for (const [id, abrir] of bancos) {
+    const anterior = estadoAnterior?.bancos?.[id];
+    if (mesmaRodada && anterior && !anterior.falha && Date.parse(anterior.ultimo_local) >= Date.parse(iniciada) && (!op.destino || Date.parse(anterior.ultimo_remoto) >= Date.parse(iniciada))) {
+      r.concluidos++; r.reutilizados = (r.reutilizados || 0) + 1;
+      P.log(`backup já confirmado nesta rodada: ${id}; nenhum novo envio`);
+      continue;
+    }
     try {
       const b = await copiar(abrir(), { ...op, env, agora, banco: id, verificacao, mestra, pasta: join(pasta, id) });
       r.concluidos++;

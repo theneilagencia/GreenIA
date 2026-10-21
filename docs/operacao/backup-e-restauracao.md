@@ -230,3 +230,24 @@ Lock, envio cifrado, HEAD, listagem paginada, download, decifra, envelope) foi t
 - Restaurar em produção ainda é manual (`scripts/restaurar.js` por banco, com o serviço parado); a recuperação de
   todos os bancos de uma vez só existe no ensaio, sobre cópia.
 - Os tempos medidos são locais e com bancos pequenos; o RTO real depende do download e da criação do serviço.
+
+## Atualização operacional de 21/10/2026: armazenamento limitado
+
+- `dados/backups-publicacao`: após verificar a nova cópia completa, a entrada do contêiner mantém a publicação atual e a anterior mais recente. O padrão é dois conjuntos, configurável por `BACKUP_PUBLICACOES_MANTER` (2 a 10). Somente pastas de commit reconhecidas, com manifesto, tamanhos e SHA-256 válidos, sem arquivos extras, são elegíveis. Links, conjuntos desconhecidos/adulterados e pastas com `HOLD.json` são preservados e contabilizados como alertas. Sem validar o conjunto atual, nada é removido. `BACKUP_PUBLICACOES_RETENCAO` registra quantidade e bytes removidos, sem conteúdo de clientes.
+- Repetições de uma rodada diária recopiariam apenas bancos ainda pendentes. O estado conserva o início da rodada e uma impressão do destino/endpoint/região; bancos já confirmados nessa rodada não geram nova cópia nem novo evento `backup.completed`. Mudança de destino e nova rodada diária não reutilizam confirmações anteriores. Estados legados sem identificação de rodada são tratados conservadoramente, com nova cópia.
+- O receptor remove estágios reconhecidos de uploads incompletos no início e ao terminar PUT, inclusive com ENOSPC. Cópias confirmadas continuam sob a expiração de sete dias. Não há DELETE pela rede.
+- Capacidade declarada: disco da aplicação 5 GB (alinhado ao provisionamento existente), disco do receptor 3 GB. Essa capacidade dá margem às sete rodadas atuais de aproximadamente 183 MB; não é garantia para volume ilimitado. Conferir ocupação e crescimento antes de novo redimensionamento.
+
+Rodada administrativa única pelo shell privilegiado do serviço web, fora de outra rodada em andamento:
+
+```sh
+node --disable-warning=ExperimentalWarning scripts/backup-plataforma.mjs
+```
+
+O comando exige banco e chave existentes e coerentes; valida os caminhos de todas as empresas antes de copiar, usa a rotina multiempresa e grava o estado/auditoria habitual. Não inicia servidor, tarefas periódicas, email ou chamadas de IA. Saída diferente de zero indica falha ou pendência. Depois, conferir leitura de retorno e restauração isolada:
+
+```sh
+node --disable-warning=ExperimentalWarning scripts/ensaio-restauracao.mjs --s3 "$BACKUP_DESTINO" --chave-arquivo /app/dados/.chave-mestra --relatorio /tmp/greenia-restauracao-s3.json
+```
+
+O ensaio exige as credenciais já configuradas no processo; não copiá-las para chat, logs ou repositório. Nunca restaurar sobre os bancos ativos para testar. O ensaio real local executado em 21/10 passou em 21 verificações nos seis bancos; isso não substitui o ensaio externo posterior ao reparo, nem valida entregas com IA.

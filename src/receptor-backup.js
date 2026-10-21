@@ -29,6 +29,15 @@ export function criarReceptor({ pasta, bucket = 'greenia-backups', chave, segred
   if (!chave || !segredo) throw new Error('Receptor de backup precisa de S3_CHAVE e S3_SEGREDO.');
   if (!(dias >= 1 && dias <= 7)) throw new Error('RECEPTOR_DIAS precisa estar entre 1 e 7.');
   const raiz = resolve(pasta); const objs = join(raiz, 'objetos'); mkdirSync(objs, { recursive: true });
+  // Só arquivos de estágio, antes de aceitar conexões. Objetos e metadados
+  // confirmados continuam sujeitos exclusivamente à retenção configurada.
+  let temporariosRemovidos = 0;
+  for (const e of readdirSync(objs, { withFileTypes: true })) {
+    if (e.isFile() && /^[a-f0-9]{64}(?:\.\d+|\.json)\.tmp$/.test(e.name)) {
+      rmSync(join(objs, e.name)); temporariosRemovidos++;
+    }
+  }
+  if (temporariosRemovidos) log(`receptor: ${temporariosRemovidos} arquivo(s) temporário(s) de upload incompleto removido(s)`);
   const arq = k => join(objs, sha256(k));
   const lerMeta = n => { try { return JSON.parse(readFileSync(join(objs, n), 'utf8')); } catch { return null; } };
   const todos = () => readdirSync(objs).filter(n => n.endsWith('.json')).map(lerMeta).filter(Boolean);
@@ -91,9 +100,17 @@ export function criarReceptor({ pasta, bucket = 'greenia-backups', chave, segred
           if (req.headers['x-amz-server-side-encryption']) return responder(501, xmlErro('NotImplemented', 'sem SSE: os objetos já chegam cifrados no cliente'));
           const meta = Object.fromEntries(Object.entries(req.headers).filter(([k]) => k.startsWith('x-amz-meta-')));
           const f = arq(objeto), tmp = `${f}.${process.pid}.tmp`;
-          writeFileSync(tmp, corpo); renameSync(tmp, f);
-          writeFileSync(`${f}.json.tmp`, JSON.stringify({ chave: objeto, meta, tamanho: corpo.length, em: agora().toISOString(), sha256: sha256(corpo) }));
-          renameSync(`${f}.json.tmp`, `${f}.json`);
+          try {
+            writeFileSync(tmp, corpo);
+            // Reserva também a escrita dos metadados antes de substituir um
+            // objeto existente: ENOSPC nesta etapa preserva a cópia anterior.
+            writeFileSync(`${f}.json.tmp`, JSON.stringify({ chave: objeto, meta, tamanho: corpo.length, em: agora().toISOString(), sha256: sha256(corpo) }));
+            renameSync(tmp, f);
+            renameSync(`${f}.json.tmp`, `${f}.json`);
+          } finally {
+            rmSync(tmp, { force: true });
+            rmSync(`${f}.json.tmp`, { force: true });
+          }
           return responder(200, '', { etag: `"${createHash('md5').update(corpo).digest('hex')}"` });
         }
         if (req.method === 'GET' || req.method === 'HEAD') {

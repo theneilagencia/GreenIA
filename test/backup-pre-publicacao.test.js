@@ -49,3 +49,28 @@ test('disco persistente insuficiente bloqueia publicação sem deixar cópias in
     assert.equal(readdirSync(temp).length, 0);
   } finally { rmSync(pasta, { recursive: true, force: true }); rmSync(temp, { recursive: true, force: true }); }
 });
+
+test('publicações sucessivas retêm dois conjuntos verificados sem tocar em desconhecidos e holds', async () => {
+  const pasta = mkdtempSync('/tmp/retencao-publicacao-');
+  try {
+    const banco = join(pasta, 'plataforma.sqlite'), db = new DatabaseSync(banco);
+    db.exec('CREATE TABLE companies(banco TEXT)'); db.close();
+    const env = { BANCO_PLATAFORMA: banco, BANCO: banco };
+    for (const letra of ['a', 'b', 'c']) await backupPrePublicacao({ ...env, RENDER_GIT_COMMIT: letra.repeat(40) });
+    const raiz = join(pasta, 'backups-publicacao');
+    assert.equal(readdirSync(raiz).length, 2);
+    assert.ok(readdirSync(raiz).includes('c'.repeat(40)));
+    const salvo = readdirSync(raiz).find(n => n !== 'c'.repeat(40));
+    writeFileSync(join(raiz, salvo, 'HOLD.json'), '{}');
+    mkdirSync(join(raiz, 'desconhecido'));writeFileSync(join(raiz, 'desconhecido', 'nao-apagar'), 'preservado');
+    for (const letra of ['d', 'e']) await backupPrePublicacao({ ...env, RENDER_GIT_COMMIT: letra.repeat(40) });
+    assert.equal(readdirSync(raiz).length, 4); // dois elegíveis + hold + desconhecido
+    assert.equal(readFileSync(join(raiz, 'desconhecido', 'nao-apagar'), 'utf8'), 'preservado');
+    assert.ok(readdirSync(raiz).includes(salvo));
+    const { limparPublicacoes } = await import('../scripts/backup-pre-publicacao.mjs');
+    const antes = readdirSync(raiz).sort();
+    await limparPublicacoes(raiz, { atual: 'f'.repeat(40) });
+    assert.deepEqual(readdirSync(raiz).sort(), antes);
+    await assert.rejects(limparPublicacoes(raiz, { atual: 'e'.repeat(40), manter: 1 }), /inválida/);
+  } finally { rmSync(pasta, { recursive: true, force: true }); }
+});

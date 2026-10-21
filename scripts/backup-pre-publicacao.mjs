@@ -1,6 +1,6 @@
 // Cópias consistentes compactadas. A candidata só inicia após verificar todas as cópias persistidas.
 import { DatabaseSync } from 'node:sqlite';
-import { existsSync, mkdirSync, mkdtempSync, statSync, statfsSync, copyFileSync, rmSync, readFileSync, writeFileSync, createReadStream, createWriteStream } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, statSync, statfsSync, copyFileSync, rmSync, readFileSync, writeFileSync, createReadStream, createWriteStream, readdirSync, lstatSync } from 'node:fs';
 import { resolve, dirname, join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
@@ -17,6 +17,50 @@ function conferir(arquivo) {
   const db = new DatabaseSync(arquivo, { readOnly: true });
   try { if (db.prepare('PRAGMA integrity_check').get().integrity_check !== 'ok') throw new Error('Cópia não íntegra'); }
   finally { db.close(); }
+}
+// Retém a publicação atual e a anterior mais recente. Só conjuntos completos
+// reconhecidos são elegíveis; holds, links e arquivos desconhecidos são preservados.
+export async function limparPublicacoes(pasta, { atual, manter = 2, aplicar = true } = {}) {
+  if (!Number.isInteger(manter) || manter < 2 || manter > 10) throw new Error('Retenção de publicações inválida');
+  const raiz = resolve(pasta), conjuntos = [], alertas = [];
+  if (!existsSync(raiz) || lstatSync(raiz).isSymbolicLink()) return { removidos: 0, bytes: 0, alertas: ['pasta ausente ou simbólica'] };
+  for (const nome of readdirSync(raiz)) {
+    const dir = join(raiz, nome);
+    try {
+      if (!/^[a-f0-9]{40}$/.test(nome) || !lstatSync(dir).isDirectory() || lstatSync(dir).isSymbolicLink() || existsSync(join(dir, 'HOLD.json'))) throw new Error();
+      const nomes = readdirSync(dir), manifesto = join(dir, 'manifesto.json');
+      if (lstatSync(manifesto).isSymbolicLink()) throw new Error();
+      const texto = readFileSync(manifesto, 'utf8'), m = JSON.parse(texto);
+      if (m.publicacao !== nome || m.formato !== 'sqlite.gz' || !Array.isArray(m.copias) || !m.copias.length) throw new Error();
+      const esperados = new Set(['manifesto.json', ...m.copias.map(c => c.copia)]);
+      if (esperados.size !== m.copias.length + 1 || nomes.length !== esperados.size || nomes.some(n => !esperados.has(n))) throw new Error();
+      let bytes = statSync(manifesto).size;
+      for (const c of m.copias) {
+        if (!/^banco-\d+\.sqlite\.gz$/.test(c.copia) || !/^[a-f0-9]{64}$/.test(c.sha256)) throw new Error();
+        const arquivo = join(dir, c.copia), st = lstatSync(arquivo);
+        if (!st.isFile() || st.isSymbolicLink() || st.size !== c.bytes || await sha256(arquivo) !== c.sha256) throw new Error();
+        bytes += st.size;
+      }
+      conjuntos.push({ nome, dir, bytes, texto, em: statSync(dir).mtimeMs });
+    } catch { alertas.push(nome); }
+  }
+  // Não descarta nada se a cópia protegida não tiver sido integralmente validada.
+  if (!conjuntos.some(c => c.nome === atual)) return { removidos: 0, bytes: 0, alertas: [...alertas, 'publicação atual não validada'] };
+  conjuntos.sort((a, b) => b.em - a.em || a.nome.localeCompare(b.nome));
+  const protegidos = new Set([atual, ...conjuntos.filter(c => c.nome !== atual).slice(0, manter - 1).map(c => c.nome)]);
+  let removidos = 0, bytes = 0;
+  for (const c of conjuntos.filter(c => !protegidos.has(c.nome))) {
+    // Reconfere identidade e hold imediatamente antes de remover o conjunto.
+    if (lstatSync(c.dir).isSymbolicLink() || existsSync(join(c.dir, 'HOLD.json')) || readFileSync(join(c.dir, 'manifesto.json'), 'utf8') !== c.texto) { alertas.push(c.nome); continue; }
+    if (aplicar) rmSync(c.dir, { recursive: true });
+    removidos++; bytes += c.bytes;
+  }
+  return { removidos, bytes, alertas, aplicar };
+}
+async function reterPublicacoes(raiz, publicacao, env) {
+  if (!publicacao) return;
+  const r = await limparPublicacoes(join(raiz, 'backups-publicacao'), { atual: publicacao, manter: Number(env.BACKUP_PUBLICACOES_MANTER || 2) });
+  console.log('BACKUP_PUBLICACOES_RETENCAO', JSON.stringify({ removidos: r.removidos, bytes: r.bytes, alertas: r.alertas.length }));
 }
 export async function backupPrePublicacao(env = process.env, { espaco = statfsSync, temporarios = tmpdir() } = {}) {
   const plataforma = resolve(env.BANCO_PLATAFORMA || '/app/dados/plataforma.sqlite');
@@ -39,6 +83,7 @@ export async function backupPrePublicacao(env = process.env, { espaco = statfsSy
     for (const c of m.copias) {
       if (!bancos.has(c.origem) || !/^banco-\d+\.sqlite\.gz$/.test(c.copia) || await sha256(join(fixo, c.copia)) !== c.sha256) throw new Error('Backup anterior divergente');
     }
+    await reterPublicacoes(raiz, publicacao, env);
     console.log('BACKUP_PRE_PUBLICACAO_REUTILIZADO', m.copias.length, 'bancos', fixo);
     return { destino: fixo, copias: m.copias, reutilizado: true };
   }
@@ -75,6 +120,7 @@ export async function backupPrePublicacao(env = process.env, { espaco = statfsSy
     }
     writeFileSync(join(destino, 'manifesto.json'), JSON.stringify({ publicacao, anterior: '3cbef4b9b78292edfec62dbfb7b1b333b1675a74', formato: 'sqlite.gz', reservaBytes: RESERVA, copias }, null, 2), { mode: 0o600, flag: 'wx' });
     concluido = true;
+    await reterPublicacoes(raiz, publicacao, env);
     console.log('BACKUP_PRE_PUBLICACAO_OK', copias.length, 'bancos', necessarios, 'bytes compactados', destino);
     return { destino, copias };
   } finally {

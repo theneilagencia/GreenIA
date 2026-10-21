@@ -1,11 +1,20 @@
+import { FAMILIAS } from './visual/fontes.js';
+import { verificarPublicacoes, notasComPublicacoes } from './pesquisa-fontes.js';
+import { abrirTentativa, finalizarTentativa, registrarDownloadResultado } from './resultados.js';
+import { trabalhoDoPedido } from '../public/trabalhos.js';
+import { acessoAdvanced, prepararPedidoAdvanced, conferirAdvanced } from './advanced.js';
 // Conversas do chat e dos quick wins. Cada conversa é de quem a criou: nem o
 // responsável nem o admin leem o conteúdo pela API.
 import { erro } from './http.js';
-import { extrairTabelas, gerarCsv, nomesDasTabelas } from '../public/tabelas.js';
+import { pptxDoDesign } from './visual/pptx.js';
+import { criarPrazoArquivo } from './tempo-arquivo.js';
+import { exigeAltaQualidade, NOTA_ALTA_QUALIDADE, NOTA_FIDELIDADE, pedeRedesignApresentacao } from '../public/qualidade-entrega.js';
+import { comCancelamento } from './cancelamento-chat.js';
+import { extrairTabelas, gerarCsv, nomesDasTabelas, normalizarTabelas } from '../public/tabelas.js';
 import { docx, MIMES, nomeDoArquivo, pptx, soEntregavel, xlsx, zipar } from './escritorio.js';
 import { NOTA_IMAGEM, pedidoDeImagem, promptDaImagem, ultimaImagemDaConversa } from './imagem-chat.js';
 import { arquivosDoProjeto, blocosDeCodigo, entregaDeCodigo } from './codigo-chat.js';
-import { decisaoPesquisa, NOTA_AGENTE, NOTA_PESQUISA, pedeAgente, pedePesquisa, quickWinSugerido } from './chat-recursos.js';
+import { decisaoPesquisa, exigePesquisa, NOTA_AGENTE, NOTA_PESQUISA, pedeAgente, pedePesquisa, quickWinSugerido } from './chat-recursos.js';
 import { avisoDeCodigo, decisaoDeCodigo, notaDeCodigo, OPERACOES_CODIGO } from './permissoes-codigo.js';
 import { abrirPullRequest, execucoesPendentes, lerRepositorio, marcarExecucoesUsadas, pedeAlterarRepositorio, publicarSite, repositorioDoPedido, reposLiberados, rotasCodigo } from './codigo-operacoes.js';
 import { resolverIdentidade } from './visual/marca.js';
@@ -186,8 +195,8 @@ export const PEDE_LAYOUT = /\b(mesm[oa]s? (layout|estilo|cores?|fontes?|identida
 // "Monte a apresentação do novo cliente seguindo a mesma estrutura/layout" de um PDF enviado: o PDF vira modelo.
 export const PEDE_MODELO = t => /\b(pptx|power ?point|apresenta[cç](ão|ao|ões|oes)|slides?|deck)\b/i.test(t)
   && (PEDE_LAYOUT.test(t) || /\b(mesma estrutura|mesmo modelo|como modelo|refer[eê]ncia|usando (o|a) (pdf|arquivo|apresenta[cç][aã]o|modelo)|baseado n[oa] (pdf|arquivo|modelo|apresenta[cç][aã]o)|seguindo (a|o) (mesma|mesmo|estrutura|modelo|pdf|arquivo))\b/i.test(t));
-// Pedido de apresentação (criar, montar, versão pronta, PPTX) numa conversa que já tem uma apresentação em PDF:
-// o PDF é a referência de layout, mesmo sem a pessoa dizer "mesmo layout".
+// Pedir uma apresentação não transforma documentos de conteúdo em modelos visuais.
+// Sem instrução explícita de layout, só um anexo marcado como referência pode emprestar o layout.
 const PEDE_APRESENTACAO = t => /\b(pptx|power ?point|apresenta[cç](ão|ao)|slides|deck)\b/i.test(t) && (PEDE_CRIAR.test(t) || PEDE_CRIAR_APR.test(t) || /\bem (pptx|power ?point)\b/i.test(t));
 const ehPdf = b64 => typeof b64 === 'string' && Buffer.from(b64.slice(0, 8), 'base64').subarray(0, 4).toString() === '%PDF';
 // Nome de arquivo comparável ao texto do pedido: sem acento, sem extensão, minúsculo ("Apresentação-Kickoff.pptx" e
@@ -197,9 +206,10 @@ const citaNome = (texto, nome) => { const b = nomeComparavel(nome); return b.len
 // Modelo de layout: entre os PDFs desta mensagem (ou, sem PDF agora, os guardados na conversa), o que o pedido cita
 // pelo nome; sem citação, o que tem cara de apresentação (página deitada); senão o mais recente. QA em produção: com a
 // apresentação de referência e a proposta comercial (PDF) anexadas, o modelo virou a proposta, a última anexada.
-export function modeloDaConversa(app, conversaId, anexosAtuais = [], brutos = [], texto = '') {
-  let lista = brutos.map((b, k) => ehPdf(b) ? { nome: anexosAtuais[k]?.nome || 'modelo.pdf', dados: Buffer.from(b, 'base64'), texto: anexosAtuais[k]?.texto || '' } : null).filter(Boolean);
-  if (!lista.length) lista = todos(app.db, "select a.nome, a.texto, f.dados from anexos_arquivos f join anexos a on a.id = f.anexo_id where a.conversa_id = ? and f.mime = 'application/pdf' order by a.id", conversaId)
+export function modeloDaConversa(app, conversaId, anexosAtuais = [], brutos = [], texto = '', { somenteReferencia = false } = {}) {
+  let lista = brutos.map((b, k) => ehPdf(b) && (!somenteReferencia || anexosAtuais[k]?.papel === 'REFERENCE') ? { nome: anexosAtuais[k]?.nome || 'modelo.pdf', dados: Buffer.from(b, 'base64'), texto: anexosAtuais[k]?.texto || '' } : null).filter(Boolean);
+  if (!lista.length) lista = todos(app.db, "select a.nome, a.texto, a.papel, f.dados from anexos_arquivos f join anexos a on a.id = f.anexo_id where a.conversa_id = ? and a.ignorada = 0 and f.mime = 'application/pdf' order by a.id", conversaId)
+    .filter(r => !somenteReferencia || r.papel === 'REFERENCE')
     .map(r => ({ nome: r.nome, dados: Buffer.from(r.dados), texto: r.texto }));
   if (!lista.length) return null;
   return lista.findLast(m => citaNome(texto, m.nome)) || lista.findLast(m => pdfPaisagem(m.dados)) || lista.at(-1);
@@ -218,24 +228,25 @@ export function apresentacaoDaPessoa(app, conversaId, texto, anexosAtuais = [], 
 // mensagem ou, sem anexo agora, a versão mais recente da conversa (a última ajustada pela GreenIA ou o último enviado).
 const MIMES_OFFICE = Object.values(MIMES);
 // Gerar de novo: vale o que existia antes da resposta refeita (o arquivo enviado com o pedido conta como "anexo agora").
-export function arquivoParaEditar(app, conversaId, texto, anexosAtuais = [], brutos = [], { antesDe = null, pedido = null } = {}) {
+export function arquivoParaEditar(app, conversaId, texto, anexosAtuais = [], brutos = [], { antesDe = null, pedido = null, redesign = false } = {}) {
   const agora = brutos.map((b, k) => ({ k, tipo: tipoDoArquivo(anexosAtuais[k]?.nome) })).filter(x => x.tipo && ehPacoteOffice(anexosAtuais[x.k]?.nome, brutos[x.k]));
   if (agora.length) {
-    if (!pedeEdicaoNoArquivo(texto, { temAnexoAgora: true })) return null;
+    if (!redesign && !pedeEdicaoNoArquivo(texto, { temAnexoAgora: true })) return null;
     const t = String(texto || '').toLowerCase();
     const escolhido = agora.length === 1 ? agora[0] : agora.find(x => citaNome(texto, anexosAtuais[x.k].nome))
       || (new Set(agora.map(x => x.tipo)).size === agora.length ? agora.find(x => ({ docx: /\b(word|docx|documento)\b/, pptx: /\b(power ?point|pptx|apresenta[cç][aã]o|slides?)\b/, xlsx: /\b(excel|xlsx|planilha)\b/ })[x.tipo].test(t)) : null);
     return escolhido ? { nome: anexosAtuais[escolhido.k].nome, tipo: escolhido.tipo, dados: Buffer.from(brutos[escolhido.k], 'base64'), origem: 'anexo' } : null;
   }
-  if (!pedeEdicaoNoArquivo(texto, { temAnexoAgora: pedido != null })) return null;   // antes de ler os arquivos guardados
-  const lugares = MIMES_OFFICE.map(() => '?').join(', ');
+  if (!redesign && !pedeEdicaoNoArquivo(texto, { temAnexoAgora: pedido != null })) return null;   // antes de ler os arquivos guardados
+  const mimes = redesign ? [MIMES.pptx] : MIMES_OFFICE;
+  const lugares = mimes.map(() => '?').join(', ');
   // O arquivo citado pelo nome no pedido vale mais que o último enviado (QA em produção: "no documento X.pptx" editava o
   // contrato .docx, que era o último anexo). Sem nome citado: o mais recente.
   const t = String(texto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   const base = n => String(n).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\.(docx|pptx|xlsx)$/, '').replace(/-ajustad[oa]$/, '');
   const citado = lista => lista.find(x => t.includes(base(x.nome))) || null;
-  const enviados = todos(app.db, `select a.mensagem_id as msg, a.nome, a.id from anexos_arquivos f join anexos a on a.id = f.anexo_id where a.conversa_id = ? and f.mime in (${lugares}) and a.mensagem_id < ? order by a.id desc`, conversaId, ...MIMES_OFFICE, antesDe ?? Number.MAX_SAFE_INTEGER);
-  const ajustados = todos(app.db, `select mensagem_id as msg, nome, id from arquivos_gerados where conversa_id = ? and mime in (${lugares}) and detalhes like '%"edicao"%' and mensagem_id < ? order by id desc`, conversaId, ...MIMES_OFFICE, antesDe ?? Number.MAX_SAFE_INTEGER);
+  const enviados = todos(app.db, `select a.mensagem_id as msg, a.nome, a.id from anexos_arquivos f join anexos a on a.id = f.anexo_id where a.conversa_id = ? and f.mime in (${lugares}) and a.mensagem_id < ? order by a.id desc`, conversaId, ...mimes, antesDe ?? Number.MAX_SAFE_INTEGER);
+  const ajustados = todos(app.db, `select mensagem_id as msg, nome, id from arquivos_gerados where conversa_id = ? and mime in (${lugares}) ${redesign ? '' : `and (detalhes like '%"edicao"%' or detalhes like '%"design_validado"%')`} and mensagem_id < ? order by id desc`, conversaId, ...mimes, antesDe ?? Number.MAX_SAFE_INTEGER);
   const nomeCitado = citado([...ajustados, ...enviados]);
   const doNome = nomeCitado ? base(nomeCitado.nome) : null;
   const e0 = doNome ? enviados.find(x => base(x.nome) === doNome) : enviados[0], a0 = doNome ? ajustados.find(x => base(x.nome) === doNome) : ajustados[0];
@@ -243,7 +254,7 @@ export function arquivoParaEditar(app, conversaId, texto, anexosAtuais = [], bru
   const ajustado = a0 ? { ...a0, dados: um(app.db, 'select dados from arquivos_gerados where id = ?', a0.id).dados } : null;
   const r = [enviado, ajustado].filter(Boolean).sort((a, b) => (b.msg || 0) - (a.msg || 0))[0];
   const tipo = r && tipoDoArquivo(r.nome);
-  if (!tipo || !pedeEdicaoNoArquivo(texto, { temAnexoAgora: pedido != null && r === enviado && r.msg === pedido })) return null;
+  if (!tipo || (!redesign && !pedeEdicaoNoArquivo(texto, { temAnexoAgora: pedido != null && r === enviado && r.msg === pedido }))) return null;
   return tipo ? { nome: r.nome, tipo, dados: Buffer.from(r.dados), origem: r === ajustado ? 'versao' : 'anexo' } : null;
 }
 
@@ -252,13 +263,29 @@ export const semPromessaDeArquivo = t => String(t || '').split('\n')
   .map(l => l.replace(/[^.!\n]*\b(arquivo|apresenta[cç][aã]o|planilha|documento|pptx|docx|xlsx|vers[aã]o)\b[^.!\n]*\b(pront[oa]|dispon[ií]vel|segue|est[aá])\b[^.!\n]*\b(download|baixar|abaixo)\b[^.!\n]*[.!]?/gi, '').trimEnd())
   .filter((l, i, a) => l.trim() || (a[i - 1] || '').trim()).join('\n');
 
+export function fonteDeApresentacao(deck) {
+  const texto = conteudoParaEdicao('pptx', deck.dados);
+  if (texto.length > MAX_CONTEUDO) throw erro(413, 'apresentacao_grande', 'A apresentação contém mais conteúdo do que pode ser adaptado de uma vez. Divida o material em partes; nenhum slide foi descartado para gerar uma versão incompleta.');
+  return { nome: deck.nome, texto };
+}
+
 export function pecaDaConversa(texto) {
-  if (!PEDE_CRIAR.test(String(texto || ''))) return null;
+  if (!PEDE_CRIAR.test(String(texto || '')) && !pedeRedesignApresentacao(texto)) return null;
+  // Duas peças nomeadas no pedido são duas entregas, não só o primeiro tipo
+  // encontrado. Cada trecho mantém sua própria contagem e proporção.
+  const t = String(texto).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const cabecas = [...t.matchAll(/(?:\b(?:crie|gere|produza|entregue|monte)\s+|[:,;]\s*(?:e\s+)?|\s+e\s+)(?:um|uma)\s+(?:post|carrossel|banner|infografico|apresentacao|cartaz|fluxograma)\b/g)];
+  const trechos = cabecas.map((m, i) => t.slice(m.index, cabecas[i + 1]?.index).split(/\.(?:\s|$)|\n/)[0]);
+  const pecas = trechos.map(s => visualDoPedido(s)).filter(v => v && v.tipo !== 'image');
+  if (pecas.length > 1) return {
+    objetivo: String(texto).slice(0, 500), invariantes: {},
+    operacao: { entregaveis: pecas.map((v, i) => ({ id: `peca_${i + 1}`, tipo: v.tiposEntregavel[0] || 'outro', rotulo: TIPOS_VISUAIS[v.tipo].rotulo, canal: null, config: {},
+      visual: { tipo: v.tipo, ...(v.paginas ? { paginas: v.paginas } : {}), ...(v.formato ? { formato: v.formato } : {}) } })) },
+  };
   const v = visualDoPedido(texto);
   if (!v || v.tipo === 'image') return null;
   const visual = { tipo: v.tipo, ...(v.paginas ? { paginas: v.paginas } : {}), ...(v.formato ? { formato: v.formato } : {}) };
   // Peça pedida em mais de um formato ("quadrado e horizontal"): uma peça por formato, com o mesmo conteúdo.
-  const t = String(texto).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   const formatos = v.tipo === 'social_post' ? [...new Set([[/\bquadrad\w*|\b1:1\b/, '1:1'], [/\bhorizonta\w*|\b1\.91:1\b/, '1.91:1'], [/\bvertica\w*|\b4:5\b/, '4:5'], [/\bstor(y|ies)\b|\b9:16\b/, '9:16']].filter(([re]) => re.test(t)).map(([, f]) => f))] : [];
   const entregaveis = formatos.length > 1
     ? formatos.map((f, i) => ({ id: `peca_${i + 1}`, tipo: v.tiposEntregavel[0] || 'outro', rotulo: `Peça ${FORMATOS_VISUAIS[f].rotulo.toLowerCase()}`, canal: null, config: {}, visual: { ...visual, formato: f } }))
@@ -290,7 +317,8 @@ function persona(cfg, responsaveis, qw, marcaPropria = false, execucao = false, 
     'Entregue respostas completas e úteis, com a profundidade que o pedido exige, como um especialista dedicado faria. Numa análise de material, cubra o conteúdo de verdade: o que ele diz (com os números, nomes, prazos e exemplos do próprio material), o que isso significa, pontos fortes, lacunas ou riscos e recomendações práticas. Organize com títulos, listas e tabelas quando ajudar a leitura. Pergunta simples continua com resposta direta.',
     'Quando o pedido estiver claro, faça o trabalho completo já nesta resposta, em vez de descrever o que poderia fazer ou terminar oferecendo opções. Pergunte antes só quando faltar uma informação sem a qual o resultado sairia errado.',
     // Como um bom profissional (e como o ChatGPT e o Claude): confirma o entendimento, entrega, explica o que fez.
-    'Em pedido de trabalho (criar, analisar, revisar, ajustar, transformar um material), comece com uma ou duas frases dizendo o que você entendeu e o que vai entregar (por exemplo: "Entendi: você quer X para Y. Vou entregar Z."). Depois entregue o trabalho completo. Termine com uma seção curta "## O que foi feito": o que você entregou ou mudou, o que ficou como estava, os pontos que dependem da pessoa (dados que faltaram, suposições feitas) e, quando houver arquivo, que ele está para baixar logo abaixo da resposta. Em pergunta simples ou conversa curta, responda direto, sem a abertura e sem essa seção.',
+    'Em pedido de trabalho (criar, analisar, revisar, ajustar, transformar um material), comece com uma ou duas frases dizendo o que você entendeu e o que vai entregar (por exemplo: "Entendi: você quer X para Y. Vou entregar Z."). Depois entregue o trabalho completo. Termine com uma seção curta "## O que foi feito": o conteúdo que você entregou ou mudou e os pontos que dependem da pessoa (dados que faltaram, suposições feitas). Em pergunta simples ou conversa curta, responda direto, sem a abertura e sem essa seção.',
+    'Arquivos e prévias são montados depois desta resposta. Descreva somente o conteúdo que você produziu; não afirme que o arquivo foi gerado, está pronto para baixar, foi aberto ou conferido. Não certifique edição, paginação, ausência de cortes, fontes, cores, imagens ou presença ou ausência de logotipo no arquivo final: você ainda não o inspecionou. A plataforma pode aplicar a identidade visual cadastrada da empresa. Não confunda não inventar uma marca com retirar uma marca já cadastrada; uma restrição expressa da pessoa deve ser respeitada na produção. O estado da entrega e os links serão apresentados pela própria plataforma.',
     'Quando o pedido for um site, uma aplicação ou um programa, escreva cada arquivo completo num bloco de código, com o caminho numa linha logo acima (ex.: ### Arquivo: src/app.js); a plataforma monta o projeto em .zip para baixar, e um site em HTML completo ganha prévia funcionando. Site responsivo de verdade: nada mais largo que a tela no celular (sem rolagem horizontal), imagens e grades que se ajustam e menu que cabe em 360 px. Não diga que não consegue gerar arquivos, criar sites ou rodar a prévia.',
     // Regressão vista em produção: "melhore o design" de um Word virou XML do Word num bloco de código.
     'Documento Word, apresentação PowerPoint e planilha Excel são montados pela plataforma a partir do seu texto em Markdown, já com o visual profissional: nunca escreva XML, VBA, código ou instruções técnicas para gerar esses arquivos. Num pedido de melhorar o design ou a formatação de um documento, mantenha o texto e melhore a organização visual em Markdown (títulos e subtítulos claros, tabelas para comparar, listas curtas, destaques em negrito para números e decisões); a plataforma aplica capa, cores e tipografia no arquivo.',
@@ -361,6 +389,7 @@ function historico(app, conv, limiteChars, atual = null, ocultar = null) {
 export function rotasConversas(app, r) {
   rotasCodigo(app, r, { minhaConversa });
   const enviosAtivos = new Map();
+  const cancelamentos = app.cancelamentosChat = new Map();
   const ocupado = ids => ids.some(id => enviosAtivos.has(id)) || ids.some(id => um(app.db, "select 1 from connector_runs r join integ_planos p on p.id = r.plano_id where p.conversa_id = ? and r.status = 'EM_ANDAMENTO'", id));
   function excluir(pessoa, conversas) {
     const ids = conversas.map(c => c.id);
@@ -431,6 +460,44 @@ export function rotasConversas(app, r) {
   r.post('/api/conversas', criarConversa);
   app.criarConversaProgramada = pessoa => quickWinId => criarConversa({ pessoa, corpo: { quick_win_id: quickWinId } });
 
+  // A edição cria uma versão independente: nenhuma resposta posterior ao pedido
+  // editado participa do contexto e nenhuma ação externa é copiada ou executada.
+  r.post('/api/conversas/:id/mensagens/:mensagem/editar', ({ pessoa, params }) => {
+    const origem = minhaConversa(app, pessoa, params.id);
+    if (origem.quick_win_id || origem.teste) throw erro(409, 'editar_fluxo', 'Edite o pedido em uma conversa livre.');
+    if (ocupado([origem.id])) throw erro(409, 'conversa_ocupada', 'Interrompa a execução antes de editar o pedido.');
+    const alvo = um(app.db, "select * from mensagens where conversa_id = ? and id = ? and papel = 'user'", origem.id, Number(params.mensagem));
+    if (!alvo) throw erro(404, 'mensagem', 'Pedido não encontrado.');
+    if (!alvo.texto || alvo.texto === NAO_GUARDADO) throw erro(409, 'material_nao_guardado', 'A política de retenção não guardou este pedido. Envie-o novamente.');
+    const anteriores = todos(app.db, 'select * from mensagens where conversa_id = ? and id < ? order by id', origem.id, alvo.id);
+    if (anteriores.length > 1000) throw erro(413, 'historico_grande', 'Esta conversa é grande demais para criar uma versão editada. Abra uma nova conversa com os materiais necessários.');
+    const agora = AGORA(app);
+    let nova;
+    transacao(app.db, () => {
+      nova = Number(exec(app.db, 'insert into conversas (pessoa_id, titulo, modelo, sigilosa, motivo_sigilosa, mascarada, cortada, criado_em, atualizado_em) values (?, ?, ?, ?, ?, ?, ?, ?, ?)', pessoa.id, `${origem.titulo} · versão editada`.slice(0, 160), origem.modelo, origem.sigilosa, origem.motivo_sigilosa, origem.mascarada, origem.cortada, agora, agora).lastInsertRowid);
+      const copiarAnexos = (de, para) => {
+        for (const a of todos(app.db, 'select * from anexos where conversa_id = ? and mensagem_id = ?', origem.id, de)) {
+          const id = Number(exec(app.db, 'insert into anexos (conversa_id, mensagem_id, nome, texto, papel, tipo_fonte, url_exibida, ignorada, estilo) values (?, ?, ?, ?, ?, ?, ?, ?, ?)', nova, para, a.nome, a.texto, a.papel, a.tipo_fonte, a.url_exibida, a.ignorada, a.estilo).lastInsertRowid);
+          exec(app.db, 'insert into anexos_arquivos (anexo_id, mime, dados) select ?, mime, dados from anexos_arquivos where anexo_id = ?', id, a.id);
+        }
+      };
+      for (const m of anteriores) {
+        const id = Number(exec(app.db, 'insert into mensagens (conversa_id, papel, texto, modelo, fornecedor, fontes, criado_em) values (?, ?, ?, ?, ?, ?, ?)', nova, m.papel, m.texto, m.modelo, m.fornecedor, m.fontes, m.criado_em).lastInsertRowid);
+        copiarAnexos(m.id, id);
+        // Apenas arquivos de conteúdo; planos de integração e sites publicados
+        // continuam vinculados exclusivamente à execução original.
+        exec(app.db, "insert into arquivos_gerados (conversa_id, mensagem_id, nome, mime, dados, detalhes, textos, criado_em) select ?, ?, nome, mime, dados, detalhes, textos, criado_em from arquivos_gerados where conversa_id = ? and mensagem_id = ? and (mime like 'application/vnd.openxmlformats-officedocument.%' or mime = 'application/pdf' or mime like 'image/%')", nova, id, origem.id, m.id);
+      }
+      if (um(app.db, 'select 1 from anexos where conversa_id = ? and mensagem_id = ?', origem.id, alvo.id)) {
+        const id = Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, criado_em) values (?, 'user', 'Material anexado ao pedido editado.', ?)", nova, agora).lastInsertRowid);
+        copiarAnexos(alvo.id, id);
+      }
+    });
+    registrar(app, 'conversation.prompt_edited', pessoa.id, { conversa: nova, origem: origem.id, mensagem: alvo.id });
+    return { conversa: { id: nova } };
+  });
+
+
   r.get('/api/conversas/:id', ({ pessoa, params }) => {
     const conv = minhaConversa(app, pessoa, params.id);
     reavaliarMarcacaoDaArea(app, pessoa, conv);
@@ -488,6 +555,7 @@ export function rotasConversas(app, r) {
     const a = /^[1-9]\d*$/.test(params.arquivo) && um(app.db, 'select nome, mime, dados from arquivos_gerados where id = ? and conversa_id = ?', Number(params.arquivo), conv.id);
     if (!a) throw erro(404, 'arquivo', 'Arquivo não encontrado.');
     const dados = Buffer.from(a.dados);
+    if(!query?.ver)res.once('finish',()=>{try{registrarDownloadResultado(app,pessoa,conv.id,Number(params.arquivo));}catch{}});
     // Imagem: "ver=1" mostra na própria conversa (prévia); sem ele, baixa. Só tipos de imagem conhecidos.
     const img = /^image\/(png|jpeg|webp)$/.test(a.mime), html = a.mime === 'text/html', ext = img ? (a.mime === 'image/jpeg' ? 'jpg' : a.mime.slice(6)) : html ? 'html' : a.mime === 'application/zip' ? 'zip' : Object.keys(MIMES).find(k => MIMES[k] === a.mime) || 'pptx';
     const nome = nomeDoArquivo(a.nome.replace(/\.(pptx|docx|xlsx|png|jpe?g|webp|html|zip)$/i, ''), ext);
@@ -522,12 +590,20 @@ export function rotasConversas(app, r) {
     res.end(img);
   });
   r.get('/api/conversas/:id/mensagens/:mensagem/arquivo/pptx/previa', ({ pessoa, params }) => {
-    const { texto, titulo, cor, fonte } = respostaGuardada(pessoa, params);
+    const { conv, texto, titulo, cor, fonte } = respostaGuardada(pessoa, params);
+    const pronto = um(app.db, 'select id, nome, dados from arquivos_gerados where conversa_id = ? and mensagem_id = ? and mime = ? order by id desc limit 1', conv.id, Number(params.mensagem), MIMES.pptx);
+    if (pronto) return { nome: pronto.nome, midia: `/api/conversas/${conv.id}/arquivos/${pronto.id}/midia/`, ...previaDoPptx(Buffer.from(pronto.dados)) };
+    if (um(app.db, "select 1 from artefatos_visuais where conversa_id = ? and mensagem_id = ? and tipo = 'presentation'", conv.id, Number(params.mensagem))) throw erro(409, 'pptx_nao_gerado', 'O PowerPoint desta apresentação não está disponível. Peça para gerar o arquivo novamente; o pedido e os materiais continuam na conversa.');
+    if (/O arquivo com o acabamento solicitado não foi gerado/.test(texto)) throw erro(409, 'design_nao_gerado', 'O PowerPoint solicitado não foi gerado.');
     return { nome: nomeDoArquivo(titulo, 'pptx'), midia: null, ...previaDoPptx(pptx(texto, { titulo, cor, fonte, subtitulo: `Gerado na GreenIA em ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` })) };
   });
   r.get('/api/conversas/:id/mensagens/:mensagem/arquivo/:formato', ({ pessoa, params, res }) => {
     if (!['docx', 'pptx', 'xlsx'].includes(params.formato)) throw erro(404, 'formato', 'Formato não disponível.');
-    const { texto, titulo, cor, fonte } = respostaGuardada(pessoa, params);
+    const { conv, texto, titulo, cor, fonte } = respostaGuardada(pessoa, params);
+    const pronto = um(app.db, 'select dados from arquivos_gerados where conversa_id = ? and mensagem_id = ? and mime = ? order by id desc limit 1', conv.id, Number(params.mensagem), MIMES[params.formato]);
+    if (pronto) return enviarOffice(res, params.formato, titulo, Buffer.from(pronto.dados));
+    if (params.formato === 'pptx' && um(app.db, "select 1 from artefatos_visuais where conversa_id = ? and mensagem_id = ? and tipo = 'presentation'", conv.id, Number(params.mensagem))) throw erro(409, 'pptx_nao_gerado', 'O PowerPoint desta apresentação não está disponível. Peça para gerar o arquivo novamente; o pedido e os materiais continuam na conversa.');
+    if (params.formato === 'pptx' && /O arquivo com o acabamento solicitado não foi gerado/.test(texto)) throw erro(409, 'design_nao_gerado', 'O PowerPoint solicitado não foi gerado.');
     if (params.formato === 'xlsx') {
       // Todas as tabelas da resposta, uma por aba.
       const tabelas = extrairTabelas(texto);
@@ -578,17 +654,42 @@ export function rotasConversas(app, r) {
   const BLOQUEIOS = new Set(['dado_bloqueado', 'sigilo_nao_permitido', 'sem_modelo_autorizado', 'sem_modelo', 'grande_demais']);
   const executarMensagem = async ctx => {
     const id = Number(ctx.params.id);
-    minhaConversa(app, ctx.pessoa, id);
-    enviosAtivos.set(id, (enviosAtivos.get(id) || 0) + 1);
-    try { return await comUso(app, { pessoa_id: ctx.pessoa.id }, () => enviarMensagem(ctx)); } catch (e) {
+    const convResultados = minhaConversa(app, ctx.pessoa, id);
+    if (enviosAtivos.has(id)) throw erro(409, 'conversa_em_uso', 'Esta conversa está processando uma resposta. Use Interromper para encerrar a execução.');
+    const acompanhamento = abrirTentativa(app,ctx.pessoa,convResultados,ctx.corpo);
+    let falhaResultados = null;
+    const controle = new AbortController();
+    cancelamentos.set(id, controle); enviosAtivos.set(id, 1);
+    try { return await comCancelamento(controle.signal, () => comUso(app, { pessoa_id: ctx.pessoa.id, conversa_id:id, teste:convResultados.teste, ...acompanhamento }, () => enviarMensagem({ ...ctx, sinal: controle.signal }))); } catch (e) {
+      falhaResultados = e;
+      if (controle.signal.aborted) {
+        const mensagem = 'Execução interrompida por você. O trabalho parcial não foi concluído.';
+        const conv = um(app.db, 'select id from conversas where id = ? and pessoa_id = ?', id, ctx.pessoa.id);
+        if (conv) {
+          aviso(app, id, mensagem);
+          exec(app.db, "update roteamento set resultado = 'interrompido' where id = (select id from roteamento where conversa_id = ? order by id desc limit 1) and resultado = 'enviado'", id);
+          registrar(app, 'conversation.interrupted', ctx.pessoa.id, { conversa: id });
+        }
+        if (!ctx.res.destroyed && !ctx.res.writableEnded) {
+          if (!ctx.res.headersSent) ctx.res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store' });
+          ctx.res.end(JSON.stringify({ t: 'interrompido', mensagem }) + '\n');
+        }
+        return;
+      }
       if (BLOQUEIOS.has(e.codigo)) {
         const conv = um(app.db, 'select id from conversas where id = ? and pessoa_id = ?', Number(ctx.params.id), ctx.pessoa.id);
         if (conv) aviso(app, conv.id, ctx.regerar ? `A nova resposta não foi gerada. ${e.message} A resposta anterior foi mantida.` : `Uma mensagem não foi enviada. ${e.message} Por segurança, o conteúdo dela não foi guardado.`);
       }
       throw e;
-    } finally { const n = enviosAtivos.get(id) - 1; if (n) enviosAtivos.set(id, n); else enviosAtivos.delete(id); }
+    } finally { try { finalizarTentativa(app,acompanhamento,{erro:falhaResultados,interrompido:controle.signal.aborted}); } catch { app.log('acompanhamento','Não foi possível consolidar a execução; não considerar concluída.'); } finally { enviosAtivos.delete(id); cancelamentos.delete(id); } }
   };
   r.post('/api/conversas/:id/mensagens', executarMensagem, { limiteMb: 42 });
+  r.post('/api/conversas/:id/interromper', ({ pessoa, params }) => {
+    const conv = minhaConversa(app, pessoa, params.id);
+    const controle = cancelamentos.get(conv.id);
+    controle?.abort();
+    return { ok: true, interrompida: !!controle };
+  });
   // "Gerar de novo" (QA UX M13): uma nova resposta ao MESMO último pedido, pelo mesmo caminho de um envio
   // (executarMensagem → enviarMensagem): sessão/CSRF do roteador, dono da conversa, rajada, ciência da política,
   // limites, plano e créditos (checarPlano), filtro de dados, sigilo e governança, roteamento, streaming e
@@ -636,7 +737,7 @@ export function rotasConversas(app, r) {
     const anexos = todos(app.db, 'select nome, texto, papel from anexos where mensagem_id = ? and ignorada = 0 order by id', pedido.id);
     return { resposta: resposta.id, pedido: pedido.id, texto: pedido.texto, anexos };
   }
-  async function enviarMensagem({ pessoa, params, corpo, res, programada = false, regerar = false }) {
+  async function enviarMensagem({ pessoa, params, corpo, res, programada = false, regerar = false, sinal }) {
     // Rajada: no máximo RAJADA envios por minuto por pessoa (protege créditos e o fornecedor).
     const instante = Date.now(), recentes = (rajadas.get(pessoa.id) || []).filter(t => t > instante - 60e3);
     if (recentes.length >= (app.rajada ?? RAJADA)) throw erro(429, 'rajada', 'Muitas mensagens em pouco tempo. Espere um minuto e envie de novo.');
@@ -646,6 +747,14 @@ export function rotasConversas(app, r) {
     reavaliarMarcacaoDaArea(app, pessoa, conv);
     // Conversa que já existia: continua mesmo se o Quick Win foi excluído depois (histórico preservado).
     const qw = conv.quick_win_id ? carregarQw(pessoa, conv.quick_win_id, !!conv.teste, { incluirExcluido: true }) : null;
+    let alternativaOriginal = null;
+    if(corpo.advanced_alternativa){
+      const p=um(app.db,'select * from advanced_pedidos where id = ? and pessoa_id = ? and conversa_id = ? and alternativa = 1',Number(corpo.advanced_alternativa),pessoa.id,conv.id);
+      if(!p||qw)throw erro(403,'alternativa','Alternativa não autorizada para esta conversa.');
+      alternativaOriginal=json(p.corpo,{});
+      corpo={...alternativaOriginal,modelo:AUTOMATICO,texto:(json(p.requisitos,{}).trabalho||trabalhoDoPedido(alternativaOriginal)).alternativa.instrucao};
+      registrar(app,'advanced.alternative_started',pessoa.id,{pedido:p.id,conversa:conv.id});
+    }
     let repeticao = null;
     const regeracao = regerar ? alvoDaRegeracao(conv, qw, corpo.mensagem_id) : null;
     if (regeracao) corpo = { texto: regeracao.texto, modelo: corpo.modelo };
@@ -682,7 +791,8 @@ export function rotasConversas(app, r) {
     // Quem desistiu (fechou a aba, cancelou) interrompe a leitura dos anexos: o OCR para e nada segue adiante.
     const cancelado = new AbortController();
     res.once('close', () => { if (!res.writableEnded) cancelado.abort(); });
-    const anexos = repeticao || regeracao ? (repeticao || regeracao).anexos.map(a => ({ ...a })) : (await (app.extrairAnexos?.(corpo.anexos, { sinal: cancelado.signal, imagemSemTexto: !qw && pedidoDeImagem(texto, { brutos: (corpo.anexos || []).map(a => a?.base64) })?.modo === 'editar' }) ?? []))
+    const sinalLeitura = sinal ? AbortSignal.any([cancelado.signal, sinal]) : cancelado.signal;
+    const anexos = repeticao || regeracao ? (repeticao || regeracao).anexos.map(a => ({ ...a })) : (await (app.extrairAnexos?.(corpo.anexos, { sinal: sinalLeitura, imagemSemTexto: !qw && pedidoDeImagem(texto, { brutos: (corpo.anexos || []).map(a => a?.base64) })?.modo === 'editar' }) ?? []))
       .map((a, i) => ({ ...a, papel: papelValido(corpo.anexos?.[i]?.papel) || null }));
     // Bytes originais (só para guardar um PDF como modelo de apresentação; não vão para a IA nem para o histórico).
     const brutos = repeticao || regeracao ? [] : (corpo.anexos || []).map(a => a?.base64);
@@ -691,6 +801,7 @@ export function rotasConversas(app, r) {
     const links = repeticao || regeracao ? [] : linksDoEnvio(corpo, qw ? texto : '');
     const avisosLinks = [];
     for (const l of links) {
+      sinal?.throwIfAborted();
       try {
         const r = await lerLink(l.url, { lookup: app.dnsLookup, maxBytes: 2 * 1024 * 1024, buscar: app.buscarLink });
         anexos.push({ nome: `${r.titulo || 'Página'} (${mascararUrl(l.url)})`.slice(0, 200), texto: r.texto.slice(0, app.limitesArquivo?.anexoCaracteres ?? 200000), papel: l.papel, tipo_fonte: 'url', url_exibida: mascararUrl(l.url) });
@@ -718,7 +829,7 @@ export function rotasConversas(app, r) {
     // Código: repositório liberado citado no pedido (o conteúdo vira material, com as mesmas regras de segredo dos
     // anexos, logo abaixo) e a saída real das execuções ainda não usadas ("corrija o que falhou nos testes").
     const temProjeto = () => !!um(app.db, "select 1 from arquivos_gerados where conversa_id = ? and mime in ('text/html', 'application/zip')", conv.id);
-    const codigoCedo = qw ? null : decisaoDeCodigo(texto, pessoa, cfg, { anexos, conversaTemProjeto: temProjeto() });
+    const codigoCedo = qw || alternativaOriginal ? null : decisaoDeCodigo(texto, pessoa, cfg, { anexos, conversaTemProjeto: temProjeto() });
     const permitidaCedo = op => !!codigoCedo?.itens.some(i => i.op === op && i.situacao === 'permitida');
     let repoAlvo = null, execUsadas = [];
     const avisosCodigo = [];   // entram depois da mensagem da pessoa, na ordem da conversa
@@ -758,6 +869,7 @@ export function rotasConversas(app, r) {
     // O pedido anterior só ajuda a achar o assunto: com segredo, não entra (o histórico já é barrado mais adiante).
     const consulta = consultaDeSeguimento(texto, anterior && !anterior.startsWith('[') && !contemCredencial(anterior) ? anterior : '');
     const ctx = await (app.contexto?.montar(pessoa, qw, consulta) ?? { partes: [], fontes: [], sigiloso: false });
+    if(alternativaOriginal){const t=delimitar('objetivo_original','Objetivo do trabalho completo, usado somente para contextualizar a síntese reduzida',String(alternativaOriginal.texto||''));ctx.partes.push(t);ctx.pecas?.push({origem:'contexto',texto:t});}
     // Área com política de sigilo: proteção reforçada. O conteúdo (mensagem e anexos) é avaliado com mais
     // rigor; só o que for sigiloso entra nos guardrails, o resto segue as regras gerais da empresa.
     const areaReforcada = reforcada(app, pessoa, qw);
@@ -798,13 +910,19 @@ export function rotasConversas(app, r) {
     const origem = qwFixo ? 'quick_win' : automatico ? 'auto' : qw?.modelo && pedido === qw.modelo ? 'quick_win'
       : !roteamentoAtivo && (!escolhaSalva || escolhaSalva === AUTOMATICO || pedido === classePadrao) ? 'padrao' : 'pessoa';
     // Ferramenta da execução (pesquisa na internet): só se o Quick Win permite, a empresa liberou e o conteúdo
-    // deixa (o pedido sairia para o serviço de busca). Recusada, a execução segue sem pesquisa e o resultado fica
-    // parcial, com o motivo: nada é simulado.
+    // deixa (o pedido sairia para o serviço de busca). Recusada, a execução é
+    // bloqueada antes da inferência, sem substituir a pesquisa por conhecimento geral.
     const querPesquisa = execucaoQw && !!qw.espec.ferramentas_permitidas?.includes('pesquisa_web');
     const motivoSemPesquisa = !querPesquisa ? null : !cfg.pesquisaWeb?.ativa ? 'nao_liberada' : sigilosa ? 'sigilosa' : areaReforcada ? 'area_reforcada'
       : protegidos.length ? 'dados_protegidos' : plano?.fase === 'reserva' ? 'reserva_do_plano' : null;
     const pesquisa = querPesquisa ? { disponivel: !motivoSemPesquisa, motivo: motivoSemPesquisa ? MOTIVOS_PESQUISA[motivoSemPesquisa] : null, codigo: motivoSemPesquisa } : null;
-    const podeModelo = !qw && !tipos.some(t => (cfg.naoArmazenar || []).includes(t));
+    const podeModelo = !alternativaOriginal && !qw && !tipos.some(t => (cfg.naoArmazenar || []).includes(t));
+    const redesignLivre = podeModelo && pedeRedesignApresentacao(texto) && !PEDE_MODELO(texto);
+    const fonteRedesign = redesignLivre ? arquivoParaEditar(app, conv.id, texto, anexos, brutos, { ...(regeracao ? { antesDe: regeracao.resposta, pedido: regeracao.pedido } : {}), redesign: true }) : null;
+    if (fonteRedesign?.tipo === 'pptx') {
+      const fonte = fonteDeApresentacao(fonteRedesign);
+      ctx.partes.push(delimitar('apresentacao_fonte', fonte.nome, fonte.texto));
+    }
     // Ajuste no próprio arquivo Office anexado: o original é editado (layout preservado), não refeito do zero.
     let edicao = null;
     try { edicao = podeModelo ? arquivoParaEditar(app, conv.id, texto, anexos, brutos, regeracao ? { antesDe: regeracao.resposta, pedido: regeracao.pedido } : {}) : null; } catch (e) { app.log?.('arquivo para editar', erroParaLog(e)); }
@@ -816,44 +934,54 @@ export function rotasConversas(app, r) {
     if (edicao && PEDE_MODELO(texto) && (brutos.some(ehPdf) || (podeModelo && modeloDaConversa(app, conv.id, anexos, brutos, texto)))) {
       if (!PEDE_DO_ZERO.test(texto)) {
         const deck = edicao.tipo === 'pptx' ? edicao : apresentacaoDaPessoa(app, conv.id, texto, anexos, brutos);
-        try { if (deck) fonteDeck = { nome: deck.nome, texto: conteudoParaEdicao('pptx', deck.dados).slice(0, 40000) }; } catch { /* sem leitura: adapta o modelo */ }
+        if (deck) fonteDeck = fonteDeApresentacao(deck);
       }
       edicao = null;
     }
-    let modeloApr = !edicao && podeModelo && (PEDE_MODELO(texto) || PEDE_APRESENTACAO(texto)) ? modeloDaConversa(app, conv.id, anexos, brutos, texto) : null;
+    let modeloApr = !redesignLivre && !edicao && podeModelo && (PEDE_MODELO(texto) || PEDE_APRESENTACAO(texto))
+      ? modeloDaConversa(app, conv.id, anexos, brutos, texto, { somenteReferencia: !PEDE_MODELO(texto) }) : null;
     // Conversa que já tem apresentação gerada no layout do modelo: mensagem que não é pergunta (correção, ajuste,
     // "você não aplicou o meu pedido") edita essa última versão, em vez de virar uma resposta em texto.
     // Pedido de layout sem ter caído na edição (o pedido não pareceu ajuste no arquivo): se ele cita uma apresentação
     // .pptx da conversa pelo nome, ela é o conteúdo do reestilo.
     if (modeloApr && !fonteDeck && !PEDE_DO_ZERO.test(texto)) {
       const deck = apresentacaoDaPessoa(app, conv.id, texto, anexos, brutos);
-      if (deck && citaNome(texto, deck.nome)) try { fonteDeck = { nome: deck.nome, texto: conteudoParaEdicao('pptx', deck.dados).slice(0, 40000) }; } catch { /* adapta o modelo */ }
+      if (deck) fonteDeck = fonteDeApresentacao(deck);
     }
     const deckAnterior = podeModelo ? um(app.db, "select id, textos, detalhes from arquivos_gerados where conversa_id = ? and detalhes like '%\"modelo\"%' order by id desc limit 1", conv.id) : null;
-    if (!modeloApr && !edicao && deckAnterior && !ehPergunta(texto)) modeloApr = modeloDaConversa(app, conv.id, anexos, brutos, texto);
-    const baseDeck = modeloApr && deckAnterior && !PEDE_DO_ZERO.test(texto) && !brutos.some(ehPdf) ? json(deckAnterior.textos, null) : null;
+    if (!redesignLivre && !modeloApr && !edicao && deckAnterior && !ehPergunta(texto)) modeloApr = modeloDaConversa(app, conv.id, anexos, brutos, texto);
+    const baseDeck = modeloApr && deckAnterior && !PEDE_DO_ZERO.test(texto) && !brutos.some(ehPdf) && !anexos.some(a => /\.pptx$/i.test(a.nome)) ? json(deckAnterior.textos, null) : null;
     // Pedido "no mesmo layout" sem o arquivo original disponível (PDF enviado antes de a GreenIA guardar modelos, ou
     // nenhum PDF): nada de apresentação genérica no lugar; a resposta pede o arquivo.
     // Material em PPTX/DOCX (com estilo lido do tema) segue pela peça visual nas cores e fontes dele.
-    const modeloAusente = !qw && !modeloApr && PEDE_MODELO(texto) && !estiloDaConversa(app, conv.id, anexos);
-    const pecaChat = !qw && !modeloApr && !modeloAusente && !edicao ? pecaDaConversa(texto) : null;
+    const modeloAusente = !alternativaOriginal && !qw && !modeloApr && PEDE_MODELO(texto) && !estiloDaConversa(app, conv.id, anexos);
+    const pecaChat = !alternativaOriginal && !qw && !modeloApr && !modeloAusente && !edicao ? pecaDaConversa(texto) : null;
     // Código e sites: operação protegida só com a permissão do perfil (verificada aqui, no servidor, a cada mensagem).
-    const codigo = qw ? null : decisaoDeCodigo(texto, pessoa, cfg, { anexos, conversaTemProjeto: temProjeto() });
+    const codigo = qw || alternativaOriginal ? null : decisaoDeCodigo(texto, pessoa, cfg, { anexos, conversaTemProjeto: temProjeto() });
     // Agente reutilizável / automação recorrente: vira Quick Win (não código). Pesquisa atual: a ferramenta da empresa.
-    const agenteChat = qw ? null : pedeAgente(texto);
-    const pesquisaChat = qw || !pedePesquisa(texto) ? null : decisaoPesquisa(cfg, { sigilosa: !!conv.sigilosa || !!motivo, areaReforcada, protegidos: protegidos.length > 0, reserva: plano?.fase === 'reserva' });
+    const agenteChat = qw || alternativaOriginal ? null : pedeAgente(texto);
+    const pesquisaChat = qw || alternativaOriginal || !pedePesquisa(texto) ? null : decisaoPesquisa(cfg, { sigilosa: !!conv.sigilosa || !!motivo, areaReforcada, protegidos: protegidos.length > 0, reserva: plano?.fase === 'reserva' });
     // Imagem pedida na conversa (nova ou edição da anexada / da última gerada): gerada depois do texto, abaixo dele.
     const ultimaImg = !qw && !modeloApr ? ultimaImagemDaConversa(app, conv.id) : null;
     const ultimaResp = ultimaImg ? um(app.db, "select id from mensagens where conversa_id = ? and papel = 'assistant' order by id desc limit 1", conv.id)?.id : null;
     const ultimaFoiImagem = !!ultimaImg && !!um(app.db, 'select 1 from arquivos_gerados where id = ? and mensagem_id = ?', ultimaImg.id, ultimaResp ?? -1);
-    const imagemChat = !qw && !modeloApr && !modeloAusente && !pecaChat && !edicao ? pedidoDeImagem(texto, { brutos, ultima: ultimaImg, ultimaFoiImagem }) : null;
+    const imagemChat = !alternativaOriginal && !qw && !modeloApr && !modeloAusente && !pecaChat && !edicao ? pedidoDeImagem(texto, { brutos, ultima: ultimaImg, ultimaFoiImagem }) : null;
     // Material com identidade visual (PDF, PPTX, DOCX) nesta mensagem ou antes na conversa: a peça segue as cores e o
     // tipo de fonte dele, como inferência desta peça (a regra de identidade da empresa continua valendo mais).
     if (pecaChat) {
       const estilo = estiloDaConversa(app, conv.id, anexos);
+      // Sem o PDF de referência, o compositor só possui as fontes empacotadas.
+      // Não troca silenciosamente uma fonte pedida como parte da entrega.
+      if (estilo && /mesmas? fontes?\b/i.test(texto)) {
+        const disponiveis=Object.values(FAMILIAS).map(f=>f.nome.toLowerCase());
+        if (estilo.fontes?.some(f=>!disponiveis.includes(f.toLowerCase()))) throw erro(409,'fonte_layout_indisponivel','Para manter as mesmas fontes, envie também um PDF da apresentação como referência de layout. O pedido não foi executado e nenhum crédito de IA foi consumido.');
+      }
       if (estilo) pecaChat.operacao.entregaveis[0].visual.estilo = estiloComoTexto(estilo);
     }
     const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, execucaoQw, pesquisa, false, !execucaoQw && !edicao && PEDE_ARQUIVO.test(texto))
+      + NOTA_FIDELIDADE
+      + (redesignLivre ? '\nREFATORAÇÃO VISUAL: recomponha a apresentação completa usando a apresentação fonte como conteúdo. Reúna continuações artificiais e assuntos repetidos quando isso melhorar a leitura, preservando todo o conteúdo útil. Não crie páginas só para um subtítulo ou uma observação. Evite títulos repetidos, rodapés extensos, texto miúdo e grandes vazios sem função. Use hierarquia, composição e recursos visuais adequados ao conteúdo, mantendo datas, números, nomes e compromissos exatamente como nas fontes. A resposta deve conter o conteúdo final de cada slide, não uma lista de ajustes propostos.' : '')
+      + (exigeAltaQualidade(texto) ? NOTA_ALTA_QUALIDADE : '')
       + blocoCreditos(app)
       + notaDeData(app)
       + (programada ? NOTA_PROGRAMADA : '')
@@ -877,7 +1005,7 @@ export function rotasConversas(app, r) {
     // precisa dele: nenhuma chamada; a execução pergunta o mínimo.
     const emEtapas = !!(execucaoQw && pesquisa?.disponivel && !sigilosa);
     const textosDaPessoa = emEtapas ? [...todos(app.db, "select texto from mensagens where conversa_id = ? and papel = 'user'", conv.id).map(m => m.texto).filter(t => t !== NAO_GUARDADO), texto] : [];
-    const externo = emEtapas ? contextoExternoDaPesquisa({ objetivo: qw.espec.objetivo, op: qw.espec.operacao, perfil: cfg.pesquisaWeb?.perfil, textosDaPessoa }) : null;
+    const externo = emEtapas ? contextoExternoDaPesquisa({ objetivo: qw.espec.objetivo, op: qw.espec.operacao, perfil: cfg.pesquisaWeb?.perfil, textosDaPessoa, agora: app.agora() }) : null;
     const perguntaMercado = externo && !externo.suficiente ? perguntaDeMercado(qw.espec.objetivo) : null;
     const sistemaColeta = emEtapas ? promptColeta(qw.espec.operacao) + notaDeData(app) : null;
     const sistemaProducao = emEtapas ? persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, true, pesquisa, true) + notaDeData(app) + (programada ? NOTA_PROGRAMADA : '') : null;
@@ -919,6 +1047,38 @@ export function rotasConversas(app, r) {
       app.log?.('análise do pedido', erroParaLog(e));
       analise = analiseIndisponivel(entradaAnalise);   // governança continua valendo; exigência padrão Equilibrado
     }
+    // Bloqueios anteriores à seleção também precisam de trilha de decisão, sem texto ou anexos.
+    const gravarBloqueioPrevio = (codigo, requisitos, decisao = null) => {
+      exec(app.db, `insert into roteamento (em,pessoa_id,conversa_id,quick_win_id,modo,complexidade,versao,sigilosa,teste,origem,
+        resultado,modelo_solicitado,decisao_solicitado,motivo_bloqueio,classe_necessaria,requisitos,candidatos)
+        values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, AGORA(app),pessoa.id,conv.id,conv.quick_win_id,'bloqueado',requisitos.complexidade || 'nao_analisada',
+        VERSAO_ROTEADOR,Number(sigilosa),conv.teste,origem,'bloqueado',solicitado,solicitado?'bloqueado':null,codigo,
+        requisitos.classe || 'avancado',JSON.stringify(requisitos),JSON.stringify((decisao?.candidatos || []).map(c=>({...c,status:c.status==='escolhido'?'excluido':c.status}))));
+    };
+    const pesquisaBloqueada = pesquisa && !pesquisa.disponivel ? pesquisa
+      : pesquisaChat && !pesquisaChat.pode && exigePesquisa(texto) ? pesquisaChat : null;
+    if (pesquisaBloqueada) {
+      const codigo = `pesquisa_${pesquisaBloqueada.codigo}`;
+      gravarBloqueioPrevio(codigo, { complexidade: analise.complexidade, classe: analise.classe, ferramenta: 'pesquisa_web' });
+      registrar(app, 'research.blocked', pessoa.id, { conversa: conv.id, motivo: pesquisaBloqueada.codigo, ...(qw ? { quick_win: qw.id } : {}) });
+      const proximo = pesquisaBloqueada.codigo === 'nao_liberada'
+        ? 'O administrador pode revisar esse acesso em Configurações › Políticas.'
+        : pesquisaBloqueada.codigo === 'reserva_do_plano'
+          ? 'O administrador pode conferir os créditos e os limites do plano.'
+          : 'A pesquisa externa precisa respeitar a proteção deste conteúdo. Liberar um modelo não remove essa restrição.';
+      throw erro(409, codigo, `A pesquisa solicitada não foi iniciada porque ${MOTIVOS_PESQUISA[pesquisaBloqueada.codigo]}. Nenhuma resposta baseada apenas em conhecimento geral foi gerada no lugar da pesquisa. ${proximo}`);
+    }
+    const prepararAdvanced = (requisitos, decisao = null) => {
+      gravarBloqueioPrevio('advanced_sem_autorizacao',requisitos,decisao);
+      let alternativa=false;
+      if(!qw&&!alternativaOriginal){
+        const resumo=analisarPedido({...entradaAnalise,texto:trabalhoDoPedido(corpo,requisitos).alternativa.instrucao,temResposta:false,anterior:null,feedback:null,dependencias:null});
+        const r=rotear({db:app.db,cfg,pessoa,conversaId:conv.id,sigilosa,reforcada:areaReforcada,dadosPessoais,reservaDoPlano:plano?.fase==='reserva',analise:resumo,pedido:AUTOMATICO,agora:app.agora()});
+        alternativa=!!r.modelo&&r.modelo.perfil!=='avancado';
+      }
+      const estimativas=lerModelos(app.db).filter(m=>m.perfil==='avancado'&&m.noCatalogo&&Number.isFinite(m.precoEntrada)&&Number.isFinite(m.precoSaida)).map(m=>m.precoEntrada*((analise.tokens?.fixo||0)+(analise.tokens?.mensagem||0)+(analise.tokens?.historico||0))+m.precoSaida*32768);
+      return prepararPedidoAdvanced(app,pessoa,conv,corpo,requisitos,estimativas.length?Math.min(...estimativas):null,!tipos.some(t=>(cfg.naoArmazenar||[]).includes(t)),alternativa);
+    };
     // Política da empresa para informação sigilosa (camada central, sigilo.js). Desligada: nada é enviado.
     const decisaoSigilo = avaliarProcessamentoSigiloso({ cfg, sigilosa });
     if (!decisaoSigilo.permitido) {
@@ -939,7 +1099,7 @@ export function rotasConversas(app, r) {
     let manual = null, trocaDoPlano = false, substituida = null, motivoSolicitado = null;
     if (!automatico) {
       try {
-        manual = modeloPermitido(app.db, cfg, pessoa, pedido === AUTOMATICO ? classePadrao : pedido, { qw, sigilosa });
+        manual = modeloPermitido(app.db, cfg, pessoa, pedido === AUTOMATICO ? classePadrao : pedido, { qw, sigilosa, conversaId:conv.id, em:AGORA(app) });
         if (ehClasse(pedido) && (areaReforcada || dadosPessoais) && (manual.protecao ?? 0) < 2) {
           manual = lerModelos(app.db).find(m => m.liberado && m.noCatalogo && m.perfil === manual.perfil && (m.protecao ?? 0) >= 2 && (!sigilosa || m.homologado)) || manual;
         }
@@ -956,6 +1116,11 @@ export function rotasConversas(app, r) {
         }
       } catch (e) {
         if (!e.motivo && !e.codigo) throw e;   // erro inesperado: não é uma regra de governança
+        if (e.codigo === 'advanced_sem_autorizacao') prepararAdvanced({complexidade:analise.complexidade,dimensoes:{capacidade_solicitada:3}});
+        if (['advanced_indisponivel','advanced_seguranca','advanced_ferramenta'].includes(e.codigo)) {
+          gravarBloqueioPrevio(e.codigo,{classe:'avancado'});
+          throw e;
+        }
         motivoSolicitado = motivoDoPedido(app, cfg, e, pedido, sigilosa);
         // Quick win fixo sem o modelo dele: quem gere é avisado; quem usa segue no automático, na mesma governança.
         if (qwFixo && !sigilosa && e.codigo !== 'plano_reserva') await avisarGovernanca(app, 'quick_win_sem_modelo', { pessoa: pessoa.id, conversa: conv.id });
@@ -965,14 +1130,22 @@ export function rotasConversas(app, r) {
       }
     }
     const classePedida = automatico ? 'auto' : resolverClasse(app.db, cfg, pedido) === AUTO || pedido === AUTO ? 'externo' : String(pedido).startsWith('classe:') ? pedido.slice(7) : manual?.perfil || null;
-    let rota = rotear({ db: app.db, cfg, pessoa, qw: substituida && qwFixo ? { ...qw, pode_trocar: true } : qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: substituida ? AUTOMATICO : pedido, analise, agora: app.agora(), modeloManual: manual, origem: substituida ? 'auto' : origem });
+    let rota = rotear({ db: app.db, cfg, pessoa, conversaId:conv.id, qw: substituida && qwFixo ? { ...qw, pode_trocar: true } : qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: substituida ? AUTOMATICO : pedido, analise, agora: app.agora(), modeloManual: manual, origem: substituida ? 'auto' : origem });
+    const advancedExigido = rota.requisitos.classe === 'avancado' || classePedida === 'avancado' || pedido === 'classe:avancado';
+    if (advancedExigido && !acessoAdvanced(app.db,pessoa.id,null,conv.id,AGORA(app))) {
+      prepararAdvanced(rota.requisitos,rota);
+    }
+    if (reservaDoPlano && rota.requisitos.nivel > 1) {
+      gravarBloqueioPrevio('orcamento_insuficiente',rota.requisitos,rota);
+      throw erro(402,'orcamento_insuficiente','O plano está no limite e não comporta a capacidade exigida. Solicite créditos ao administrador; o pedido não será reduzido automaticamente.');
+    }
     // Modelo solicitado que passou pela validação mas o roteador recusou (janela, política, classe mínima):
     // mesma resolução, no automático, com o mesmo registro. Quick win e padrão da empresa seguem as regras deles.
     if (!rota.modelo && manual && origem === 'pessoa' && manual.id !== AUTO) {
       motivoSolicitado = MOTIVO_DA_CAUSA[rota.fallback?.causa] || 'requested_model_not_available';
       substituida = { tipo: 'escolha_substituida', motivo: rota.fallback?.causa || 'indisponivel', classePedida: String(pedido).replace(/^classe:/, '') };
       manual = null; trocaDoPlano = false; automatico = true;
-      rota = rotear({ db: app.db, cfg, pessoa, qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: AUTOMATICO, analise, agora: app.agora(), modeloManual: null, origem: 'auto' });
+      rota = rotear({ db: app.db, cfg, pessoa, conversaId:conv.id, qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: AUTOMATICO, analise, agora: app.agora(), modeloManual: null, origem: 'auto' });
     }
     if (trocaDoPlano) { rota.fallback = rota.fallback || { tipo: 'trocado_pela_reserva_do_plano', classePedida }; motivoSolicitado = 'requested_model_plan_restricted'; }
     if (rota.fallback?.tipo === 'trocado_por_falta_de_contexto' && origem === 'pessoa') motivoSolicitado = 'requested_model_context_limit';
@@ -1014,11 +1187,15 @@ export function rotasConversas(app, r) {
       // Conteúdo que não cabe em NENHUM modelo (nem nos que as regras tiram) é tamanho, não governança.
       const naoCabeEmNenhum = rota.candidatos.length && rota.candidatos.every(c => c.motivos.includes('contexto_insuficiente'));
       const grande = naoCabeEmNenhum || (causas.includes('contexto_insuficiente') && !causas.some(c => ['nao_homologado', 'sem_acesso_a_classe', 'plano_na_reserva'].includes(c)));
-      gravarRota(null, 'bloqueado', grande ? 'conteudo_grande_demais' : sigilosa ? 'sem_recurso_elegivel' : reservaDoPlano ? 'sem_recurso_na_reserva_do_plano' : 'sem_recurso_disponivel');
+      const advancedIndisponivel = rota.requisitos.classe === 'avancado' && acessoAdvanced(app.db,pessoa.id,null,conv.id,AGORA(app))
+        && !lerModelos(app.db).some(x=>x.perfil==='avancado'&&x.liberado&&x.noCatalogo&&acessoAdvanced(app.db,pessoa.id,x.id,conv.id,AGORA(app)));
+      const impedimento=causas.find(c=>['advanced_seguranca','advanced_indisponivel','advanced_ferramenta'].includes(c)) || (advancedIndisponivel?'advanced_indisponivel':null);
+      gravarRota(null, 'bloqueado', impedimento || (grande ? 'conteudo_grande_demais' : sigilosa ? 'sem_recurso_elegivel' : reservaDoPlano ? 'sem_recurso_na_reserva_do_plano' : 'sem_recurso_disponivel'));
+      if(impedimento)throw erro(impedimento==='advanced_indisponivel'?503:409,impedimento,{advanced_seguranca:'As rotas Advanced não cumprem a aprovação de segurança exigida. Solicite a revisão das rotas; liberar acesso não remove essa restrição.',advanced_indisponivel:'Não há modelo e provedor Advanced disponíveis com catálogo confirmado. Atualize o catálogo ou autorize uma alternativa de capacidade adequada.',advanced_ferramenta:'A ferramenta ou o limite de saída necessário não está confirmado. O administrador precisa revisar os recursos antes da execução.'}[impedimento]);
       if (grande)
         throw erro(413, 'grande_demais', MSG_USUARIO.grande, solicitado ? { rota: { solicitacao: solicitacao() } } : undefined);   // o material em si é grande demais para qualquer modelo permitido
       await avisarGovernanca(app, sigilosa ? 'sem_modelo_sigilo' : reservaDoPlano ? 'plano_reserva' : 'sem_modelo', { pessoa: pessoa.id, conversa: conv.id });
-      throw erro(sigilosa ? 409 : 503, sigilosa ? 'sem_modelo_autorizado' : 'sem_modelo', sigilosa ? MSG_USUARIO.sigilo : MSG_USUARIO.indisponivel, solicitado ? { rota: { solicitacao: solicitacao() } } : undefined);
+      throw erro(sigilosa ? 409 : 503, sigilosa ? 'sem_modelo_autorizado' : 'sem_modelo', rota.requisitos.qualidadeExigida ? 'O padrão de qualidade solicitado precisa de um recurso de IA compatível e autorizado para este conteúdo. Não há um disponível agora; nenhum conteúdo foi enviado e o administrador foi informado.' : sigilosa ? MSG_USUARIO.sigilo : MSG_USUARIO.indisponivel, solicitado ? { rota: { solicitacao: solicitacao() } } : undefined);
     }
     if (reservaDoPlano && automatico && rota.fallback?.tipo === 'abaixo_do_necessario') aviso(app, conv.id, 'Os créditos deste mês acabaram: até a renovação, as respostas usam o modo econômico.');
     if (conv.modelo && conv.modelo !== pedido && !trocaDoPlano) {
@@ -1031,6 +1208,7 @@ export function rotasConversas(app, r) {
     const conferirEnvio = recurso => {
       const cfgAgora = lerConfig(app.db);
       const atual = acharModelo(app.db, cfgAgora, recurso.id);
+      conferirAdvanced(app,pessoa.id,recurso.id,conv.id,{sigilosa,fornecedor:sigilosa?atual?.homologacao?.endpoint:null});
       if (!atual?.liberado) throw erro(503, 'sem_modelo', MSG_USUARIO.indisponivel);
       const d = avaliarProcessamentoSigiloso({ cfg: cfgAgora, sigilosa, recurso: sigilosa ? atual : undefined });
       if (!d.permitido) throw erro(409, 'sem_modelo_autorizado', d.motivo === 'politica_sigilo_desligada' ? MSG_USUARIO.sigilo_desligado : MSG_USUARIO.sigilo);
@@ -1094,10 +1272,26 @@ export function rotasConversas(app, r) {
       bloquearCredencial(pessoa, conv, ['envio_final'], []);
     }
 
+    sinal?.throwIfAborted();
     // 5. Streaming para o navegador (uma linha JSON por evento).
     res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
     // Metadados do streaming passam pelo mesmo filtro da API; o texto da resposta é o que a IA escreveu.
     const linha = o => res.write(JSON.stringify(o.t === 'texto' ? o : semProvedor(o)) + '\n');
+    // A análise e as chamadas auxiliares também podem ficar sem tokens por vários
+    // segundos. Mantém a conexão ativa até a confirmação, sem anunciar conclusão.
+    const vidaResposta = setInterval(() => {
+      if (!res.destroyed && !res.writableEnded) linha({ t: 'espera' });
+    }, 15000);
+    const encerrarEspera = () => {
+      clearInterval(vidaResposta);
+      res.off('close', encerrarEspera);
+      res.off('finish', encerrarEspera);
+    };
+    // A saída das execuções programadas emite finish, sem uma conexão HTTP para
+    // emitir close. Encerrar só em close deixava um intervalo vivo por execução.
+    res.once('close', encerrarEspera);
+    res.once('finish', encerrarEspera);
+    try {
     const rotaTela = { modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, complexidade: rota.requisitos.complexidade,
       explicacao: pessoa.admin ? rota.explicacao : explicarParaPessoa({ modo: rota.modo, classe: m.id === AUTO ? null : m.perfil, politicas: rota.politicas, fallback: rota.fallback, sigilosa }),
       // A tela de uso (inclusive de quem administra) mostra sempre a simples; a técnica fica na Administração.
@@ -1106,6 +1300,7 @@ export function rotasConversas(app, r) {
     // Execução do Quick Win 2.0: a resposta é conferida antes de aparecer; quem usa acompanha as etapas.
     const espec = execucaoQw ? qw.espec : null;
     linha({ t: 'inicio', mensagem: msgId, sigilosa, modelo: pessoa.admin ? m.id : null, classe: m.id === AUTO ? null : m.perfil, cortada: h.cortada || !!conv.cortada, rota: rotaTela, qualidade: !!espec, arquivo: !!(modeloApr || edicao) && !naoGuardar });
+    if ((modeloApr || edicao) && !naoGuardar) linha({ t: 'etapa', v: 'Analisando o pedido e os arquivos…', arquivo: true });
     if (espec) linha({ t: 'etapa', v: anexos.length ? 'Analisando seu documento…' : 'Analisando seu pedido…' });
     const inicio = Date.now();
     let resposta = '', fim = null, primeiroToken = null, falha = null, atual = m;
@@ -1125,6 +1320,16 @@ export function rotasConversas(app, r) {
     // Etapa 1 (coleta): pesquisa com o plugin web, só com o contexto externo seguro. Falhou ou não trouxe notas: a
     // produção segue sem pesquisa e o resultado fica parcial (nada é simulado). Notas com algo que parece segredo não seguem.
     let notas = null, custoColeta = 0, economiaColeta = 0;
+    // Orçamento, autorização e rota são decisões de governança, não ausência de resultados.
+    // Não consome execução/conferência depois de uma coleta recusada por esses controles.
+    const coletaRecusada = e => /^(advanced_|rota_nao_controlada)/.test(e?.codigo || '') || [401, 402, 403].includes(e?.status);
+    const encerrarColetaRecusada = e => {
+      const codigo = e?.codigo || 'pesquisa_bloqueada';
+      exec(app.db, "update roteamento set resultado = 'bloqueado_na_coleta', motivo_bloqueio = ?, ms_total = ? where id = ?", codigo, Date.now() - inicio, rotaId);
+      linha({ t: 'erro', codigo, mensagem: /^(advanced_|rota_nao_controlada)/.test(codigo) ? e.message : 'A pesquisa não pôde ser autorizada nesta tentativa. O administrador precisa revisar o acesso e os limites antes de continuar.' });
+      return res.end();
+    };
+
     if (emEtapas && !perguntaMercado) {
       linha({ t: 'etapa', v: 'Pesquisando na internet…' });
       // O plugin de busca usa a última mensagem da pessoa como consulta: ela é o contexto externo seguro, e só ele.
@@ -1140,6 +1345,12 @@ export function rotasConversas(app, r) {
         if (notas && contemCredencial(notas)) notas = null;
       } catch (e) {
         registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: m.id, roteamento: rotaId, etapa: 'coleta', erro: erroDoProvedor(e, { guardar: !naoGuardar, conteudo: conteudoDoPedido }) });
+        if (coletaRecusada(e)) return encerrarColetaRecusada(e);
+      }
+      if (notas && /\b(recentes?|atuais?|atualidade|novidades|noticias|em alta|esta semana|[uú]ltim[oa]s?)\b/i.test(String(qw.espec.objetivo).normalize('NFD').replace(/[\u0300-\u036f]/g, ''))) {
+        const verificacoes = await verificarPublicacoes(fontesWeb, { lookup: app.dnsLookup, buscar: app.buscarLink, agora: app.agora() });
+        for (const f of fontesWeb) { const v = verificacoes.find(x => x.url === f.url); if (v) f.verificacaoPublicacao = v; }
+        notas = notasComPublicacoes(notas, verificacoes);
       }
       if (notas) mensagens[0] = { role: 'system', content: montarSistema(sistemaProducao, delimitar('pesquisa', 'Notas da pesquisa desta execução', notas)) };
       // Coleta sem notas: a produção não pesquisa sozinha (levaria o contexto interno para a busca). Resultado parcial.
@@ -1162,6 +1373,7 @@ export function rotasConversas(app, r) {
         else mensagens[0] = { ...mensagens[0], content: `${mensagens[0].content}\n\nA pesquisa na internet não trouxe resultados: diga isso e não invente notícias, datas ou números recentes.` };
       } catch (e) {
         registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: m.id, roteamento: rotaId, etapa: 'coleta_conversa', erro: erroDoProvedor(e, { guardar: !naoGuardar, conteudo: conteudoDoPedido }) });
+        if (coletaRecusada(e)) return encerrarColetaRecusada(e);
         mensagens[0] = { ...mensagens[0], content: `${mensagens[0].content}\n\nA pesquisa na internet falhou nesta tentativa: diga isso e não invente notícias, datas ou números recentes.` };
       }
     }
@@ -1169,10 +1381,11 @@ export function rotasConversas(app, r) {
     // por outro recurso passa de novo pelo roteador e pelos guardrails (nunca "qualquer outro disponível").
     if (deveEsperarEscolha) orientarEscolha();
     else if (espec && escolhaHumanaPrevista(espec) && escolhaInformada) mensagens[0] = { ...mensagens[0], content: `${mensagens[0].content}\n\nETAPA DE ENTREGA: a escolha desta etapa já foi enviada pela pessoa e está no material autorizado. Use essa escolha para produzir o resultado final. Não repita a escolha nem anuncie uma informação faltante se ela já está no material. O prefixo de pergunta serve somente para uma informação indispensável realmente ausente, nunca para introduzir o artigo ou explicar o histórico. Preserve as limitações de pesquisa e todas as regras de conferência.` };
+    const sinalAnaliseArquivo = (modeloApr || edicao) ? AbortSignal.timeout(120_000) : undefined;
     if (perguntaMercado) resposta = perguntaMercado;
     else for (;;) {
       try {
-        for await (const ev of ia.enviar(mensagens, { modelo: atual.id, reserva: sigilosa || atual !== m ? null : rota.reserva, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais })) {
+        for await (const ev of ia.enviar(mensagens, { modelo: atual.id, reserva: sigilosa || atual !== m ? null : rota.reserva, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais, sinal: sinalAnaliseArquivo })) {
           if (ev.tipo === 'fonte') { if (fontesWeb.length < 10 && !fontesWeb.some(f => f.url === ev.url)) fontesWeb.push({ titulo: ev.titulo, url: ev.url }); continue; }
           if (ev.tipo === 'texto') {
             primeiroToken ??= Date.now() - inicio;
@@ -1213,8 +1426,8 @@ export function rotasConversas(app, r) {
         break;
       } catch (e) {
         falha = e;
-        if (!sigilosa || resposta || tentados.length >= 3 || (qwFixo && !ehClasse(qw.modelo))) break;
-        const alt = rotear({ db: app.db, cfg, pessoa, qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: !automatico && ehClasse(pedido) ? pedido : AUTOMATICO, analise, agora: app.agora(), modeloManual: !automatico && ehClasse(pedido) ? manual : null, origem: !automatico ? origem : 'auto', excluir: tentados });
+        if (sinalAnaliseArquivo?.aborted || !sigilosa || resposta || tentados.length >= 3 || (qwFixo && !ehClasse(qw.modelo))) break;
+        const alt = rotear({ db: app.db, cfg, pessoa, conversaId:conv.id, qw, sigilosa, reforcada: areaReforcada, dadosPessoais, reservaDoPlano, pedido: !automatico && ehClasse(pedido) ? pedido : AUTOMATICO, analise, agora: app.agora(), modeloManual: !automatico && ehClasse(pedido) ? manual : null, origem: !automatico ? origem : 'auto', excluir: tentados });
         if (!alt.modelo) break;
         try { rotaSigilo = conferirEnvio(alt.modelo); } catch { break; }
         registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: atual.id, roteamento: rotaId, erro: erroDoProvedor(e, { guardar: !naoGuardar, conteudo: conteudoDoPedido }), nova_rota: alt.modelo.id });
@@ -1231,13 +1444,14 @@ export function rotasConversas(app, r) {
     }
     if (perguntaInicial) registrar(app, 'quickwin.autonomy_checked', pessoa.id, { conversa: conv.id, quick_win: conv.quick_win_id, teste: !!conv.teste, roteamento: rotaId,
       resultado: resposta.trim().startsWith(MARCADOR_PERGUNTA) ? 'pergunta_necessaria' : 'executou_com_escolhas', reavaliacoes: autonomia });
+    sinal?.throwIfAborted();
     if (falha) { const e = falha;
       exec(app.db, "update roteamento set resultado = 'falha_na_execucao', ms_total = ? where id = ?", Date.now() - inicio, rotaId);
       registrar(app, 'ai.failed', pessoa.id, { conversa: conv.id, modelo: atual.id, roteamento: rotaId, erro: erroDoProvedor(e, { guardar: !naoGuardar, conteudo: conteudoDoPedido }) });
       // O detalhe técnico (provedor, código, modelo) fica no evento; quem usa recebe uma mensagem orientada à tarefa.
       const fora = [401, 402, 503].includes(e?.status);
       if (fora) await avisarGovernanca(app, 'ia_fora', { pessoa: pessoa.id, conversa: conv.id }).catch(() => {});
-      linha({ t: 'erro', mensagem: fora ? MSG_USUARIO.ia_fora : MSG_USUARIO.falhou });
+      linha({ t: 'erro', codigo:e?.codigo || null, mensagem: /^advanced_|^rota_nao_controlada/.test(e?.codigo || '') ? e.message : fora ? MSG_USUARIO.ia_fora : MSG_USUARIO.falhou });
       return res.end();
     }
     // Quality Check (Quick Win 2.0): pelo mesmo recurso e pela mesma rota já decididos e conferidos acima
@@ -1246,35 +1460,37 @@ export function rotasConversas(app, r) {
     let registroQualidade = null, custoExtra = 0, economiaExtra = 0, integResumo = null;
     // Chamadas extras da execução (conferência e plano visual): o MESMO recurso e a mesma rota já decididos e
     // conferidos acima, com a defesa final de credenciais em cada uma.
-    const chamar = async msgs => {
+    const prazoArquivo = criarPrazoArquivo();
+    const chamadaAuxiliar = fn => (modeloApr || edicao || exigeAltaQualidade(texto)) ? prazoArquivo.executar(fn) : fn(undefined);
+    const chamar = msgs => chamadaAuxiliar(async sinal => {
       const txt = msgs.map(x => typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')).join('\n');
       if (contemCredencial(txt)) throw new ErroIA('conteúdo não enviado');
       let t = '', f = null;
-      for await (const ev of ia.enviar(msgs, { modelo: atual.id, reserva: null, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais })) {
+      for await (const ev of ia.enviar(msgs, { modelo: atual.id, reserva: null, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais, sinal })) {
         if (ev.tipo === 'texto') t += ev.texto; else f = ev;
       }
       return { texto: t, custo: f?.custo || 0, economia: f?.economia || 0 };
-    };
+    });
     // Design das peças visuais: a classe Avançada quando a pessoa (e o Quick Win) pode usá-la e nada pede proteção
     // extra (sigilo, área reforçada, dado pessoal); senão, o mesmo recurso da execução. Mesmas defesas de chamar().
     let modeloDesign = atual.id;
     if (!sigilosa && !areaReforcada && !dadosPessoais) {
-      try { const m = modeloPermitido(app.db, cfg, pessoa, 'classe:avancado', { qw }); if (m?.id && m.id !== AUTO) modeloDesign = m.id; } catch { /* sem acesso: fica o da execução */ }
+      try { const m = modeloPermitido(app.db, cfg, pessoa, 'classe:avancado', { qw, conversaId:conv.id, em:AGORA(app) }); if (m?.id && m.id !== AUTO) modeloDesign = m.id; } catch { /* sem acesso: fica o da execução */ }
     }
-    const chamarDesign = modeloDesign === atual.id ? chamar : async msgs => {
+    const chamarDesign = modeloDesign === atual.id ? chamar : msgs => chamadaAuxiliar(async sinal => {
       const txt = msgs.map(x => typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')).join('\n');
       if (contemCredencial(txt)) throw new ErroIA('conteúdo não enviado');
       let t = '', f = null;
-      for await (const ev of ia.enviar(msgs, { modelo: modeloDesign, reserva: null, sigilosa: false, semTreino: cfg.exigirSemTreino })) {
+      for await (const ev of ia.enviar(msgs, { modelo: modeloDesign, reserva: null, sigilosa: false, semTreino: cfg.exigirSemTreino, sinal })) {
         if (ev.tipo === 'texto') t += ev.texto; else f = ev;
       }
       return { texto: t, custo: f?.custo || 0, economia: f?.economia || 0 };
-    };
+    });
     // Conferência de escrita (vícios de texto de IA): limpeza sem custo e, se sobrar vício, revisão pela mesma rota.
     let custoEscrita = 0, economiaEscrita = 0;
     const conferirEscrita = async () => {
       if (!resposta.trim()) return;
-      const r = await revisarEscrita(resposta, { chamar, usarIA: !reservaDoPlano });
+      const r = await revisarEscrita(resposta, { chamar, usarIA: !reservaDoPlano && !modeloApr && !edicao });
       custoEscrita += r.custo; economiaEscrita += r.economia;
       if (r.vicios.length) registrar(app, 'ai.writing_checked', pessoa.id, { conversa: conv.id, roteamento: rotaId, vicios: r.vicios, restantes: r.restantes, revisado: r.revisado });
       const mudou = r.texto !== resposta;
@@ -1282,6 +1498,11 @@ export function rotasConversas(app, r) {
       return mudou;
     };
     // Conversa livre: o texto já foi mostrado ao vivo; se a conferência mudou algo, a versão final substitui.
+    if (!espec && (modeloApr || edicao)) {
+      resposta = semPromessaDeArquivo(resposta).trimEnd();
+      linha({ t: 'substituir', v: resposta });
+      linha({ t: 'etapa', v: 'Preparando o arquivo para baixar…', arquivo: true });
+    }
     if (!espec && await conferirEscrita()) linha({ t: 'substituir', v: resposta });
     if (espec) {
       linha({ t: 'etapa', v: 'Conferindo o resultado…' });
@@ -1346,7 +1567,7 @@ export function rotasConversas(app, r) {
         linha({ t: 'etapa', v: 'Montando o visual…' });
         try {
           visuais = await produzirVisuais(app, { pessoa, conv, qw, espec, resposta, chamar, chamarDesign, usarIA: !reservaDoPlano,
-            governanca: { sigilosa, areaReforcada, protegidos: protegidos.length > 0, reserva: reservaDoPlano }, etapa: v => linha({ t: 'etapa', v }) });
+            governanca: { sigilosa, areaReforcada, qualidadeAlta: exigeAltaQualidade(texto), protegidos: protegidos.length > 0, reserva: reservaDoPlano }, etapa: v => linha({ t: 'etapa', v }) });
           if (visuais) custoVisual = visuais.custos;
         } catch (e) { app.log?.('produção visual', erroParaLog(e)); registroQualidade.visual = { falhou: true }; }
       }
@@ -1358,19 +1579,19 @@ export function rotasConversas(app, r) {
         linha({ t: 'etapa', v: 'Montando o visual…' });
         try {
           visuais = await produzirVisuais(app, { pessoa, conv, qw: null, espec: pecaChat, resposta: soEntregavel(resposta), chamar, chamarDesign, usarIA: !reservaDoPlano,
-            governanca: { sigilosa, areaReforcada, protegidos: protegidos.length > 0, reserva: reservaDoPlano }, etapa: v => linha({ t: 'etapa', v }) });
+            governanca: { sigilosa, areaReforcada, qualidadeAlta: exigeAltaQualidade(texto), protegidos: protegidos.length > 0, reserva: reservaDoPlano }, etapa: v => linha({ t: 'etapa', v }) });
           if (visuais) { custoVisual = visuais.custos; fim = { ...(fim || {}), custo: (fim?.custo || 0) + custoVisual.plano_visual + custoVisual.imagem }; }
-        } catch (e) { app.log?.('produção visual', erroParaLog(e)); aviso(app, conv.id, 'Não foi possível montar a peça visual agora. O conteúdo está na resposta e pode ser baixado em PowerPoint ou Word.'); }
+        } catch (e) { app.log?.('produção visual', erroParaLog(e)); if (exigeAltaQualidade(texto)) visuais = { artefatos: [], ignorados: [{ motivo: 'qualidade_exigida_nao_atingida' }], custos: custoVisual }; else aviso(app, conv.id, 'Não foi possível montar a peça visual agora. O conteúdo está na resposta e pode ser baixado em PowerPoint ou Word.'); }
       }
     }
     // Apresentação no layout do modelo: leitura do PDF (sem IA), adaptação do texto pela IA (mesma rota) e o PPTX.
     // Avisos sobre os arquivos desta resposta entram DEPOIS dela na conversa (antes ficavam acima, longe da resposta).
     const avisosDepois = [], avisoDepois = t => { avisosDepois.push(t); };
-    let gerado = null;
+    let gerado = null, falhaExportacaoVisual = false;
     // Rede de segurança: o pedido não foi reconhecido como apresentação, mas a resposta saiu como roteiro "Slide 1,
-    // Slide 2…" numa conversa com uma apresentação em PDF guardada. O arquivo é montado no layout do PDF, com o roteiro
+    // Slide 2…" numa conversa com uma referência visual em PDF guardada. O arquivo é montado no layout do PDF, com o roteiro
     // como conteúdo, em vez de a pessoa ficar com um texto que vira slides genéricos.
-    if (!modeloApr && podeModelo && !espec && ehRoteiroDeSlides(resposta)) { const m = modeloDaConversa(app, conv.id, anexos, brutos, texto); if (m && pdfPaisagem(m.dados)) modeloApr = m; }
+    if (!redesignLivre && !modeloApr && podeModelo && !espec && ehRoteiroDeSlides(resposta)) { const m = modeloDaConversa(app, conv.id, anexos, brutos, texto, { somenteReferencia: !PEDE_MODELO(texto) }); if (m && pdfPaisagem(m.dados)) modeloApr = m; }
     // O arquivo ainda vai ser montado (pode levar minutos): a frase "o arquivo está pronto para baixar" sai do texto
     // já agora, e a tela mostra o andamento. Quem anuncia o arquivo é a plataforma, quando ele existe (em produção a
     // pessoa leu "pronto para download" enquanto o PowerPoint ainda estava sendo montado).
@@ -1411,6 +1632,7 @@ export function rotasConversas(app, r) {
         }
         const r = await adaptarModelo({ paginas, contexto: material, pedido: pedidoFinal, base: baseDeck, conteudos, material: materialReestilo, chamar: chamarDesign, etapa: v => { ultimaEtapa = v; linha({ t: 'etapa', v }); } });
         fim = { ...(fim || {}), custo: (fim?.custo || 0) + r.custo, economia: (fim?.economia || 0) + r.economia };
+        if (exigeAltaQualidade(pedidoFinal) && (r.faltando.length || r.fatos_faltando?.length)) throw Object.assign(new Error('A apresentação ficou incompleta.'), { codigo: 'qualidade_nao_atingida' });
         // Reestilo: o arquivo leva o nome da apresentação da pessoa (é a apresentação dela, no design novo).
         const fonteNome = plano ? (fonteDeck?.nome || json(deckAnterior?.detalhes, {})?.fonte) : null;
         const nome = fonteNome ? `${String(fonteNome).replace(/\.pptx$/i, '').replace(/-novo-design$/, '').slice(0, 60)}-novo-design.pptx` : `${String(modeloApr.nome).replace(/\.pdf$/i, '').slice(0, 60)}-adaptada.pptx`;
@@ -1423,14 +1645,32 @@ export function rotasConversas(app, r) {
         for (const t of paginas.map(textoDoSlide)) if (t.length > 40) vistos.set(t, (vistos.get(t) || 0) + 1);
         const repetidos = [...vistos.values()].filter(n => n > 1).reduce((a, n) => a + n, 0);
         if (repetidos) throw Object.assign(new Error('slides repetidos'), { codigo: 'slides_repetidos', n: repetidos });
+        prazoArquivo.conferir();
         gerado = { nome, textos: r.textos, dados: pptxDeModelo(paginas, { textos: r.textos, titulo: nome }), detalhes: { slides: paginas.length, blocos: paginas.reduce((n, p) => n + p.blocos.length, 0), sem_adaptacao: r.faltando.length, modelo: modeloApr.nome, ...(plano ? { plano, fonte: fonteDeck?.nome || json(deckAnterior?.detalhes, {})?.fonte } : {}) } };
       } catch (e) {
         app.log?.('modelo de apresentação', erroParaLog(e));
-        avisoDepois(e?.codigo === 'slides_repetidos' ? `A montagem saiu com ${e.n} slides de conteúdo repetido, por isso o arquivo não foi entregue. Peça de novo; se repetir, envie a apresentação e o modelo novamente numa conversa nova.`
+        avisoDepois(e?.codigo === 'qualidade_nao_atingida' ? 'A apresentação não atingiu o padrão solicitado: a adaptação ficou incompleta ou as alterações não puderam ser confirmadas. O arquivo não foi entregue como concluído.'
+          : e?.codigo === 'arquivo_tempo_excedido' ? 'A montagem excedeu o tempo de espera e foi interrompida. O arquivo não foi gerado; os materiais enviados continuam na conversa.'
+          : e?.codigo === 'slides_repetidos' ? `A montagem saiu com ${e.n} slides de conteúdo repetido, por isso o arquivo não foi entregue. Peça de novo; se repetir, envie a apresentação e o modelo novamente numa conversa nova.`
           : e?.codigo === 'modelo_grande' ? `O modelo tem ${e.total} páginas; o limite para montar no mesmo layout é 60.`
           : e?.codigo === 'modelo_sem_memoria' ? 'O servidor não tem memória livre suficiente para ler este modelo agora, por isso a apresentação no mesmo layout não foi montada. Nada foi perdido: o pedido pode ser repetido.'
           : 'Não foi possível montar a apresentação no layout do modelo agora. Tente de novo em alguns minutos.');
       } finally { clearInterval(vida); }
+    }
+    // O PPTX solicitado usa o mesmo design que passou pela conferência no
+    // navegador. Nunca converte de volta ao template de texto da resposta.
+    const visualPptx = !qw && !modeloApr && /\b(pptx|power ?point|apresenta[cç][aã]o|slides?|deck)\b/i.test(texto)
+      ? visuais?.artefatos?.find(a => a.tipo === 'presentation') : null;
+    if (!gerado && visualPptx) {
+      linha({ t: 'etapa', v: 'Exportando o design validado para PowerPoint…', arquivo: true });
+      try {
+        prazoArquivo.conferir();
+        gerado = await pptxDoDesign(visualPptx, { agora: app.agora(), titulo: conv.titulo });
+        prazoArquivo.conferir();
+      } catch (e) {
+        falhaExportacaoVisual = true;
+        app.log?.('exportação do design', erroParaLog(e));
+      }
     }
     // Ajuste no próprio arquivo: a IA indica as operações (parágrafo a parágrafo, célula a célula) e elas são aplicadas
     // no original; o resultado é relido antes de chegar à pessoa.
@@ -1443,6 +1683,7 @@ export function rotasConversas(app, r) {
           const r = await editarArquivo({ tipo: edicao.tipo, nome: edicao.nome, dados: edicao.dados, pedido: texto, resposta, chamar: chamarDesign,
             verificar: async b => { await extrairTexto({ nome: `verificacao.${edicao.tipo}`, base64: b.toString('base64') }); } });
           fim = { ...(fim || {}), custo: (fim?.custo || 0) + r.custo, economia: (fim?.economia || 0) + r.economia };
+          prazoArquivo.conferir();
           if (r.status === 'ok') {
             editado = r;
             // Planilha: a lista do que mudou sai do próprio arquivo, porque o texto da resposta foi escrito antes.
@@ -1461,7 +1702,8 @@ export function rotasConversas(app, r) {
             : 'Não foi possível aplicar as alterações no arquivo original desta vez. As alterações estão descritas na resposta; peça de novo para tentar outra vez.');
         } catch (e) {
           app.log?.('ajuste no arquivo', erroParaLog(e));
-          avisoDepois('Não foi possível aplicar as alterações no arquivo original desta vez. As alterações estão descritas na resposta; peça de novo para tentar outra vez.');
+          avisoDepois(e?.codigo === 'qualidade_nao_atingida' ? 'A apresentação não atingiu o padrão solicitado: a adaptação ficou incompleta ou as alterações não puderam ser confirmadas. O arquivo não foi entregue como concluído.'
+          : e?.codigo === 'arquivo_tempo_excedido' ? 'A montagem excedeu o tempo de espera e foi interrompida. O arquivo não foi gerado; os materiais enviados continuam na conversa.' : 'Não foi possível aplicar as alterações no arquivo original desta vez. As alterações estão descritas na resposta; peça de novo para tentar outra vez.');
         }
       }
     }
@@ -1507,14 +1749,47 @@ export function rotasConversas(app, r) {
     // Arquivo prometido e não gerado: a resposta não pode dizer que ele está pronto (QA em produção: "o arquivo está
     // pronto para download abaixo" sem arquivo nenhum). As frases de entrega saem e a falha é dita no fim, com o motivo.
     // Formatos pedidos (mesma leitura da tela): sem arquivo especializado, a versão a partir da resposta é anexada.
-    const formatosPedidos = qw || naoGuardar ? [] : Object.entries({ docx: /\b(word|docx|\.doc\b)/i, pptx: /\b(power ?point|pptx|ppt|slides?|apresenta[cç](ão|ao|ões|oes))\b/i, xlsx: /\b(excel|xlsx|xls|planilhas?)\b/i })
-      .filter(([f, re]) => re.test(texto) && (f !== 'xlsx' || extrairTabelas(resposta).length)).map(([f]) => f);
+    if (/\b(excel|xlsx|xls|planilhas?)\b/i.test(texto)) {
+      const normalizada = normalizarTabelas(resposta);
+      if (normalizada !== resposta) { resposta = normalizada; linha({ t: 'substituir', v: resposta }); }
+    }
+    const formatosPedidos = qw || naoGuardar || alternativaOriginal ? [] : Object.entries({ docx: /\b(word|docx|\.doc\b)/i, pptx: /\b(power ?point|pptx|ppt|slides?|apresenta[cç](ão|ao|ões|oes))\b/i, xlsx: /\b(excel|xlsx|xls|planilhas?)\b/i })
+      .filter(([, re]) => re.test(texto)).map(([f]) => f);
     if (!naoGuardar && (edicao || modeloApr) && !editado && !gerado) {
-      const simples = formatosPedidos.length ? ` Logo abaixo há uma versão simples em ${formatosPedidos.map(f => ({ docx: 'Word', pptx: 'PowerPoint', xlsx: 'Excel' })[f]).join(' e ')}, montada a partir desta resposta (sem o layout pedido).` : '';
-      resposta = `${semPromessaDeArquivo(resposta).trim()}\n\n**O arquivo ${edicao ? 'ajustado' : 'no layout pedido'} não foi gerado nesta resposta.** ${avisosDepois.at(-1) || 'Não foi possível montar o arquivo agora.'}${simples}`;
+      resposta = `${semPromessaDeArquivo(resposta).trim()}\n\n**O arquivo ${edicao ? 'ajustado' : 'no layout pedido'} não foi gerado nesta resposta.** ${avisosDepois.at(-1) || 'Não foi possível montar o arquivo agora.'}`;
       avisosDepois.length = 0;
       linha({ t: 'substituir', v: resposta });
     }
+    const qualidadeVisualFalhou = falhaExportacaoVisual || (exigeAltaQualidade(texto) && !!pecaChat && !visuais?.artefatos?.length) || !!visuais?.ignorados?.some(x => x.motivo === 'qualidade_exigida_nao_atingida');
+    if (qualidadeVisualFalhou) {
+      resposta = `${semPromessaDeArquivo(resposta).trim()}\n\n**O arquivo com o acabamento solicitado não foi gerado.** O conteúdo está nesta resposta, mas o design não passou pela validação. A plataforma não substituiu a entrega por uma versão básica.`;
+      linha({ t: 'substituir', v: resposta });
+      if (registroQualidade) registroQualidade.status = 'parcial';
+    }
+    // Materializar antes de anunciar a entrega. Marcadores de formato não são arquivos.
+    const officeProntos = [];
+    if (formatosPedidos.length && !modeloAusente && !modeloApr && !edicao && !qualidadeVisualFalhou && !ehPergunta(texto) && PEDE_ENTREGA.test(texto) && soEntregavel(resposta).trim().length > 40) {
+      for (const formato of formatosPedidos) {
+        if (formato === 'pptx' && (gerado || visuais?.artefatos?.some(a=>a.tipo==='presentation'))) continue;
+        if (visuais?.artefatos?.length && formato !== 'docx' && formato !== 'xlsx') continue;
+        try {
+          const conteudo = soEntregavel(resposta), titulo = conv.titulo || 'Resposta da GreenIA';
+          let dados;
+          if (formato === 'xlsx') {
+            const tabelas = extrairTabelas(conteudo), nomes = nomesDasTabelas(conteudo);
+            if (!tabelas.length) throw new Error('sem_tabela');
+            dados = xlsx(tabelas.map((linhas, i) => ({ nome: nomes[i], linhas })), { titulo });
+          } else dados = (formato === 'docx' ? docx : pptx)(conteudo, { titulo });
+          if (!dados?.length || dados.readUInt32LE(0) !== 0x04034b50) throw new Error('pacote_invalido');
+          officeProntos.push({ nome: nomeDoArquivo(titulo, formato), formato, dados });
+        } catch (e) {
+          app.log?.('arquivo da resposta', erroParaLog(e));
+          resposta = `${semPromessaDeArquivo(resposta).trim()}\n\n**O arquivo ${formato.toUpperCase()} não foi gerado.** Não foi possível montar um arquivo válido a partir desta resposta. Peça ao GreenIA para corrigir a entrega; o conteúdo acima ainda precisa dessa etapa.`;
+          linha({ t: 'substituir', v: resposta });
+        }
+      }
+    }
+    sinal?.throwIfAborted();
     const respId = Number(exec(app.db, "insert into mensagens (conversa_id, papel, texto, modelo, fornecedor, fontes, criado_em) values (?, 'assistant', ?, ?, ?, ?, ?)",
       conv.id, naoGuardar ? NAO_GUARDADO : resposta, usado, fim?.fornecedor, JSON.stringify([...ctx.fontes, ...(naoGuardar ? [] : fontesWeb)]), AGORA(app)).lastInsertRowid);
     for (const t of avisosDepois) aviso(app, conv.id, t);
@@ -1533,7 +1808,7 @@ export function rotasConversas(app, r) {
     if (gerado) {
       const id = Number(exec(app.db, 'insert into arquivos_gerados (conversa_id, mensagem_id, nome, mime, dados, detalhes, textos, criado_em) values (?, ?, ?, ?, ?, ?, ?, ?)', conv.id, respId, gerado.nome, MIMES.pptx, gerado.dados, JSON.stringify(gerado.detalhes), gerado.textos ? JSON.stringify(gerado.textos) : null, AGORA(app)).lastInsertRowid);
       arquivos.push({ id, nome: gerado.nome, bytes: gerado.dados.length, ...gerado.detalhes });
-      registrar(app, 'file.generated', pessoa.id, { conversa: conv.id, arquivo: id, formato: 'pptx', origem: 'modelo_pdf', ...gerado.detalhes });
+      registrar(app, 'file.generated', pessoa.id, { conversa: conv.id, arquivo: id, formato: 'pptx', origem: gerado.detalhes.origem || 'modelo_pdf', ...gerado.detalhes });
     }
     if (editado) {
       const detalhes = { tipo: 'edicao', formato: edicao.tipo, origem: edicao.nome, alteracoes: editado.feitas, ...(editado.ignoradas.length ? { nao_aplicadas: editado.ignoradas.length } : {}) };
@@ -1556,7 +1831,7 @@ export function rotasConversas(app, r) {
     const guardar = (nome, mime, dados, detalhes) => {
       const id = Number(exec(app.db, 'insert into arquivos_gerados (conversa_id, mensagem_id, nome, mime, dados, detalhes, criado_em) values (?, ?, ?, ?, ?, ?, ?)', conv.id, respId, nome, mime, dados, JSON.stringify(detalhes), AGORA(app)).lastInsertRowid);
       arquivos.push({ id, nome, bytes: dados.length, ...detalhes });
-      registrar(app, 'file.generated', pessoa.id, { conversa: conv.id, arquivo: id, formato: mime, origem: 'codigo_da_resposta' });
+      registrar(app, 'file.generated', pessoa.id, { conversa: conv.id, arquivo: id, formato: mime, origem: detalhes.origem || 'codigo_da_resposta' });
       return id;
     };
     const permitida = op => !!codigo?.itens.some(i => i.op === op && i.situacao === 'permitida');
@@ -1599,8 +1874,7 @@ export function rotasConversas(app, r) {
     }
     // Pediu arquivo, recebe arquivo: nenhum caminho especializado gerou o arquivo pedido -> a versão a partir da resposta
     // fica registrada junto dela (o cartão de download aparece sempre, também ao reabrir a conversa).
-    if (!arquivos.length && !artefatos.length && formatosPedidos.length && !modeloAusente && !ehPergunta(texto) && PEDE_ENTREGA.test(texto) && soEntregavel(resposta).trim().length > 40)
-      for (const f of formatosPedidos) guardar(`resposta.${f}`, 'text/uri-list', Buffer.from(f), { tipo: 'da_resposta', formato: f });
+    for (const a of officeProntos) guardar(a.nome, MIMES[a.formato], a.dados, { tipo: 'documento', formato: a.formato, origem: 'resposta_materializada' });
     if (visuais && registroQualidade) registroQualidade.visual = { artefatos: artefatos.map(a => ({ id: a.id, tipo: a.tipo, formato: a.formato, paginas: a.paginas, status: a.status, correcoes: a.correcoes, ...(a.imagem_final ? { imagem_final: !!a.imagem_final.gerada } : {}) })),
       ignorados: visuais.ignorados, ms: visuais.ms };
     // Imagem final pedida e não gerada (sem provedor, governança ou falha): o resultado nunca sai aprovado como imagem.
@@ -1622,6 +1896,9 @@ export function rotasConversas(app, r) {
     linha({ t: 'fim', id: respId, guardado: !naoGuardar, modelo: pessoa.admin ? usado : null, classe: m.id === AUTO ? null : m.perfil, fornecedor: pessoa.admin ? fim?.fornecedor : null, fontes: [...ctx.fontes, ...fontesWeb], reserva: usado !== m.id, rota: rotaTela,
       ...(registroQualidade ? { qualidade: resumoQualidade({ ...registroQualidade, quick_win: conv.quick_win_id }) } : {}), ...(artefatos.length ? { artefatos } : {}), ...(arquivos.length ? { arquivos } : {}), ...(integResumo ? { integracoes: integResumo } : {}), ...(acessoCodigo?.pedir.length ? { acesso: acessoCodigo.pedir } : {}), ...(execucao ? { executar: execucao } : {}) });
     res.end();
+    } finally {
+      encerrarEspera();
+    }
   }
 }
 
@@ -1649,7 +1926,7 @@ export function detalhe(app, c, pessoa = null) {
     return q;
   };
   return {
-    conversa: { id: c.id, titulo: c.titulo, quick_win_id: c.quick_win_id, teste: !!c.teste, modelo: pessoa?.admin ? c.modelo : paraPessoa(app.db, cfg, c.modelo), sigilosa: !!c.sigilosa,
+    conversa: { id: c.id, em_execucao: !!app.cancelamentosChat?.has(c.id), titulo: c.titulo, quick_win_id: c.quick_win_id, teste: !!c.teste, modelo: pessoa?.admin ? c.modelo : paraPessoa(app.db, cfg, c.modelo), sigilosa: !!c.sigilosa,
       motivo_sigilosa: c.motivo_sigilosa && textoMotivo(c.motivo_sigilosa), cortada: !!c.cortada, feedback: c.feedback, feedback_motivo: c.feedback_motivo,
       atualizado_em: c.atualizado_em, expira_em: expira, retencao_dias: cfg.retencaoDias,
       pesquisa: situacaoPesquisa(app, c, pessoa) },

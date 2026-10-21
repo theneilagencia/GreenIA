@@ -478,7 +478,7 @@ export function rotasQuickWins(app, r) {
 
   r.get('/api/quick-wins/:id', ({ pessoa, params }) => publico(app.db, pessoa, carregar(pessoa, params.id)));
 
-  r.get('/api/quick-wins/:id/estimativas', ({ pessoa, params }) => ({ modelos: estimativas(app, carregar(pessoa, params.id, true)).filter(m => m.classe || pessoa.admin) }));
+  r.get('/api/quick-wins/:id/estimativas', ({ pessoa, params }) => ({ unidade: 'creditos', modelos: estimativas(app, carregar(pessoa, params.id, true)).filter(m => m.classe || pessoa.admin) }));
 
   // Criar: do zero, de um modelo inicial ou duplicando um existente (inclusive
   // para outra área). Duplicar copia instruções, arquivos e configuração, nunca conversas.
@@ -496,7 +496,7 @@ export function rotasQuickWins(app, r) {
       if (!base) throw erro(404, 'modelo_inicial', 'Modelo inicial não encontrado.');
     }
     const cfg = lerConfig(app.db);
-    const dados = { modelo: `classe:${cfg.perfisQuickWin[0] || 'rapido'}`, ...base, ...corpo };
+    const dados = { modelo: `classe:${cfg.perfisQuickWin[0] || 'rapido'}`, pode_trocar: true, ...base, ...corpo };
     delete dados.id;
     // Quick Win 2.0: a especificação é montada das respostas da criação (ou copiada, ao duplicar).
     const v2 = corpo.assistente ? doAssistente(app, cfg, corpo.assistente) : origem?.especificacao ? { [ESPEC]: origem.especificacao } : {};

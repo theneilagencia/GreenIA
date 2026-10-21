@@ -1,3 +1,4 @@
+import { sincronizarContas } from '../resultados.js';
 // Serviços da plataforma: empresas (tenants), planos, usuários e vínculos, marca, landing page,
 // URL e concessões. Usados pelo console do operador da plataforma e pelo admin da empresa; toda regra fica aqui,
 // no servidor, e toda mudança relevante é auditada.
@@ -517,6 +518,7 @@ export function criarMembro(P, companyId, { email, name, role_id, role_key, stat
   exec(P.db, 'insert into company_users (company_id, user_id, role_id, status, invited_by, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?)', companyId, u.id, role.id, st, ator, agoraIso(P), agoraIso(P));
   if (name && !u.name) exec(P.db, 'update users set name = ? where id = ?', texto(name, 120, 'name'), u.id);
   P.sincronizarPessoa(companyId, u.id);
+  sincronizarContas(P.tenant(companyId));
   auditar(P, { usuario: ator, empresa: companyId, acao: 'user.created', entidade: 'company_user', id: u.id, depois: { email: e, role: role.key, status: st }, origem });
   if (convidar) {
     const url = urlDaEmpresa(P, c);
@@ -538,6 +540,7 @@ export function atualizarMembro(P, companyId, userId, { role_id, status, name },
   if (name !== undefined) exec(P.db, 'update users set name = ? where id = ?', texto(name, 120, 'name', { obrigatorio: true }), userId);
   if (st === 'inativo') { encerrarAcessosAbertos(P, { companyId, userId }, 'pessoa_desativada'); exec(P.db, 'delete from sessions where user_id = ? and company_id = ?', userId, companyId); }
   P.sincronizarPessoa(companyId, userId);
+  sincronizarContas(P.tenant(companyId));
   const acao = role.id !== v.role_id ? 'user.role_changed' : st !== v.status ? (st === 'inativo' ? 'user.deactivated' : 'user.activated') : 'user.updated';
   auditar(P, { usuario: ator, empresa: companyId, acao, entidade: 'company_user', id: userId, antes: { role_id: v.role_id, status: v.status }, depois: { role_id: role.id, status: st, name }, origem });
   return listarMembros(P, companyId).find(m => m.id === userId);
@@ -550,7 +553,8 @@ export function removerMembro(P, companyId, userId, ator, origem) {
   exec(P.db, 'delete from company_users where company_id = ? and user_id = ?', companyId, userId);
   encerrarAcessosAbertos(P, { companyId, userId }, 'pessoa_removida');
   exec(P.db, 'delete from sessions where user_id = ? and company_id = ?', userId, companyId);
-  P.sincronizarPessoa(companyId, userId);   // a pessoa fica inativa no banco da empresa (o histórico continua)
+  P.sincronizarPessoa(companyId, userId);
+  sincronizarContas(P.tenant(companyId));   // a pessoa fica inativa no banco da empresa (o histórico continua)
   auditar(P, { usuario: ator, empresa: companyId, acao: 'user.deleted', entidade: 'company_user', id: userId, antes: { role_id: v.role_id, status: v.status }, origem });
   return { ok: true };
 }

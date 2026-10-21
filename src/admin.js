@@ -7,7 +7,7 @@ import { limparIdentidade } from './visual/marca.js';
 import { dadosDaImagem } from './visual/assets.js';
 import { ACOES } from './filtro.js';
 import { registrar } from './eventos.js';
-import { CREDITO_USD, detalhesEmCreditos, emCreditos } from './plano.js';
+import { CREDITO_USD, emCreditos } from './plano.js';
 import { areasDoQw } from './quickwins.js';
 import { PERFIL_PUBLICO, perfilPublico } from './quickwin-operacao.js';
 import { explicarFalhaEmail, normalizarSmtpUrl } from './email.js';
@@ -262,7 +262,7 @@ export function rotasAdmin(app, r) {
     const c = lerConfig(app.db);
     const out = Object.fromEntries(CAMPOS_CONFIG.map(k => [k, c[k]]));
     out.smtp = { ...smtpParaTela(c.smtp), situacao: situacaoEmailEmpresa(app) };   // sem senha nem chave
-    if (creditos) for (const k of TETOS) out[k] = Math.round(out[k] / CREDITO_USD);
+    // Conversão centralizada na saída; evita multiplicação dupla dos limites.
     return out;
   }, { admin: true });
 
@@ -312,7 +312,7 @@ export function rotasAdmin(app, r) {
     if (/^\d{4}-\d{2}-\d{2}$/.test(query.ate || '')) { cond.push('e.em < ?'); p.push(`${query.ate}T99`); }
     const where = cond.length ? `where ${cond.join(' and ')}` : '';
     const sql = `select e.id, e.em, e.tipo, p.email as pessoa, e.detalhes from eventos e left join pessoas p on p.id = e.pessoa_id ${where} order by e.id desc`;
-    if (query.formato === 'csv') return enviarCsv(res, 'greenia-eventos.csv', [['id', 'quando', 'tipo', 'pessoa', 'detalhes'], ...todos(app.db, sql, ...p).map(e => [e.id, e.em, e.tipo, e.pessoa, creditos ? detalhesEmCreditos(e.detalhes) : e.detalhes])]);
+    if (query.formato === 'csv') return enviarCsv(res, 'greenia-eventos.csv', [['id', 'quando', 'tipo', 'pessoa', 'detalhes'], ...todos(app.db, sql, ...p).map(e => [e.id, e.em, e.tipo, e.pessoa, creditos ? emCreditos(e).detalhes : e.detalhes])]);
     const pagina = Math.max(0, Number(query.pagina) || 0);
     return { eventos: todos(app.db, `${sql} limit 100 offset ?`, ...p, pagina * 100), total: um(app.db, `select count(*) as n from eventos e left join pessoas p on p.id = e.pessoa_id ${where}`, ...p).n,
       tipos: todos(app.db, 'select distinct tipo from eventos order by tipo').map(t => t.tipo) };

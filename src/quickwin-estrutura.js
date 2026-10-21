@@ -1,5 +1,5 @@
 // Quick Wins 2.0: estruturação do objetivo (quais colunas a pessoa pediu), com uma chamada de IA na criação.
-// Chamada pequena, pela classe rápida, pelos mesmos mecanismos de governança do envio (sem alterar nenhum deles):
+// Chamada auxiliar, roteada pela capacidade da etapa, pelos mesmos mecanismos de governança do envio:
 // política de uso, limites e teto, plano, filtro de credenciais e dados, proteção reforçada da área, roteamento,
 // conferência final do recurso, defesa final de credenciais, registro da decisão e do consumo.
 // Por cautela, conteúdo que a política manda proteger (ou Quick Win sigiloso) NÃO vai para a IA aqui: a pessoa
@@ -9,7 +9,7 @@ import { exec, json } from './db.js';
 import { lerConfig } from './config.js';
 import { registrar } from './eventos.js';
 import { contemCredencial, decidir, detectar, detectarReforcado, NIVEL_DO_TIPO } from './filtro.js';
-import { acharModelo, AUTO, modeloPermitido } from './modelos.js';
+import { acharModelo, AUTO } from './modelos.js';
 import { checarPlano, verificarAvisos } from './plano.js';
 import { comUso, registrarUso } from './custo-ia.js';
 import { cienciaPendente } from './politica.js';
@@ -64,18 +64,21 @@ async function chamarGovernadoNoContexto(app, pessoa, { conteudo, mensagens, qw 
   const dadosPessoais = cfg.protecaoDadosPessoais !== false && normais.some(t => NIVEL_DO_TIPO[t] >= 2);
 
   if (contemCredencial(textoDe(mensagens))) return recusa('credencial');
-  const entrada = { texto: conteudo, anexos: [], historicoChars: 0, contextoChars: 0, sistemaChars: String(mensagens[0]?.content || '').length, temResposta: false, anterior: null, feedback: null };
+  // Roteie a etapa auxiliar, não a execução futura descrita pela pessoa.
+  // O material completo continua passando pelos filtros acima e entra no cálculo do contexto.
+  const tarefas = {
+    quick_win_estrutura: 'Extraia as colunas explicitamente pedidas no material, sem executar o trabalho descrito.',
+    quick_win_interpretacao: 'Organize o pedido em entradas, etapas e entregáveis para revisão, sem executar o trabalho descrito.',
+    quick_win_refinamento: 'Revise as instruções do trabalho e proponha ajustes estruturados para revisão, sem executar o trabalho descrito.',
+    quick_win_exemplo: 'Prepare um exemplo fictício curto para testar as instruções do material, sem realizar a operação real.',
+    painel_registro: 'Extraia os campos do resultado fornecido, sem criar informações novas.',
+  };
+  const tarefa = tarefas[origem];
+  const entrada = { texto: tarefa || conteudo, anexos: tarefa ? [{ nome: 'Material da etapa auxiliar', texto: conteudo }] : [], historicoChars: 0, contextoChars: 0, sistemaChars: String(mensagens[0]?.content || '').length, temResposta: false, anterior: null, feedback: null };
   let analise;
   try { analise = (app.analisarPedido || analisarPedido)(entrada); } catch { analise = analiseIndisponivel(entrada); }
-  // Classe rápida, se a pessoa tiver acesso e ela atender à proteção que o conteúdo exige; senão, o roteamento
-  // automático escolhe entre os recursos que as regras permitem (como numa escolha substituída no envio).
-  let manual = null;
-  try {
-    manual = modeloPermitido(app.db, cfg, pessoa, 'classe:rapido');
-    if ((reforcada || dadosPessoais) && (manual.id === AUTO || (manual.protecao ?? 0) < 2)) manual = null;
-  } catch (e) { if (!e.codigo) throw e; manual = null; }
-  if (!manual && cfg.roteamento?.ativo === false) return recusa('sem_modelo');
-  const rota = rotear({ db: app.db, cfg, pessoa, qw: null, sigilosa: false, reforcada, dadosPessoais, reservaDoPlano: false, pedido: manual ? 'classe:rapido' : AUTOMATICO, analise, modeloManual: manual, origem });
+  analise.sinais = { ...analise.sinais, tarefa_auxiliar: origem };
+  const rota = rotear({ db: app.db, cfg, pessoa, qw: null, sigilosa: false, reforcada, dadosPessoais, reservaDoPlano: false, pedido: AUTOMATICO, analise, origem, agora: app.agora() });
   const m = rota.modelo;
   const agora = () => app.agora().toISOString();
   const rotaId = Number(exec(app.db, `insert into roteamento (em, pessoa_id, quick_win_id, modo, complexidade, pontuacao, tipos, precisao, sinais, classe_necessaria, modelo, classe,
@@ -83,7 +86,7 @@ async function chamarGovernadoNoContexto(app, pessoa, { conteudo, mensagens, qw 
     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     agora(), pessoa.id, qw?.id ?? null, rota.modo, rota.requisitos.complexidade, rota.requisitos.nivel, JSON.stringify(analise.tipos), JSON.stringify(analise.precisao), JSON.stringify(analise.sinais),
     rota.requisitos.classe, m?.id || null, m && m.id !== AUTO ? m.perfil || null : null, JSON.stringify(rota.politicas), JSON.stringify(rota.candidatos), analise.tokensEntrada, analise.tokensSaida,
-    rota.custoEstimado, rota.custoReferencia, rota.explicacao, VERSAO_ROTEADOR, origem, manual ? 'rapido' : 'auto', rota.preferencia,
+    rota.custoEstimado, rota.custoReferencia, rota.explicacao, VERSAO_ROTEADOR, origem, 'auto', rota.preferencia,
     JSON.stringify({ nivel: rota.requisitos.nivel, dimensoes: rota.requisitos.dimensoes, motivos: rota.requisitos.motivos, determinantes: rota.requisitos.determinantes }),
     rota.motivoEscolha, rota.fallback ? JSON.stringify(rota.fallback) : null, rota.reserva || null, m ? 'enviado' : 'bloqueado').lastInsertRowid);
   if (!m) return recusa('sem_modelo');

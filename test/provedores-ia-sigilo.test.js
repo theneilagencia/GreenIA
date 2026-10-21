@@ -155,7 +155,7 @@ for (const status of [503, 429]) {
   });
 }
 
-test('indisponível com segundo recurso homologado: o fallback usa a rota fixada DELE, nunca a do primeiro nem uma livre', async () => {
+test('indisponível: homologação não concede Advanced ao fallback sem autorização administrativa', async () => {
   catalogo(S.app, { [EQUILIBRADO]: ROTA('anthropic'), [AVANCADO]: ROTA('anthropic-b') });
   OR.statusFalha = 429; OR.falhar.add(EQUILIBRADO);
   try {
@@ -163,7 +163,8 @@ test('indisponível com segundo recurso homologado: o fallback usa a rota fixada
     const r = await enviarMensagem(ana, (await sigilosa()).id, { texto: SINTETICO });
     assert.equal(r.status, 200);
     const corpos = desde(m);
-    assert.deepEqual(corpos.map(b => [b.model, b.provider.only[0]]), [[EQUILIBRADO, 'anthropic'], [AVANCADO, 'anthropic-b']]);
+    assert.deepEqual(corpos.map(b => [b.model, b.provider.only[0]]), [[EQUILIBRADO, 'anthropic']]);
+    assert.ok(r.falha,'sem concessão Advanced, informa impedimento em vez de escalar');
     for (const b of corpos) assert.deepEqual(b.provider, FIXADA(b.provider.only[0]));
   } finally { OR.falhar.clear(); OR.statusFalha = 503; }
 });
@@ -185,7 +186,7 @@ test('gerar de novo: mesma rota fixada; autorização retirada → nada é envia
   assert.equal(desde(m).length, 0);
 });
 
-test('reserva do plano (só Rápido): sigilosa só pelo Rápido homologado e fixado; sem ele, nada sai (nunca o Rápido livre)', async () => {
+test('reserva do plano não reduz a capacidade necessária, mesmo com Rápido homologado', async () => {
   const OR2 = await openRouterFalso({ custo: 0.04 });
   const S2 = await subir({ ia: OR2.ia, plano: { creditos: 1, reserva: 100, precoUsd: 100 } });
   try {
@@ -195,39 +196,38 @@ test('reserva do plano (só Rápido): sigilosa só pelo Rápido homologado e fix
     catalogo(S2.app, { [EQUILIBRADO]: ROTA('anthropic') });
     let m = marca(OR2);
     let r = await enviarMensagem(adm, (await sigilosa(adm)).id, { texto: SINTETICO });
-    assert.equal(r.status, 409);
+    assert.equal(r.status, 402);
     assert.equal(desde(m, OR2).length, 0, 'na reserva, o Rápido não homologado nunca recebe a sigilosa');
     catalogo(S2.app, { [RAPIDO]: ROTA('google-vertex') });
     m = marca(OR2);
     r = await enviarMensagem(adm, (await sigilosa(adm)).id, { texto: SINTETICO });
-    assert.equal(r.status, 200, JSON.stringify(r.erro));
-    soRotaFixada(desde(m, OR2), [RAPIDO], 'google-vertex');
+    assert.equal(r.status, 402, JSON.stringify(r.erro));
+    assert.equal(desde(m, OR2).length,0,'a homologação do Rápido não atende a exigência do pedido');
   } finally { await S2.fechar(); await OR2.fechar(); }
 });
 
 // ---------------------------------------------------------------- Quick Win (execução, conferência, pesquisa, programação)
-async function qwSigilosoComPesquisa(app, cli) {
+async function qwSigilosoComPesquisa(app, cli, pesquisa = true) {
   const q = (await cli.post('/api/quick-wins', { nome: 'Comparativo sigiloso', toda_empresa: true })).dados;
-  const espec = construir({ descricao: 'Pesquise na internet os principais concorrentes da empresa no mercado de software de gestão e monte uma tabela comparativa', formato: 'tabela' });
-  assert.ok(espec.ferramentas_permitidas.includes('pesquisa_web'), 'o Quick Win pede pesquisa na internet');
+  const espec = construir({ descricao: pesquisa ? 'Pesquise na internet os principais concorrentes da empresa no mercado de software de gestão e monte uma tabela comparativa' : 'Organize o material fornecido em uma tabela comparativa', formato: 'tabela' });
+  assert.equal(espec.ferramentas_permitidas.includes('pesquisa_web'), pesquisa);
   const agora = new Date().toISOString();
   const v = exec(app.db, 'insert into quick_win_versoes(quick_win_id,numero,especificacao,nome,publicada_em) values(?,1,?,?,?)', q.id, JSON.stringify(espec), q.nome, agora).lastInsertRowid;
   exec(app.db, "update quick_wins set especificacao=?, versao_publicada=?, status='em_uso', sigiloso=1 where id=?", JSON.stringify(espec), v, q.id);
   return q;
 }
 
-test('Quick Win sigiloso com pesquisa liberada pela empresa: sem plugin web; execução e conferência pela rota fixada', async () => {
+test('Quick Win sigiloso que exige pesquisa é bloqueado sem execução ou conferência substituta', async () => {
   catalogo(S.app, { [EQUILIBRADO]: ROTA('anthropic') });
   const q = await qwSigilosoComPesquisa(S.app, admin);
   const conv = (await admin.post('/api/conversas', { quick_win_id: q.id })).dados.conversa;
   const m = marca();
   const r = await enviarMensagem(admin, conv.id, { executar_quick_win: true, texto: SINTETICO });
-  assert.equal(r.status, 200, JSON.stringify(r.erro));
+  assert.equal(r.status, 409, JSON.stringify(r.erro));
+  assert.equal(r.erro.erro, 'pesquisa_sigilosa');
   const corpos = desde(m);
-  assert.ok(corpos.length >= 2, `execução e conferência (${corpos.length})`);
-  soRotaFixada(corpos, [EQUILIBRADO], 'anthropic');
-  assert.equal(um(S.app.db, 'select sigilosa from conversas where id = ?', conv.id).sigilosa, 1);
-  // A pesquisa foi recusada com motivo registrado (o resultado fica parcial; nada é simulado).
+  assert.equal(corpos.length, 0, 'nenhuma chamada ao provedor');
+  assert.equal(um(S.app.db, 'select motivo_bloqueio from roteamento where conversa_id = ? order by id desc limit 1', conv.id).motivo_bloqueio, 'pesquisa_sigilosa');
   assert.equal(um(S.app.db, "select count(*) as n from eventos where tipo = 'quickwin.tool_used' and detalhes like ?", `%"conversa":${conv.id},%`).n, 0);
 });
 
@@ -255,7 +255,7 @@ test('chamadas curtas da criação/refino/painel (interpretação, estrutura, ex
 
 test('execução programada de Quick Win sigiloso: rota fixada; sem rota elegível, bloqueia sem enviar', async () => {
   catalogo(S.app, { [EQUILIBRADO]: ROTA('anthropic') });
-  const q = await qwSigilosoComPesquisa(S.app, admin);
+  const q = await qwSigilosoComPesquisa(S.app, admin, false);
   const corpo = { nome: 'Rotina sigilosa', tipo: 'horario', agenda: { frequencia: 'diaria', hora: '08:00', fuso: 'America/Sao_Paulo' }, entrada: SINTETICO, limite_creditos: 1000, max_dia: 5 };
   const s = (await admin.post(`/api/quick-wins/${q.id}/programacoes`, corpo)).dados;
   assert.ok(s?.id, JSON.stringify(s));
@@ -277,6 +277,20 @@ test('execução programada de Quick Win sigiloso: rota fixada; sem rota elegív
   assert.notEqual(e2.id, e.id);
   assert.ok(['falhou', 'bloqueada'].includes(e2.status), JSON.stringify(e2));
   assert.equal(desde(m).length, 0, 'nada saiu');
+  // Com pesquisa obrigatória, nem uma rota de sigilo elegível autoriza substituí-la.
+  catalogo(S.app, { [EQUILIBRADO]: ROTA('anthropic') });
+  const pesquisa = await qwSigilosoComPesquisa(S.app, admin);
+  const prog = (await admin.post(`/api/quick-wins/${pesquisa.id}/programacoes`, corpo)).dados;
+  assert.ok(prog.id, JSON.stringify(prog));
+  const caminho = `/api/quick-wins/${pesquisa.id}/programacoes/${prog.id}`;
+  assert.equal((await admin.post(`${caminho}/estado`, { ativa: true })).status, 200);
+  assert.equal((await admin.post(`${caminho}/executar`, {})).status, 200);
+  m = marca();
+  await rodadaProgramadas(S.app);
+  const bloqueada = um(S.app.db, 'select * from qw_programadas_execucoes where programacao_id = ? order by rowid desc limit 1', prog.id);
+  assert.ok(['falhou', 'bloqueada'].includes(bloqueada.status), JSON.stringify(bloqueada));
+  assert.equal(desde(m).length, 0);
+  assert.equal(um(S.app.db, 'select motivo_bloqueio from roteamento where conversa_id = ? order by id desc limit 1', bloqueada.conversa_id).motivo_bloqueio, 'pesquisa_sigilosa');
 });
 
 test('homologação: variante :online e roteadores do serviço de acesso nunca são aprovados para sigilo', async () => {

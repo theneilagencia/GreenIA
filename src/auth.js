@@ -1,3 +1,4 @@
+import { acessoAdvanced } from './advanced.js';
 // Login por código enviado por email, sessão por cookie e proteção CSRF.
 // OIDC (Microsoft, Google) fica para depois: um provedor só precisa de
 // { id, nome, iniciar(ctx), retorno(ctx) } e de chamar abrirSessao() com a pessoa.
@@ -33,14 +34,14 @@ export function podeEntrar(app, email) {
   return !!um(app.db, 'select 1 from pessoas where email = ? and ativo = 1', email);
 }
 
-export function carregarPessoa(db, id) {
+export function carregarPessoa(db, id, em) {
   const p = um(db, 'select id, email, nome, papel, ativo, ciencia_versao from pessoas where id = ?', id);
   if (!p || !p.ativo) return null;
   // Só áreas ativas: área desativada sai do acesso de todos, inclusive dos administradores da base dela.
   const areas = todos(db, 'select a.id, a.nome, a.sigilosa, ap.responsavel, ap.admin_base from area_pessoas ap join areas a on a.id = ap.area_id where ap.pessoa_id = ? and a.ativa = 1 order by a.nome', id)
     .map(a => ({ id: a.id, nome: a.nome, sigilosa: !!a.sigilosa, responsavel: !!a.responsavel, adminBase: !!a.admin_base }));
   const grupos = todos(db, 'select grupo_id from grupo_pessoas where pessoa_id = ?', id).map(g => g.grupo_id);
-  return { ...p, admin: p.papel === 'admin', areas, grupos };
+  return { ...p, admin: p.papel === 'admin', areas, grupos, advanced: !!acessoAdvanced(db, p.id, null, null, em) };
 }
 
 export function lerSessao(app, cookies) {
@@ -48,7 +49,7 @@ export function lerSessao(app, cookies) {
   if (!token) return null;
   const s = um(app.db, 'select pessoa_id, csrf, expira from sessoes where token_hash = ?', sha(token));
   if (!s || s.expira < app.agora().getTime()) return null;
-  const pessoa = carregarPessoa(app.db, s.pessoa_id);
+  const pessoa = carregarPessoa(app.db, s.pessoa_id, app.agora().toISOString());
   return pessoa ? { pessoa, csrf: s.csrf } : null;
 }
 

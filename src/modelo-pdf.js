@@ -1,3 +1,4 @@
+import { exigeAltaQualidade } from '../public/qualidade-entrega.js';
 // Apresentação enviada em PDF como MODELO: "monte a do novo cliente seguindo exatamente o mesmo layout". Três etapas:
 //  1. leitura (navegador isolado, pdf.js): cada página vira um fundo SEM o texto (fotos, linhas, faixas e cores
 //     exatamente como no original) e a lista de textos com posição, fonte, tamanho e cor;
@@ -676,11 +677,13 @@ async function planoDaFamilia({ paginas, fonte, pedido, contexto, chamar, materi
     custo += x.custo || 0; economia += x.economia || 0;
     j = lerJson(x.texto);
   } catch { /* fica a apresentação como está, no design do modelo */ }
+  if (exigeAltaQualidade(pedido) && (!Array.isArray(j?.slides) || !j.slides.length)) throw Object.assign(new Error('O plano de alterações não foi produzido.'), { codigo: 'qualidade_nao_atingida' });
   // Linha nova (que não estava no slide original): sai se tiver número que não está no material ou se a maior parte
   // das palavras não vier dele. Linha que já estava na apresentação passa sempre.
   const originais = new Set(fonteSlides.flatMap(linhasDe).map(semAcento));
   const conferir = c => linhasDe(c).filter(l => originais.has(semAcento(l)) || (!numerosForaDoMaterial(l, material).length && fracaoForaDoMaterial(l, material) < 0.5)).join('\n');
-  const maximo = fonteSlides.length + Math.max(2, Math.ceil(fonteSlides.length * 0.2));
+  const novosSlides = /\b(adicion\w*|acrescent\w*|inclu\w*|cri\w*)\b[^.\n]{0,50}\b(slides?|capitulos?|secoes?)\b/i.test(semAcento(pedido));
+  const maximo = fonteSlides.length + (novosSlides ? Math.max(2, Math.ceil(fonteSlides.length * 0.2)) : 0);
   let lista = (Array.isArray(j?.slides) ? j.slides : []).slice(0, maximo).map(s => {
     const o = Math.round(Number(s?.origem)) - 1;
     const origem = o >= 0 && o < fonteSlides.length ? o : -1;

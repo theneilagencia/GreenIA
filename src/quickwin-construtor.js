@@ -85,14 +85,14 @@ export const REGRAS = {
     instrucao: 'Use só o que está no material enviado, nesta conversa e nos documentos autorizados. Não crie nomes, números, datas, valores, fatos ou fontes.',
     criterio: 'O resultado não traz nome, número, data, valor ou fato que não esteja na entrada ou no contexto autorizado.' },
   destacar_ausentes: { rotulo: 'Avisar quando faltar informação', grupo: 'regras',
-    instrucao: 'Quando uma informação necessária não estiver no material, escreva "não informado" no lugar e liste o que faltou na seção "Informações não encontradas". Nunca preencha por conta própria.',
+    instrucao: 'Quando uma informação necessária não estiver no material, escreva "não informado" no lugar e liste o que faltou na seção "Informações não encontradas". Nunca preencha por conta própria. Não exclua uma linha que atende ao filtro solicitado só porque outro campo, como o responsável, está vazio; mantenha a linha e sinalize a célula ausente.',
     criterio: 'Informações ausentes foram apontadas como "não informado", e não preenchidas.' },
   mostrar_evidencias: { rotulo: 'Mostrar de onde veio cada conclusão', grupo: 'regras',
     instrucao: 'Para cada conclusão importante, indique o trecho ou o documento de onde ela veio.',
     criterio: 'As conclusões importantes indicam o trecho ou o documento de origem.' },
   preservar_dados: { rotulo: 'Manter números e datas como estão', grupo: 'invencao',
-    instrucao: 'Copie números, valores, datas e nomes exatamente como aparecem no material, sem arredondar nem converter.',
-    criterio: 'Números, valores, datas e nomes aparecem exatamente como na entrada.' },
+    instrucao: 'Preserve números, valores, datas e nomes da fonte sem alterá-los. Quando o trabalho pedir cálculos, percentuais, diferenças ou ordenação, apresente os valores derivados corretos e identifique sua base; arredondar um percentual calculado não autoriza mudar o valor original.',
+    criterio: 'Valores, datas e nomes da fonte foram preservados; cálculos e arredondamentos derivados pedidos estão corretos e têm base identificável na entrada.' },
   comparar_valores: { rotulo: 'Comparar valores, prazos e condições', grupo: 'completo',
     instrucao: 'Compare valores, quantidades, prazos e condições de todos os itens, sem pular nenhum.',
     criterio: 'Todos os itens foram comparados em valores, quantidades, prazos e condições.' },
@@ -501,7 +501,7 @@ export function construir(r = {}) {
     fontes_permitidas: ['entrada', 'anexos', 'conversa', 'contexto_autorizado', ...(operacao?.ferramentas.includes('pesquisa_web') ? ['pesquisa_web'] : [])],
     ferramentas_permitidas: executaveis(operacao?.ferramentas),
     ...(operacao ? { operacao } : {}),
-    criterios_qualidade: [...criterios(regras, { tipo, colunas, secoes }, proprias, confirmada), ...criteriosOperacao(operacao)],
+    criterios_qualidade: [...criterios(regras, { tipo, colunas, secoes }, proprias, confirmada), ...criteriosOperacao(operacao, { objetivo: descricao })],
     ...(confirmada ? { configuracao_confirmada: true } : {}),
     dicas_roteamento: { complexidade: entregaMultipla(operacao) && operacao.entregaveis.length >= 3 && a.complexidade === 'baixa' ? 'media' : a.complexidade },
     origem: { descricao, arquetipo: r.arquetipo && ARQUETIPOS[r.arquetipo] ? r.arquetipo : null, como: { modo, texto: explicacao }, exemplo, regras, regras_proprias: proprias.map(x => x.texto), formato: tipo, formato_descricao: limpar(r.formato_descricao, 200), nome,
@@ -571,7 +571,7 @@ export function intencaoDoTrabalho(e) {
   return `${ARQUETIPOS[e.arquetipo]?.rotulo || 'Trabalho definido pelo responsável'} (a estrutura do resultado foi definida pelo responsável e está no contrato abaixo).`;
 }
 export function descreverContrato(f) {
-  const base = f.tipo === 'tabela' ? (f.colunas.length ? `tabela com exatamente as colunas ${f.colunas.join(' | ')}, nesta ordem` : 'tabela') : FORMATOS_SAIDA[f.tipo]?.rotulo.toLowerCase() || f.tipo;
+  const base = f.tipo === 'tabela' ? (f.colunas.length ? f.origem_colunas === 'sugestao' ? `tabela com colunas sugeridas (${f.colunas.join(' | ')}); adapte os campos ao objetivo, incluindo os necessários ao agrupamento pedido` : `tabela com exatamente as colunas ${f.colunas.join(' | ')}, nesta ordem` : 'tabela') : FORMATOS_SAIDA[f.tipo]?.rotulo.toLowerCase() || f.tipo;
   return `${base}${f.secoes.length ? `; seções ${f.secoes.join(', ')}` : ''}${f.descricao ? `; ${f.descricao}` : ''}`;
 }
 // Homologação real: o modelo perguntava o que podia resolver sozinho (o tema, quem são os concorrentes, se seguia
@@ -816,8 +816,8 @@ export function aplicarRevisao(ia, textoRevisao, resultado) {
 }
 export function pedidoDeCorrecao(problemas, espec = null) {
   const f = espec?.configuracao_confirmada ? espec.formato_saida : null;
-  const contrato = f?.tipo === 'tabela' && f.colunas.length ? `\n\nMantenha exatamente estas colunas, nesta ordem: ${f.colunas.join(' | ')}. Não acrescente, remova nem renomeie colunas.` : '';
-  return `Confira o resultado acima. A conferência de qualidade encontrou estes problemas:\n${problemas.map(p => `- ${p}`).join('\n')}${contrato}${f?.exclusivo ? '\nEntregue somente uma tabela; retire títulos, explicações e seções extras.' : ''}\n\nEntregue o resultado corrigido, completo, no formato combinado. Não comente a correção e não invente nada: o que não estiver no material fica como "não informado".`;
+  const contrato = f?.tipo === 'tabela' && f.colunas.length ? f.origem_colunas === 'sugestao' ? '\n\nAs colunas sugeridas pelo tipo de trabalho não são uma escolha manual. Preserve os campos e o agrupamento necessários ao objetivo.' : `\n\nMantenha exatamente estas colunas, nesta ordem: ${f.colunas.join(' | ')}. Não acrescente, remova nem renomeie colunas.` : '';
+  return `Confira o resultado acima. A conferência de qualidade encontrou estes problemas:\n${problemas.map(p => `- ${p}`).join('\n')}${contrato}${f?.exclusivo ? '\nEntregue somente uma tabela; retire títulos, explicações e seções extras.' : ''}\n\nEntregue o resultado corrigido, completo, no formato combinado. Não comente a correção e não invente nada: o que não estiver no material fica como "não informado". Não remova um registro que atende ao filtro só por ter outro campo vazio; sinalize esse campo na própria linha. Preserve os agrupamentos pedidos.`;
 }
 
 // Resumo que a pessoa vê (sem código, sem modelo, sem detalhe técnico).
@@ -825,6 +825,7 @@ const AVISO_OBJETIVO = {
   ferramenta_indisponivel: 'Resultado parcial: a peça final (vídeo ou imagem) não é gerada aqui. O que veio é o material para produzi-la.',
   imagem_nao_gerada: 'Resultado parcial: a imagem final não foi gerada. A peça saiu só com tipografia e cores, com o briefing da imagem para produzir depois.',
   tabela_sem_dados: 'Resultado parcial: a maior parte dos dados pedidos não foi encontrada. O resultado diz o que faltou, sem inventar.',
+  atualidade_nao_comprovada: 'Resultado parcial: a pesquisa trouxe fontes, mas não confirmou as datas necessárias para atender ao pedido de informação recente.',
   conferencia: 'Resultado parcial: o objetivo central não foi atingido. O resultado diz o que não foi possível fazer, sem inventar.',
 };
 // Aviso causado por configuração vem com a AÇÃO: onde liberar ou ajustar (link da tela, já no campo certo) e quem pode
@@ -892,7 +893,7 @@ export async function conferirComCorrecao({ espec, resposta, entrada = '', mensa
   // Contrato de saída + entregáveis da operação (todos determinísticos). A pesquisa não se corrige com uma nova
   // chamada: se ela era exigida e não aconteceu, o resultado fica parcial (nunca aprovado), com o motivo.
   const conferirContratoEOperacao = t => {
-    const d = conferirContrato(e, t, entrada), o = conferirOperacao(e.operacao, t, { pesquisa, entrada });
+    const d = conferirContrato(e, t, entrada), o = conferirOperacao(e.operacao, t, { pesquisa, entrada, objetivo: e.objetivo });
     // Fidelidade às fontes (fonte obrigatória usada; referência não vira fato). Ver src/fontes-conferencia.js.
     const f = conferirFontes(fontes, t, entrada);
     ultimasFontes = f;

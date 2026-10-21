@@ -6,8 +6,11 @@ const TROCAS = [
   [/Usar GreenIA/g, 'Usar a IA'],
   [/\bGreenIA:\s+/g, ''],                                   // prefixo de assunto de email
   [/à GreenIA/g, 'à IA'],
+  [/\b(d|n|pel)o GreenIA\b/g, (_, p) => `${p}a plataforma`],
   [/\b(d|n|pel)a GreenIA\b/g, (_, p) => `${p}a plataforma`],   // da, na, pela: a regra ou recomendação é da plataforma
   [/\bA GreenIA\b/g, 'A IA'],
+  [/\bO GreenIA\b/g, 'A IA'],
+  [/\bo GreenIA\b/g, 'a IA'],
   [/\ba GreenIA\b/g, 'a IA'],
   [/\bGreenIA\b/g, 'IA'],
 ];

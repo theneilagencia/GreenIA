@@ -70,7 +70,7 @@ test('M22: quem gerencia o Quick Win compara por nível; o nome técnico do mode
   const tabela = p.locator('table', { has: p.locator('th', { hasText: 'Nível' }) });
   const texto = await tabela.innerText();
   assert.match(texto, /Rápido/);
-  assert.match(texto, /Avançado/);
+  assert.match(texto, /Advanced/);
   for (const m of modelos) assert.ok(!texto.includes(m), `sem o identificador técnico ${m}`);
   assert.equal(await tabela.locator('th', { hasText: /^Modelo$/ }).count(), 0);
   assert.deepEqual(p.erros, []);

@@ -1,3 +1,4 @@
+import { acessoAdvanced, conferirAdvanced } from './advanced.js';
 // Roteamento de modelos: antes de cada envio, a GreenIA analisa o pedido e escolhe o modelo mais
 // adequado entre os que a empresa permite. A ordem é esta, e cada etapa só usa o que a anterior produziu:
 //
@@ -27,9 +28,10 @@
 import { lerModelos, perfisDe, ehGratuito, AUTO, AUTOMATICO, ehClasse } from './modelos.js';
 import { todos } from './db.js';
 import { afinidadeDaTarefa } from './pools-modelos.js';
+import { exigeAltaQualidade } from '../public/qualidade-entrega.js';
 export { AUTOMATICO };
 
-export const VERSAO_ROTEADOR = '3.1';
+export const VERSAO_ROTEADOR = '3.2';
 export const NIVEL = { rapido: 1, equilibrado: 2, avancado: 3 };
 const CLASSE_DO_NIVEL = { 1: 'rapido', 2: 'equilibrado', 3: 'avancado' };
 export const NOME_CLASSE = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
@@ -153,7 +155,7 @@ export function analisarPedido({ texto = '', anexos = [], historicoChars = 0, co
     // compatibilidade com o registro: tokens de entrada (estimativa de custo) e de saída
     tokensEntrada: tokens.custoEntrada, tokensSaida: saida,
     sinais: { caracteres: texto.length, anexos: anexos.length, anexoChars, historicoChars, contextoChars, perguntas, itens, etapas: perguntas + itens, criterios, codigo,
-      risco: RISCO.test(t), explicitoSimples: SIMPLES.test(t), ajuste, continuacao, ...(ajuste ? { nivelOriginal: anterior?.trabalho || anterior?.nivel || null, dependencias: dependencias || null } : {}), feedbackAnterior: feedback || null, insatisfacaoFonte,
+      risco: RISCO.test(t), qualidadeAlta: exigeAltaQualidade(texto), explicitoSimples: SIMPLES.test(t), ajuste, continuacao, ...(ajuste ? { nivelOriginal: anterior?.trabalho || anterior?.nivel || null, dependencias: dependencias || null } : {}), feedbackAnterior: feedback || null, insatisfacaoFonte,
       insatisfacaoAmbigua: temResposta && !insatisfacao && FALHA_AMBIGUA.test(t) },
   };
 }
@@ -166,7 +168,7 @@ export function analiseIndisponivel({ texto = '', anexos = [], historicoChars = 
   const tokens = { fixo: fixo.segura, mensagem: msg.segura, historico: hist.segura, saida: 1200, reservaSaida: 1800, minimo: fixo.segura + msg.segura + 1800,
     desejado: fixo.segura + msg.segura + hist.segura + 1800, pedido: msg.media, custoEntrada: fixo.media + msg.media + hist.media, razaoSegura: RAZAO.denso.segura, densidade: 'denso' };
   return { falhou: true, tipos: ['indeterminado'], principal: 'indeterminado', precisao: [], insatisfacao: false, anterior: null, tokens, tokensEntrada: tokens.custoEntrada, tokensSaida: 1200,
-    sinais: { caracteres: String(texto || '').length, anexos: anexos.length, etapas: 0, criterios: 0, codigo: false, risco: false, explicitoSimples: false } };
+    sinais: { caracteres: String(texto || '').length, anexos: anexos.length, etapas: 0, criterios: 0, codigo: false, risco: false, qualidadeAlta: exigeAltaQualidade(texto), explicitoSimples: false } };
 }
 
 /**
@@ -178,11 +180,15 @@ export function analiseIndisponivel({ texto = '', anexos = [], historicoChars = 
  *    A preferência da empresa não mexe aqui: o mínimo que a tarefa pede não depende de orçamento.
  */
 export const DIM_CAPACIDADE = ['geral', 'raciocinio', 'programacao', 'precisao', 'leitura_longa'];
-const DIM_CLASSE = ['quick_win', 'nova_tentativa', 'continuidade'];
+const DIM_CLASSE = ['quick_win', 'nova_tentativa', 'continuidade', 'qualidade_entrega'];
 export function requisitosDe(a, { piso = null } = {}) {
   const dim = {}, motivo = {};
   const pedir = (d, n, m) => { if (n > (dim[d] || 0)) { dim[d] = n; motivo[d] = m; } };
   const s = a.sinais, tem = k => a.tipos.includes(k);
+  if (s.qualidadeAlta) {
+    pedir('geral', 3, 'qualidade_alta_exigida');
+    pedir('qualidade_entrega', 3, 'qualidade_alta_exigida');
+  }
   if (a.falhou) {
     pedir('geral', 2, 'analise_indisponivel');
   } else {
@@ -228,7 +234,7 @@ export function requisitosDe(a, { piso = null } = {}) {
   const capacidade = Object.fromEntries(DIM_CAPACIDADE.filter(d => dim[d]).map(d => [d, dim[d]]));
   const classeMinima = Math.max(0, ...DIM_CLASSE.map(d => dim[d] || 0));
   return {
-    nivel, classe: CLASSE_DO_NIVEL[nivel], dimensoes: dim, motivos: motivo, determinantes, capacidade, classeMinima,
+    nivel, classe: CLASSE_DO_NIVEL[nivel], dimensoes: dim, motivos: motivo, determinantes, capacidade, classeMinima, qualidadeExigida: !!s.qualidadeAlta,
     complexidade: nucleo >= 3 ? 'complexa' : nucleo === 2 ? 'intermediaria' : 'simples',
     janelaMinima: a.tokens.minimo, janelaDesejada: a.tokens.desejado,
   };
@@ -257,10 +263,10 @@ export const RESTRICOES = [
   // Proteção proporcional (sigilo.js): o recurso precisa oferecer o nível que o conteúdo exige. Dado pessoal e
   // área reforçada exigem fornecedor fixo e pedido sem treino, e não homologação (essa é do conteúdo sigiloso).
   ['protecao_insuficiente', (c, x) => (c.m.protecao ?? 0) < x.protecao],   // sem nível calculado: fora (fail closed)
-  ['sem_acesso_a_classe', (c, x) => !x.perfis.has(c.classe) && !(x.qw && c.classe === x.classeQw)],
+  ['sem_acesso_a_classe', (c, x) => c.acessoNegado || (!x.perfis.has(c.classe) && !(c.classe !== 'avancado' && x.qw && c.classe === x.classeQw))],
   ['contexto_insuficiente', (c, x) => !cabe(c.m, x.req.janelaMinima)],
 ];
-const GOVERNANCA = ['fora_do_catalogo', 'nao_homologado', 'plano_na_reserva', 'gratuito_treina_com_dados', 'protecao_insuficiente', 'sem_acesso_a_classe', 'contexto_insuficiente'];
+const GOVERNANCA = ['advanced_seguranca','advanced_indisponivel','advanced_ferramenta','advanced_sem_autorizacao','fora_do_catalogo', 'nao_homologado', 'plano_na_reserva', 'gratuito_treina_com_dados', 'protecao_insuficiente', 'sem_acesso_a_classe', 'contexto_insuficiente'];
 
 // PREFERÊNCIAS (soft): só ordenam os modelos que passaram por todas as restrições.
 // C: custo (log da razão sobre o mais barato do conjunto); Q: margem de capacidade relevante;
@@ -337,10 +343,12 @@ export function desempenhoRecente(db, agora = new Date()) {
  * @param {object} ctx { db, cfg, pessoa, qw, sigilosa, reservaDoPlano, pedido, analise, modeloManual, origem }
  *   origem: 'auto' | 'pessoa' | 'quick_win' | 'padrao' (de onde veio o pedido de classe)
  */
-export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada = false, dadosPessoais = false, reservaDoPlano = false, pedido, analise, modeloManual = null, origem = null, excluir = [], agora = new Date() }) {
+export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada = false, dadosPessoais = false, reservaDoPlano = false, pedido, analise, modeloManual = null, origem = null, excluir = [], conversaId = null, agora = new Date() }) {
   // Nível de proteção que o conteúdo exige: 3 sigiloso; 2 dado pessoal ou área reforçada; 1 comum.
   const protecao = sigilosa ? 3 : (reforcada || dadosPessoais) ? 2 : 1;
   const a = analise, perfis = perfisDe(cfg, pessoa);
+  if (acessoAdvanced(db,pessoa.id,null,conversaId,agora.toISOString())) perfis.add('avancado');
+  else perfis.delete('avancado');
   // excluir: recursos que já falharam nesta solicitação (a busca por outro recurso elegível passa pelas mesmas regras).
   const desempenho = desempenhoRecente(db, agora);
   const lista = lerModelos(db).filter(m => m.liberado && m.id !== AUTO && !excluir.includes(m.id));
@@ -364,7 +372,9 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
   const candidatos = lista.map(m => {
     const c = { id: m.id, classe: m.perfil, nivel: NIVEL[m.perfil] || 1, cap: capacidadesDe(m), explicitas: !!m.capacidades, contexto: m.contexto,
       custo: custoDe(m, a.tokens.custoEntrada, a.tokens.saida), cabeTudo: cabe(m, req.janelaDesejada), padrao: cfg.padroes[m.perfil] === m.id, desempenho: desempenho.get(m.id) || null, afinidade: afinidadeDaTarefa(m.id, a.tipos), m };
+    if (m.perfil === 'avancado' && !acessoAdvanced(db,pessoa.id,m.id,conversaId,agora.toISOString())) c.acessoNegado = true;
     c.motivos = RESTRICOES.filter(([, viola]) => viola(c, x)).map(([cod]) => cod);
+    if(m.perfil==='avancado'&&!c.acessoNegado){try{conferirAdvanced({db,agora:()=>agora},pessoa.id,m.id,conversaId,{sigilosa,fornecedor:sigilosa?m.homologacao?.endpoint:null});}catch(e){c.motivos.push(e.codigo||'advanced_indisponivel');}}
     return c;
   });
   const permitido = c => !c.motivos.some(y => GOVERNANCA.includes(y));
@@ -382,7 +392,7 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
       const rel = (c.custo != null && c.custo > 0 ? c.custo : max * 1.5) / min;   // sem preço: tratado como mais caro
       c.utilidade = Math.round((-P.C * Math.log(rel) + (margem ? P.Q * margemDe(c, req) : 0) + P.D * Number(c.padrao) + P.H * Number(c.cabeTudo) - (c.desempenho?.penalidade || 0) + (afinidade && P.Q > 0 && c.custo != null && c.custo <= min * 1.5 ? c.afinidade : 0)) * 1000) / 1000;
     }
-    return vivos.slice().sort((p, q) => q.utilidade - p.utilidade || (p.custo ?? Infinity) - (q.custo ?? Infinity) || p.id.localeCompare(q.id));
+    return vivos.slice().sort((p, q) => (p.custo ?? Infinity) - (q.custo ?? Infinity) || q.utilidade - p.utilidade || p.id.localeCompare(q.id));
   };
 
   let escolhido = null, modo = 'automatico', motivoEscolha = null, fallback = null;
@@ -415,7 +425,7 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
     escolhido = candidatos.find(c => c.id === modeloManual.id);
     if (!escolhido) return semModelo('modelo_pedido_fora_da_lista');
     // A classe pedida já passou pela validação de acesso; aqui decidem janela e regras.
-    const bloqueio = escolhido.motivos.filter(y => GOVERNANCA.includes(y) && y !== 'sem_acesso_a_classe');
+    const bloqueio = escolhido.motivos.filter(y => GOVERNANCA.includes(y));
     if (bloqueio.includes('contexto_insuficiente') && bloqueio.length === 1) {
       // Troca por janela: quick win fixo só dentro da classe dele (e nunca se fixou um modelo técnico);
       // escolha da pessoa, para a mesma classe ou maior.
@@ -458,12 +468,15 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
     motivoEscolha = 'mais_capaz_permitido';
   } else return semModelo(null);
 
+  // Qualidade explicitamente exigida não aceita o fallback de menor capacidade.
+  // As permissões e as rotas de proteção continuam decidindo quem é elegível.
+  if (escolhido.motivos.includes('capacidade_insuficiente')) return semModelo('qualidade_nao_disponivel');
   // Reserva de execução (outro modelo, se o escolhido falhar no fornecedor): só se passar pelas mesmas regras.
   let reserva = null, reservaDescartada = null;
   const idReserva = escolhido.m?.reserva;
   if (idReserva && modo !== 'externo') {
     const r = candidatos.find(c => c.id === idReserva);
-    const bloqueio = !r ? ['reserva_nao_liberada'] : r.motivos.filter(y => GOVERNANCA.includes(y) && !(y === 'sem_acesso_a_classe' && r.classe === escolhido.classe));
+    const bloqueio = !r ? ['reserva_nao_liberada'] : r.motivos.filter(y => GOVERNANCA.includes(y));
     if (sigilosa) reservaDescartada = 'sigilosa_sem_reserva';
     else if (bloqueio.length) reservaDescartada = bloqueio[0];
     else if (r.nivel < escolhido.nivel || DIM_CAPACIDADE.some(d => r.cap[d] < Math.min(escolhido.cap[d], req.capacidade[d] || 0))) reservaDescartada = 'reserva_de_classe_inferior';
@@ -477,6 +490,7 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
     reserva = pontuar(outraOrigem.length ? outraOrigem : alternativas, { margem: false })[0]?.id || null;
   }
 
+  if (escolhido.classe === 'avancado') reserva = null;
   const ref = candidatos.find(c => c.id === cfg.padroes.avancado) || candidatos.filter(c => c.nivel === 3)[0];
   const menorNivelSuficiente = suficientes.length ? Math.min(...suficientes.map(c => c.nivel)) : null;
   const calibracao = {
@@ -505,6 +519,7 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
       guardrails: sigilosa && c.m.sigilo && !c.m.sigilo.elegivel ? c.m.sigilo.motivos : undefined };
   }
   function semModelo(causa) {
+    escolhido = null;
     const d = { modelo: null, modo, preferencia, requisitos: req, necessario: { nivel: req.nivel, classe: req.classe, motivos: req.determinantes }, politicas, motivoEscolha: null,
       fallback: { tipo: 'sem_modelo', causa, causas: [...new Set(candidatos.flatMap(c => c.motivos.filter(y => GOVERNANCA.includes(y))))] }, reserva: null, reservaDescartada: null,
       calibracao: { menorNivelSuficiente: null, nivelSelecionado: null, acimaDaMenorClasse: false, abaixoDoNecessario: false, motivo: null },
@@ -519,12 +534,13 @@ const qwClasse = (qw, lista) => (qw?.modelo?.startsWith('classe:') ? qw.modelo.s
 // (janela × margem − instruções − documentos − reserva de saída), com a razão segura de caracteres por token.
 export function orcamentoHistorico(analise, modelo) {
   const t = analise.tokens, janela = (modelo?.contexto || 32000) * MARGEM_JANELA;
-  return Math.max(0, Math.floor((janela - t.fixo - t.reservaSaida) * t.razaoSegura));
+  return Math.max(0, Math.floor((janela - t.fixo - (modelo?.perfil==='avancado'?Math.max(t.reservaSaida,32768):t.reservaSaida)) * t.razaoSegura));
 }
 
 // Textos da explicação: um por código. A explicação só usa códigos presentes na decisão.
 export const TEXTO = {
   tipo_classificacao: 'classificação', tipo_traducao: 'tradução', tipo_extracao: 'extração de informações', tipo_sintese: 'síntese', tipo_redacao: 'geração de texto',
+  qualidade_alta_exigida: 'entrega de alta qualidade exigida no pedido', qualidade_nao_disponivel: 'não há recurso autorizado que atenda ao padrão de qualidade solicitado',
   tipo_consulta: 'consulta simples', tipo_edicao: 'edição e formatação', tipo_analise: 'análise', tipo_programacao: 'programação', tipo_raciocinio: 'raciocínio',
   varias_etapas_ou_criterios: 'várias etapas ou critérios', raciocinio: 'raciocínio', raciocinio_multicriterio: 'raciocínio com vários critérios',
   programacao: 'programação', programacao_simples: 'programação simples', programacao_com_risco_ou_analise: 'código com análise ou riscos (segurança, concorrência, desempenho)',
@@ -571,6 +587,7 @@ export const MOTIVO_SUBSTITUICAO = {
 export const MOTIVO_DA_CAUSA = {
   nao_homologado: 'requested_model_not_homologated', plano_na_reserva: 'requested_model_plan_restricted', gratuito_treina_com_dados: 'requested_model_policy_restricted', protecao_insuficiente: 'requested_model_area_protection',
   sem_acesso_a_classe: 'requested_model_permission_restricted', contexto_insuficiente: 'requested_model_context_limit', capacidade_insuficiente: 'requested_model_insufficient_capacity',
+  qualidade_nao_disponivel: 'requested_model_insufficient_capacity',
   modelo_pedido_fora_da_lista: 'requested_model_not_available',
 };
 

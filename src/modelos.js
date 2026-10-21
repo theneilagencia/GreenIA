@@ -1,3 +1,4 @@
+import { acessoAdvanced, CURADORIA_ADVANCED, semearAdvanced } from './advanced.js';
 // Modelos de IA da empresa (seção 9): catálogo liberado, perfis, acesso por
 // grupo ou área, homologação para dados sigilosos, reservas e modo automático.
 import { erro } from './http.js';
@@ -9,7 +10,7 @@ import { avaliarRecurso, MOTIVOS_GUARDRAIL, POLITICA_SIGILO, politicaSigiloLigad
 import { registrar } from './eventos.js';
 import { enviarAvisoOperador, situacaoPlano } from './plano.js';
 
-export const PERFIS = { rapido: 'Rápido e econômico', equilibrado: 'Equilibrado', avancado: 'Avançado' };
+export const PERFIS = { rapido: 'Rápido e econômico', equilibrado: 'Equilibrado', avancado: 'Advanced' };
 export const AUTO = 'openrouter/auto';
 // Roteamento da GreenIA: o modelo sai da análise de cada pedido, dentro das regras da empresa (ver roteador.js).
 export const AUTOMATICO = 'classe:auto';
@@ -67,8 +68,9 @@ export function perfisDe(cfg, pessoa) {
   const out = new Set(['rapido']);
   for (const perfil of ['equilibrado', 'avancado']) {
     const a = cfg.acessoPerfis[perfil] || {};
-    if (a.todos || (a.grupos || []).some(g => pessoa.grupos.includes(g)) || (a.areas || []).some(x => pessoa.areas.some(pa => pa.id === x))) out.add(perfil);
+    if ((perfil !== 'avancado' || pessoa.advanced) && (a.todos || (a.grupos || []).some(g => pessoa.grupos.includes(g)) || (a.areas || []).some(x => pessoa.areas.some(pa => pa.id === x)))) out.add(perfil);
   }
+  if (pessoa.advanced) out.add('avancado');
   return out;
 }
 
@@ -86,7 +88,7 @@ export function homologadoPadrao(db, cfg) {
 // Classes operacionais: o trabalho escolhe a classe; a empresa decide o modelo por trás.
 // "classe:equilibrado" vale o modelo padrão da classe no momento do envio (em conversa
 // sigilosa, um homologado da classe). Trocar o modelo da classe muda todos os usos de uma vez.
-export const NOMES_CLASSE = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
+export const NOMES_CLASSE = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Advanced' };
 const CLASSE = /^classe:(rapido|equilibrado|avancado)$/;
 export const ehClasse = id => CLASSE.test(id || '');
 // Apelido do Automático do serviço de IA para quem não administra (o identificador técnico não sai do servidor).
@@ -100,7 +102,7 @@ export function resolverClasse(db, cfg, id, { sigilosa = false } = {}) {
   const padrao = cfg.padroes[c[1]];
   const disponiveis = lerModelos(db).filter(m => m.liberado && m.noCatalogo && m.perfil === c[1] && (!sigilosa || m.homologado));
   if (disponiveis.some(m => m.id === padrao)) return padrao;
-  return disponiveis[0]?.id || (sigilosa ? homologadoPadrao(db, cfg)?.id : null) || null;
+  return disponiveis[0]?.id || (sigilosa && c[1] !== 'avancado' ? homologadoPadrao(db, cfg)?.id : null) || null;
 }
 export const classeDe = (db, cfg, id) => (ehClasse(id) ? id : (acharModelo(db, cfg, id)?.perfil ? `classe:${acharModelo(db, cfg, id).perfil}` : null));
 
@@ -123,17 +125,28 @@ export function opcoesDeModelo(db, cfg, pessoa, { qw = null, sigilosa = false } 
     out.push({ id, nome: pessoa.admin ? `${nome} · ${m.nome}` : nome, nivel: nome, perfil, homologado: m.homologado, classe: true });
   }
   // Para quem não administra, o Automático do serviço de IA não leva o nome nem o identificador do provedor.
-  if (cfg.automatico && !sigilosa && (!qw || qw.pode_trocar)) out.push({ id: AUTO_EXTERNO, nome: pessoa.admin ? 'Automático do serviço de IA (fora das classes)' : 'Automático do serviço de IA', perfil: 'rapido', homologado: false });
+  if (false && cfg.automatico && !sigilosa && (!qw || qw.pode_trocar)) out.push({ id: AUTO_EXTERNO, nome: pessoa.admin ? 'Automático do serviço de IA (fora das classes)' : 'Automático do serviço de IA', perfil: 'rapido', homologado: false });
   return out;
 }
 
 // Valida o modelo (ou a classe) pedido para um envio. Devolve o modelo técnico ou lança erro.
-export function modeloPermitido(db, cfg, pessoa, id, { qw = null, sigilosa = false } = {}) {
-  const m = acharModelo(db, cfg, resolverClasse(db, cfg, id, { sigilosa }));
+export function modeloPermitido(db, cfg, pessoa, id, { qw = null, sigilosa = false, conversaId = null, em } = {}) {
+  let m = acharModelo(db, cfg, resolverClasse(db, cfg, id, { sigilosa }));
+  if(id === 'classe:avancado') {
+    if (!acessoAdvanced(db,pessoa.id,null,conversaId,em)) throw erro(403,'advanced_sem_autorizacao','Advanced exige autorização administrativa válida.');
+    const autorizados=lerModelos(db).filter(x=>x.perfil==='avancado'&&x.liberado&&x.noCatalogo&&acessoAdvanced(db,pessoa.id,x.id,conversaId,em));
+    if (sigilosa && autorizados.length && !autorizados.some(x=>x.homologado)) throw erro(409,'advanced_seguranca','Os recursos Advanced desta autorização não estão aprovados para os dados sigilosos deste trabalho. O administrador precisa revisar as rotas e as regras de tratamento dos dados.');
+    const disponiveis=autorizados.filter(x=>!sigilosa||x.homologado);
+    if(!disponiveis.length)throw erro(503,'advanced_indisponivel','Os recursos Advanced desta autorização estão indisponíveis para este trabalho. O administrador pode revisar a disponibilidade e as rotas autorizadas.');
+    m=disponiveis.sort((a,b)=>(a.precoEntrada+a.precoSaida)-(b.precoEntrada+b.precoSaida))[0];
+  }
+  if (m?.perfil === 'avancado' && !acessoAdvanced(db, pessoa.id, m.id, conversaId, em)) throw erro(403, 'advanced_sem_autorizacao', 'Advanced exige autorização administrativa válida.');
+  if (m?.perfil === 'avancado' && (!m.liberado || !m.noCatalogo)) throw erro(503,'advanced_indisponivel','Este recurso Advanced está indisponível. O administrador pode revisar sua disponibilidade ou autorizar uma alternativa adequada.');
   if (!m || !m.liberado) throw erro(403, 'modelo_nao_liberado', 'Esta classe de modelo não está disponível na empresa.');
   const garantia = sigilosa && homologadoPadrao(db, cfg)?.id === m.id;
   const doQw = qw && (id === qw.modelo || m.id === resolverClasse(db, cfg, qw.modelo, { sigilosa }));
-  const ok = qw ? doQw || (!!qw.pode_trocar && podeUsar(cfg, pessoa, m)) || garantia : podeUsar(cfg, pessoa, m) || garantia;
+  const advancedPermitido = m.perfil === 'avancado' && !!acessoAdvanced(db,pessoa.id,m.id,conversaId,em);
+  const ok = advancedPermitido || (qw ? doQw || (!!qw.pode_trocar && podeUsar(cfg, pessoa, m)) || garantia : podeUsar(cfg, pessoa, m) || garantia);
   if (!ok) throw erro(403, 'modelo_sem_acesso', 'Você não tem acesso a esta classe de modelo.');
   return m;
 }
@@ -167,17 +180,26 @@ export const custoEstimado = (m, entrada, saida) =>
 export async function atualizarCatalogo(app) {
   const lista = await app.ia.listarModelos();
   if (!Array.isArray(lista) || !lista.length) throw new Error('O catálogo de IA está temporariamente indisponível. A configuração anterior foi preservada.');
+  for (const n of lista.filter(n=>CURADORIA_ADVANCED.some(c=>c.id===n.id)||um(app.db,"select 1 from modelos where id = ? and perfil = 'avancado'",n.id))) {
+    try { n.rotas = await app.ia.listarRotas(n.id); } catch { n.rotas = []; }
+  }
   app.catalogo = lista;
   const porId = new Map(lista.map(m => [m.id, m]));
   for (const m of lerModelos(app.db)) {
     const n = porId.get(m.id);
     if (!n) { exec(app.db, "update modelos set no_catalogo = 0, aviso = 'Saiu do catálogo do serviço de IA.', atualizado_em = ? where id = ?", app.agora().toISOString(), m.id); continue; }
+    exec(app.db, 'update modelos set atributos = ? where id = ?', JSON.stringify({ ...(m.atributos || {}), catalogo: { contexto:n.contexto, maxSaida:n.maxSaida, parametros:n.parametros, modalidades:n.modalidades, entrada:n.precoEntrada, saida:n.precoSaida, precosAlternativos:n.precosAlternativos, rotas:n.rotas, consultadoEm:app.agora().toISOString() } }), m.id);
     const mudou = (a, b) => a > 0 && Math.abs(b - a) / a > 0.2;
     const aviso = mudou(m.precoEntrada, n.precoEntrada) || mudou(m.precoSaida, n.precoSaida)
       ? `Preço mudou mais de 20% (entrada ${fmt(m.precoEntrada)} → ${fmt(n.precoEntrada)}; saída ${fmt(m.precoSaida)} → ${fmt(n.precoSaida)} por milhão de tokens).` : m.aviso?.startsWith('Preço') ? m.aviso : null;
     if (aviso && aviso !== m.aviso) avisarPrecoAoOperador(app, m, n);
     exec(app.db, 'update modelos set nome = ?, preco_entrada = ?, preco_saida = ?, contexto = ?, no_catalogo = 1, aviso = ?, atualizado_em = ? where id = ?',
       n.nome, n.precoEntrada, n.precoSaida, n.contexto, aviso, app.agora().toISOString(), m.id);
+  }
+  for (const c of CURADORIA_ADVANCED) {
+    const n = porId.get(c.id);
+    if (!n || !n.parametros?.includes('tools') || n.contexto < 200000 || n.maxSaida < 32000 || um(app.db,'select 1 from modelos where id = ?',c.id)) continue;
+    exec(app.db,"insert into modelos(id,nome,fornecedor,perfil,liberado,no_catalogo,contexto,preco_entrada,preco_saida,atributos,atualizado_em) values (?,?,?,'avancado',0,1,?,?,?,?,?)",n.id,n.nome,n.fornecedor,n.contexto,n.precoEntrada,n.precoSaida,JSON.stringify({catalogo:{contexto:n.contexto,maxSaida:n.maxSaida,parametros:n.parametros,modalidades:n.modalidades,entrada:n.precoEntrada,saida:n.precoSaida,precosAlternativos:n.precosAlternativos,rotas:n.rotas,consultadoEm:app.agora().toISOString()},curadoria:c}),app.agora().toISOString());
   }
   ampliarPoolsRecomendados(app, lista);
   return lista.length;
@@ -267,12 +289,13 @@ function paraManual(app, pessoa, motivo) {
 
 export function rotasModelos(app, r) {
   semearSugestao(app.db);
+  semearAdvanced(app.db);
 
   r.get('/api/modelos', ({ pessoa, query }) => {
     const cfg = lerConfig(app.db);
     const qw = query.quick_win ? um(app.db, 'select id, modelo, pode_trocar from quick_wins where id = ?', Number(query.quick_win)) : null;
     const reserva = situacaoPlano(app)?.fase === 'reserva';
-    const opcoes = opcoesDeModelo(app.db, cfg, pessoa, { qw, sigilosa: query.sigilosa === '1' })
+    const opcoes = opcoesDeModelo(app.db, cfg, {...pessoa,advanced:!!acessoAdvanced(app.db,pessoa.id,null,Number(query.conversa)||null,app.agora().toISOString())}, { qw, sigilosa: query.sigilosa === '1' })
       .map(o => (reserva && o.id !== AUTOMATICO && (o.perfil !== 'rapido' || o.id === AUTO) ? { ...o, bloqueado: true } : o));
     const h = homologadoPadrao(app.db, cfg);
     const padrao = qw?.modelo && (!qw.pode_trocar || !roteamentoLigado(cfg)) ? classeDe(app.db, cfg, qw.modelo) : roteamentoLigado(cfg) ? AUTOMATICO : classeDe(app.db, cfg, cfg.padroes.chat);
@@ -329,16 +352,27 @@ export function rotasModelos(app, r) {
     const lat = {};
     for (const l of todos(app.db, `select modelo_usado as m, ms_primeiro_token as p, ms_total as t ${base} and ms_total is not null`, desde)) (lat[l.m] ||= []).push(l);
     const latencia = Object.entries(lat).map(([modelo, l]) => ({ modelo, n: l.length, primeiroTokenMs: mediana(l.map(x => x.p)), totalMs: mediana(l.map(x => x.t)) })).sort((a, b) => b.n - a.n);
-    const limite = Math.min(100, Math.max(1, Number(query.limite) || 40));
+    const limite = Math.min(100, Math.max(1, Math.trunc(Number(query.limite)) || 20));
+    let pagina = Number.isFinite(Number(query.pagina)) ? Math.max(1, Math.trunc(Number(query.pagina)) || 1) : 1;
+    const filtros={bloqueado:"r.resultado = 'bloqueado'",abaixo:"coalesce(r.resultado,'respondido') like 'respondido%' and (r.fallback like '%abaixo_do_necessario%')",manual:"r.modo = 'manual' and coalesce(r.resultado,'respondido') like 'respondido%'",externo:"r.modo = 'externo'"};
+    const filtro=Object.hasOwn(filtros,query.situacao)?query.situacao:'';
+    const condicao=filtro?`where r.em >= ? and coalesce(r.teste,0)=0 and (${filtros[filtro]})`:'where coalesce(r.teste,0)=0';
+    const args=filtro?[desde]:[];
+    const totalHistorico=um(app.db,`select count(*) n from roteamento r ${condicao}`,...args).n;
+    pagina=Math.min(pagina,Math.max(1,Math.ceil(totalHistorico/limite)));
+    const manuais=um(app.db,`select count(*) n ${base} and modo='manual'`,desde).n;
+    const alternativas=um(app.db,"select count(*) n from eventos where em >= ? and tipo='advanced.alternative_started'",desde).n;
     const decisoes = todos(app.db, `select r.id, r.em, p.nome as pessoa, r.modo, r.origem, r.classe_pedida, r.preferencia, r.complexidade, r.tipos, r.precisao, r.sinais, r.requisitos,
       r.classe_necessaria, r.modelo, r.classe, r.politicas, r.candidatos, r.janela_minima, r.janela_desejada, r.motivo_escolha, r.fallback, r.reserva, r.resultado,
       r.modelo_usado, r.explicacao, r.versao, r.sigilosa, r.ms_primeiro_token, r.ms_total, r.feedback, r.refeito, r.nova_tentativa_de, q.nome as quick_win
-      from roteamento r left join pessoas p on p.id = r.pessoa_id left join quick_wins q on q.id = r.quick_win_id order by r.id desc limit ?`, limite)
+      from roteamento r left join pessoas p on p.id = r.pessoa_id left join quick_wins q on q.id = r.quick_win_id ${condicao} order by r.id desc limit ? offset ?`, ...args, limite, (pagina-1)*limite)
       .map(d => ({ ...d, sigilosa: !!d.sigilosa, refeito: !!d.refeito, tipos: json(d.tipos, []), precisao: json(d.precisao, []), sinais: json(d.sinais, {}), requisitos: json(d.requisitos, {}),
         politicas: json(d.politicas, []), candidatos: json(d.candidatos, []), fallback: json(d.fallback, null) }));
     return {
       config: { ativo: cfg.roteamento?.ativo !== false, preferencia: cfg.roteamento?.preferencia || 'equilibrio' },
+      paginacao:{pagina,limite,total:totalHistorico,paginas:Math.max(1,Math.ceil(totalHistorico/limite)),filtro},
       resumo: {
+        periodo:{desde,ate:app.agora().toISOString()},atencao:{respostasAbaixo:(soma.limitadas||0)+(soma.abaixoPorEscolha||0),bloqueios:fora.bloqueadas||0,manuais,roteamentoExterno:fora.externo||0,alternativasIniciadas:alternativas},
         decisoes: soma.n, porComplexidade: contar('complexidade'), porClasse: contar('classe'), porModo: contar('modo'), porNecessaria: contar('classe_necessaria'),
         limitadas: soma.limitadas || 0, abaixoPorEscolha: soma.abaixoPorEscolha || 0, foraDoRoteador: { externo: fora.externo || 0, bloqueadas: fora.bloqueadas || 0 },
         consumo: { realizado: { custo: consumo.real || 0 }, estimado: { custo: consumo.est || 0 }, referencia: { custo: consumo.ref || 0 } },
@@ -359,6 +393,7 @@ export function rotasModelos(app, r) {
     };
   }, { admin: true });
 
+  r.post('/api/admin/modelos/atualizar',async ({pessoa})=>{const total=await atualizarCatalogo(app);registrar(app,'advanced.catalog_refreshed',pessoa.id,{total});return {total};},{admin:true});
   r.get('/api/admin/modelos/catalogo', async ({ query }) => {
     if (!app.catalogo) await atualizarCatalogo(app).catch(() => { app.catalogo = []; });
     const q = String(query.busca || '').toLowerCase();
@@ -372,6 +407,7 @@ export function rotasModelos(app, r) {
     const atual = um(app.db, 'select * from modelos where id = ?', id);
     // A empresa pode restringir um recurso autorizado pela plataforma (não liberar, trocar de nível): restringir não remove o mínimo.
     if (!atual && !cat && !corpo.perfil) throw erro(404, 'modelo', 'Modelo não encontrado no catálogo.');
+    if(CURADORIA_ADVANCED.some(m=>m.id===id)&&corpo.perfil&&corpo.perfil!=='avancado')throw erro(409,'advanced_classificacao','Este modelo pertence à curadoria Advanced. Revise a curadoria antes de alterar sua classe.');
     const reserva = corpo.reserva === undefined ? atual?.reserva : corpo.reserva || null;
     if (reserva) {
       const rs = um(app.db, 'select perfil, liberado from modelos where id = ?', reserva);
@@ -384,7 +420,7 @@ export function rotasModelos(app, r) {
       const a = corpo.atributos || {};
       const limpo = { semTreino: typeof a.semTreino === 'boolean' ? a.semTreino : null, retencaoZero: typeof a.retencaoZero === 'boolean' ? a.retencaoZero : null,
         dadosPessoais: ['permitido', 'proibido'].includes(a.dadosPessoais) ? a.dadosPessoais : null, regiao: a.regiao ? String(a.regiao).slice(0, 60) : null };
-      atributos = Object.values(limpo).some(v => v !== null) ? JSON.stringify(limpo) : null;
+      atributos = JSON.stringify({...(json(atual?.atributos,{})),...limpo});
     }
     let capacidades;
     if (corpo.capacidades !== undefined) {
@@ -440,13 +476,14 @@ export function rotasModelos(app, r) {
     }
     if (corpo.perfisQuickWin) novo.perfisQuickWin = corpo.perfisQuickWin.filter(p => PERFIS[p]);
     if (corpo.exigirSemTreino !== undefined) novo.exigirSemTreino = !!corpo.exigirSemTreino;
-    if (corpo.automatico !== undefined) novo.automatico = !!corpo.automatico;
+    if (corpo.automatico === true) throw erro(409,'rota_nao_controlada','Use o automático da GreenIA: o roteador externo não garante a autorização Advanced.');
+    if (corpo.automatico !== undefined) novo.automatico = false;
     if (corpo.roteamento) {
       const pref = ['economia', 'equilibrio', 'qualidade'].includes(corpo.roteamento.preferencia) ? corpo.roteamento.preferencia : cfg.roteamento?.preferencia || 'equilibrio';
       novo.roteamento = { ativo: corpo.roteamento.ativo !== undefined ? !!corpo.roteamento.ativo : cfg.roteamento?.ativo !== false, preferencia: pref };
     }
     for (const [k, id] of Object.entries(novo.padroes || {})) {
-      if (id && !acharModelo(app.db, { ...cfg, ...novo }, id)?.liberado) throw erro(400, 'padrao', `O padrão "${k}" precisa ser um modelo liberado.`);
+      if (id && id !== cfg.padroes[k] && !acharModelo(app.db, { ...cfg, ...novo }, id)?.liberado) throw erro(400, 'padrao', `O padrão "${k}" precisa ser um modelo liberado.`);
     }
     // Salvar os mesmos valores não é uma escolha pelo modo manual.
     // Compara objetos sem depender da ordem das propriedades do JSON.

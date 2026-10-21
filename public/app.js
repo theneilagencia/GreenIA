@@ -100,6 +100,7 @@ const SECOES_USO = () => [
     // "Ver todas" do histórico leva a ela. Continua na busca (Ctrl K).
     { id: 'conversas', nome: 'Conversas', icone: 'conversa', naLateral: () => false },
     { id: 'quick-wins', nome: 'Quick Wins', icone: 'raio', ativo: h => h === '#/quick-wins' || h.startsWith('#/quick-wins/') || h.startsWith('#/qw/') },
+    { id: 'resultados', nome: 'Uso e resultados', icone: 'grafico' },
     { id: 'conhecimento', nome: 'Conhecimento', icone: 'livro', selo: seloBase },
     // Pendências: atalho só quando há o que resolver (com a contagem) ou quando a tela está aberta; o endereço e a
     // busca continuam valendo sempre para quem pode acompanhar.
@@ -128,7 +129,8 @@ const SECOES_ADMIN = () => [
     { id: 'integracoes', nome: 'Integrações', icone: 'servidor', ver: () => !!E.integracoes && (pode('integrations.manage') || pode('integrations.approve')) },
   ] },
   { titulo: 'Acompanhar', itens: [
-    { id: 'uso', nome: 'Uso e créditos', icone: 'grafico', ver: () => pode('usage.read') },
+    { id: 'resultados', nome: 'Uso e resultados', href:()=> '#/resultados?visao=empresa', icone: 'grafico', ver: () => pode('usage.read') },
+    { id: 'uso', nome: 'Créditos do plano', icone: 'pacote', ver: () => pode('usage.read') },
     { id: 'atividade', nome: 'Atividade', icone: 'atividade', ver: () => pode('audit.read') },
   ] },
   { titulo: 'Empresa', itens: [
@@ -145,7 +147,7 @@ const ATALHOS_ADMIN = () => [
 const hrefItem = i => (i.href ? i.href() : `#/${i.id}`);
 const ROTAS_ADMIN = /^#\/(preparacao|revisao-acessos|visao-geral|uso|pessoas|modelos|politicas|atividade|configuracoes|integracoes|empresa(?:\/|$|\?))/;
 // Contexto da tela. Quem não administra nunca está na Administração, nem digitando o endereço.
-export const emAdministracao = (h = location.hash) => ROTAS_ADMIN.test(h || '') && administra();
+export const emAdministracao = (h = location.hash) => (ROTAS_ADMIN.test(h || '') || (h?.split('?')[0] === '#/resultados' && new URLSearchParams(h.split('?')[1] || '').get('visao') === 'empresa' && pode('usage.read'))) && administra();
 const itensAdmin = () => SECOES_ADMIN().flatMap(g => g.itens).filter(i => !i.ver || i.ver());
 // Tem alguma tela de Administração que pode abrir: vê o alternador "Usar GreenIA | Administração".
 export const administra = () => itensAdmin().length > 0;
@@ -253,7 +255,8 @@ export function desenharLateral() {
   const rail = recolhida();
   const dica = nome => (rail ? ` title="${esc(nome)}"` : '');
   const item = i => {
-    const ativo = i.ativo ? i.ativo(h) : h === `#/${i.id}` || h.startsWith(`#/${i.id}/`);
+    const caminho=h.split('?')[0];
+    const ativo = i.ativo ? i.ativo(h) : caminho === `#/${i.id}` || caminho.startsWith(`#/${i.id}/`);
     const selo = i.selo?.();
     return `<a class="item-lat item-principal${ativo ? ' ativo' : ''}" href="${esc(hrefItem(i))}" data-item="${esc(i.id)}" ${ativo ? 'aria-current="page"' : ''}${dica(i.nome)}>${ICONE[i.icone] || ''}<span class="nome">${i.nome}</span>${selo ? `<span class="selo-lat${selo.alerta ? ' alerta' : ''}" title="${esc(selo.dica)}"><span aria-hidden="true">${esc(selo.texto)}</span><span class="sr">${esc(selo.dica)}</span></span>` : ''}</a>`;
   };
@@ -429,6 +432,7 @@ async function rota() {
   try {
     if ((m = /^#\/c\/(\d+)$/.exec(h))) await vistaConversa({ id: Number(m[1]) });
     else if (h === '#/nova') await vistaConversa({});
+    else if (h === '#/resultados' || h.startsWith('#/resultados?')) await (await importarTela('/resultados.js')).vistaResultados();
     else if (h === '#/pendencias') await (await importarTela('/acompanhamento.js')).vistaAcompanhamento();
     else if (h === '#/primeiros-passos') (await importarTela('/onboarding.js')).vistaOnboarding();
     else if (h === '#/conversas') await vistaConversas();

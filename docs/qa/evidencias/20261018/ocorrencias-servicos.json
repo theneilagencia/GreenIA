@@ -1,0 +1,591 @@
+{
+  "bateria": "1200 serviços; 0 falhas; 0 cancelamentos; 0 ignorados",
+  "codigo_local": "4a48156b509e55f39b75852894125e4d4f7bbebf",
+  "codigo_pr": "736f55aeb3c5700e3e76dd13f504127065c285f7",
+  "ocorrencias": [
+    {
+      "ocorrencia_original": "guardar = não com erros: provedor que repete o pedido, tempo esgotado, nova tentativa, reserva, leitor e OCR",
+      "arquivo": "test/auditoria-retencao.test.js",
+      "classificacao": "A",
+      "caso_na_bateria_final": "guardar = não com erros: provedor que repete o pedido, tempo esgotado, nova tentativa, reserva, leitor e OCR",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "acesso por perfil: sem o Avançado, a pessoa não vê nem usa modelo Avançado no chat",
+      "arquivo": "test/chat.test.js",
+      "classificacao": "A",
+      "caso_na_bateria_final": "acesso por perfil: sem o Avançado, a pessoa não vê nem usa modelo Avançado no chat",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "sigilosa pela chave manual",
+      "arquivo": "test/chat.test.js",
+      "classificacao": "A",
+      "caso_na_bateria_final": "sigilosa pela chave manual",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "área com proteção reforçada: conteúdo comum segue as regras gerais, mesmo sem recurso para dado sigiloso",
+      "arquivo": "test/chat.test.js",
+      "classificacao": "A",
+      "caso_na_bateria_final": "área com proteção reforçada: conteúdo comum segue as regras gerais, mesmo sem recurso para dado sigiloso",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "registro: cada claim sustentado está na superfície, com evidência no código e teste existente",
+      "arquivo": "test/claims-lp.test.js",
+      "classificacao": "L",
+      "caso_na_bateria_final": "registro: cada claim sustentado está na superfície, com evidência no código e teste existente",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "trechos sensíveis (dados, segurança, privacidade, custo, conferência, fornecedores) só entram com registro sustentado",
+      "arquivo": "test/claims-lp.test.js",
+      "classificacao": "L",
+      "caso_na_bateria_final": "trechos sensíveis (dados, segurança, privacidade, custo, conferência, fornecedores) só entram com registro sustentado",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "as páginas não fazem promessa jurídica, não generalizam garantias e não expõem o provedor",
+      "arquivo": "test/claims-lp.test.js",
+      "classificacao": "L",
+      "caso_na_bateria_final": "as páginas não fazem promessa jurídica, não generalizam garantias e não expõem o provedor",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "credenciais: a promessa é sobre senhas e chaves reconhecidas, em todas as partes do envio, sem absoluto (P1 resolvida)",
+      "arquivo": "test/claims-lp.test.js",
+      "classificacao": "L",
+      "caso_na_bateria_final": "credenciais: a promessa é sobre senhas e chaves reconhecidas, em todas as partes do envio, sem absoluto (P1 resolvida)",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "ambiente: sem \"infraestrutura privada/dedicada\", servidor dedicado ou isolamento físico",
+      "arquivo": "test/claims-lp.test.js",
+      "classificacao": "L",
+      "caso_na_bateria_final": "ambiente: sem \"infraestrutura privada/dedicada\", servidor dedicado ou isolamento físico",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "roteamento e créditos: sem troca automática de recurso; continuidade sempre com a ressalva da reserva",
+      "arquivo": "test/claims-lp.test.js",
+      "classificacao": "L",
+      "caso_na_bateria_final": "roteamento e créditos: sem troca automática de recurso; continuidade sempre com a ressalva da reserva",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "telas ilustrativas: cada bloco com números tem o aviso de exemplo; o menu é o da Administração atual",
+      "arquivo": "test/claims-lp.test.js",
+      "classificacao": "L",
+      "caso_na_bateria_final": "telas ilustrativas: cada bloco com números tem o aviso de exemplo; o menu é o da Administração atual",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "três níveis: Rápido, Equilibrado e Avançado usam o modelo configurado, a mesma chave, web e deny",
+      "arquivo": "test/credencial-quickwin-plataforma.test.js",
+      "classificacao": "A",
+      "caso_na_bateria_final": "três níveis: Rápido, Equilibrado e Avançado usam o modelo configurado, a mesma chave, web e deny",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "isolamento: a empresa B não lê a credencial nem a configura; sem liberar pesquisa, nada de plugin e resultado parcial",
+      "arquivo": "test/credencial-quickwin-plataforma.test.js",
+      "classificacao": "A",
+      "caso_na_bateria_final": "isolamento: a empresa B não lê a credencial nem a configura; sem liberar pesquisa, nada de plugin e resultado parcial",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "nenhum nome de cliente, área fixa ou ERP no código da aplicação",
+      "arquivo": "test/generico.test.js",
+      "classificacao": "L",
+      "caso_na_bateria_final": "nenhum nome de cliente, área fixa ou ERP no código da aplicação",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "invariante (10 casos): modelo proibido nunca é executado; com alternativa é substituído, sem alternativa bloqueia",
+      "arquivo": "test/governanca-api.test.js",
+      "classificacao": "A/R",
+      "caso_na_bateria_final": "invariante (10 casos): modelo proibido nunca é executado; com alternativa é substituído, sem alternativa bloqueia",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "invariante 7b: Automático do OpenRouter ligado pela empresa nunca recebe dado sigiloso",
+      "arquivo": "test/governanca-api.test.js",
+      "classificacao": "A/R",
+      "caso_na_bateria_final": "invariante 7b: Automático do OpenRouter ligado pela empresa nunca recebe dado sigiloso",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "invariante (propriedade): 120 entradas aleatórias de API nunca executam modelo proibido",
+      "arquivo": "test/governanca-api.test.js",
+      "classificacao": "A/R",
+      "caso_na_bateria_final": "invariante (propriedade): 120 entradas aleatórias de API nunca executam modelo proibido",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "caso A: solicitado elegível é usado (solicitado == selecionado)",
+      "arquivo": "test/governanca-api.test.js",
+      "classificacao": "A/R",
+      "caso_na_bateria_final": "caso A: solicitado elegível é usado (solicitado == selecionado)",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "caso B2: o selecionado cai no fornecedor e a reserva responde: registrado como substituição por indisponibilidade",
+      "arquivo": "test/governanca-api.test.js",
+      "classificacao": "A/R",
+      "caso_na_bateria_final": "caso B2: o selecionado cai no fornecedor e a reserva responde: registrado como substituição por indisponibilidade",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "uma só rota de execução: toda chamada à IA passa pelo roteador e pela governança",
+      "arquivo": "test/governanca-api.test.js",
+      "classificacao": "A/R",
+      "caso_na_bateria_final": "uma só rota de execução: toda chamada à IA passa pelo roteador e pela governança",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "admin leigo: nova empresa, recomendações, tarefas, sigilo, bloqueio, alerta legível, manual e volta",
+      "arquivo": "test/governanca-api.test.js",
+      "classificacao": "A/R",
+      "caso_na_bateria_final": "admin leigo: nova empresa, recomendações, tarefas, sigilo, bloqueio, alerta legível, manual e volta",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "ignorância deliberada: as tarefas se resolvem só com a intenção",
+      "arquivo": "test/governanca-api.test.js",
+      "classificacao": "A/R",
+      "caso_na_bateria_final": "ignorância deliberada: as tarefas se resolvem só com a intenção",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "matriz da pessoa leiga: nenhum cenário pede decisão técnica, homologação, política, permissão ou reserva",
+      "arquivo": "test/governanca-api.test.js",
+      "classificacao": "A/R",
+      "caso_na_bateria_final": "matriz da pessoa leiga: nenhum cenário pede decisão técnica, homologação, política, permissão ou reserva",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "LP: acesso da equipe sem aprovação prévia inventada; retenção sem prazo na página; nada de \"equipe GreenIA\" no app das empresas",
+      "arquivo": "test/legais.test.js",
+      "classificacao": "L",
+      "caso_na_bateria_final": "LP: acesso da equipe sem aprovação prévia inventada; retenção sem prazo na página; nada de \"equipe GreenIA\" no app das empresas",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "rede de segurança: resposta em roteiro \"Slide 1, 2, 3\" numa conversa com PDF de apresentação vira o arquivo no layout do PDF",
+      "arquivo": "test/modelo-pdf.test.js",
+      "classificacao": "F",
+      "caso_na_bateria_final": "rede de segurança: resposta em roteiro \"Slide 1, 2, 3\" numa conversa com PDF de apresentação vira o arquivo no layout do PDF",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "correção pedida no chat edita a última versão da apresentação; \"não aplicou o meu pedido\" reaplica o pedido anterior",
+      "arquivo": "test/modelo-pdf.test.js",
+      "classificacao": "F",
+      "caso_na_bateria_final": "correção pedida no chat edita a última versão da apresentação; \"não aplicou o meu pedido\" reaplica o pedido anterior",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "pediu arquivo, recebe arquivo: slides dentro de bloco de código viram o PowerPoint registrado na resposta",
+      "arquivo": "test/pedido-apresentacao-real.test.js",
+      "classificacao": "F",
+      "caso_na_bateria_final": "pediu arquivo, recebe arquivo: slides dentro de bloco de código viram o PowerPoint registrado na resposta",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "catálogo confirmado amplia para três modelos por nível e registra uma única inclusão idempotente",
+      "arquivo": "test/pools-modelos.test.js",
+      "classificacao": "A",
+      "caso_na_bateria_final": "catálogo confirmado amplia para três modelos por nível e registra uma única inclusão idempotente",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "escolha de cada nível compara seus modelos em vez de fixar o padrão; Automático usa o menor nível suficiente",
+      "arquivo": "test/pools-modelos.test.js",
+      "classificacao": "A",
+      "caso_na_bateria_final": "escolha de cada nível compara seus modelos em vez de fixar o padrão; Automático usa o menor nível suficiente",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "modelo retirado do catálogo não participa; falha de consulta preserva catálogo conhecido",
+      "arquivo": "test/pools-modelos.test.js",
+      "classificacao": "A",
+      "caso_na_bateria_final": "modelo retirado do catálogo não participa; falha de consulta preserva catálogo conhecido",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "\"no mesmo layout\" do material enviado: a peça e o PowerPoint seguem as cores e a fonte do material",
+      "arquivo": "test/producao-visual.test.js",
+      "classificacao": "F",
+      "caso_na_bateria_final": "\"no mesmo layout\" do material enviado: a peça e o PowerPoint seguem as cores e a fonte do material",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "economia escolhe dentro da capacidade suficiente, sem baratear uma entrega premium",
+      "arquivo": "test/qualidade-entrega.test.js",
+      "classificacao": "A",
+      "caso_na_bateria_final": "economia escolhe dentro da capacidade suficiente, sem baratear uma entrega premium",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "uma chamada por objetivo novo; mesmo objetivo salvo = 0 chamadas; objetivo alterado = 1; consumo registrado",
+      "arquivo": "test/quickwin-estrutura.test.js",
+      "classificacao": "A",
+      "caso_na_bateria_final": "uma chamada por objetivo novo; mesmo objetivo salvo = 0 chamadas; objetivo alterado = 1; consumo registrado",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "governança soberana: o Quick Win não libera dado bloqueado, credencial nem troca a rota de dado protegido",
+      "arquivo": "test/quickwins-v2.test.js",
+      "classificacao": "A",
+      "caso_na_bateria_final": "governança soberana: o Quick Win não libera dado bloqueado, credencial nem troca a rota de dado protegido",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "quick win de ponta a ponta: configurar com arquivo, testar, ativar, conversar com anexo, ajustar, retomar, feedback e uso",
+      "arquivo": "test/quickwins.test.js",
+      "classificacao": "A/R",
+      "caso_na_bateria_final": "quick win de ponta a ponta: configurar com arquivo, testar, ativar, conversar com anexo, ajustar, retomar, feedback e uso",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "perfis: sem o Avançado, a pessoa usa o Avançado que é padrão do quick win, mas não troca para outro Avançado",
+      "arquivo": "test/quickwins.test.js",
+      "classificacao": "A/R",
+      "caso_na_bateria_final": "perfis: sem o Avançado, a pessoa usa o Avançado que é padrão do quick win, mas não troca para outro Avançado",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "estimativa de custo por conversa típica, por modelo, a partir do preço do catálogo",
+      "arquivo": "test/quickwins.test.js",
+      "classificacao": "A/R",
+      "caso_na_bateria_final": "estimativa de custo por conversa típica, por modelo, a partir do preço do catálogo",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "2. tarefa complexa não usa modelo insuficiente, em nenhuma preferência",
+      "arquivo": "test/roteamento-matriz.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "2. tarefa complexa não usa modelo insuficiente, em nenhuma preferência",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "3. contexto grande: escolhe janela suficiente; volume sozinho não sobe a classe",
+      "arquivo": "test/roteamento-matriz.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "3. contexto grande: escolhe janela suficiente; volume sozinho não sobe a classe",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "5. pessoa sem acesso à classe necessária recebe o melhor modelo permitido, com a causa registrada",
+      "arquivo": "test/roteamento-matriz.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "5. pessoa sem acesso à classe necessária recebe o melhor modelo permitido, com a causa registrada",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "6. sigilo exclui os modelos não homologados; a escolha segue a capacidade entre os homologados",
+      "arquivo": "test/roteamento-matriz.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "6. sigilo exclui os modelos não homologados; a escolha segue a capacidade entre os homologados",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "7. a preferência muda a decisão quando há alternativas equivalentes, e só então",
+      "arquivo": "test/roteamento-matriz.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "7. a preferência muda a decisão quando há alternativas equivalentes, e só então",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "8. falha da classificação não quebra a governança",
+      "arquivo": "test/roteamento-matriz.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "8. falha da classificação não quebra a governança",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "9. fallback nunca viola política: o modelo usado não tem motivo de governança; a reserva passa pelas mesmas regras",
+      "arquivo": "test/roteamento-matriz.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "9. fallback nunca viola política: o modelo usado não tem motivo de governança; a reserva passa pelas mesmas regras",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "10. mudança de configuração da empresa altera o conjunto de candidatos e a escolha",
+      "arquivo": "test/roteamento-matriz.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "10. mudança de configuração da empresa altera o conjunto de candidatos e a escolha",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "11. o motivo exibido corresponde à decisão real",
+      "arquivo": "test/roteamento-matriz.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "11. o motivo exibido corresponde à decisão real",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "12. solicitações diferentes, mesma pessoa e mesma configuração, não são obrigadas ao mesmo modelo",
+      "arquivo": "test/roteamento-matriz.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "12. solicitações diferentes, mesma pessoa e mesma configuração, não são obrigadas ao mesmo modelo",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "quick win: fixo define a classe (com a análise registrada); flexível entra como piso do Automático",
+      "arquivo": "test/roteamento-matriz.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "quick win: fixo define a classe (com a análise registrada); flexível entra como piso do Automático",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "todo sinal da análise muda a escolha em pelo menos um caso de referência (nenhum sinal decorativo)",
+      "arquivo": "test/roteamento-matriz.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "todo sinal da análise muda a escolha em pelo menos um caso de referência (nenhum sinal decorativo)",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "capacidades explícitas: modelo Equilibrado forte em programação atende código difícil antes de um Avançado mais caro",
+      "arquivo": "test/roteamento-matriz.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "capacidades explícitas: modelo Equilibrado forte em programação atende código difícil antes de um Avançado mais caro",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "dominância: um desempate nunca escolhe modelo menos capaz e mais caro",
+      "arquivo": "test/roteamento-matriz.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "dominância: um desempate nunca escolhe modelo menos capaz e mais caro",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "governança, janela e permissão: nunca violadas (400 cenários)",
+      "arquivo": "test/roteamento-propriedades.test.js",
+      "classificacao": "P",
+      "caso_na_bateria_final": "governança, janela e permissão: nunca violadas (400 cenários)",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "monotonicidade de capacidade: aumentar uma exigência nunca escolhe capacidade inferior (400 cenários × 6 exigências)",
+      "arquivo": "test/roteamento-propriedades.test.js",
+      "classificacao": "P",
+      "caso_na_bateria_final": "monotonicidade de capacidade: aumentar uma exigência nunca escolhe capacidade inferior (400 cenários × 6 exigências)",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "fluxo completo: pedido simples no Rápido, contrato com riscos no Avançado; o modelo chamado é o decidido",
+      "arquivo": "test/roteamento.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "fluxo completo: pedido simples no Rápido, contrato com riscos no Avançado; o modelo chamado é o decidido",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "sem acesso à classe necessária: a mais capaz permitida, com a causa na auditoria e na explicação",
+      "arquivo": "test/roteamento.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "sem acesso à capacidade necessária: bloqueia antes da inferência e registra solicitação",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "classe escolhida pela pessoa: respeitada, analisada e sinalizada quando fica abaixo do necessário",
+      "arquivo": "test/roteamento.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "classe escolhida pela pessoa não reduz capacidade exigida",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "nova tentativa na mesma conversa sobe a partir da classe usada antes",
+      "arquivo": "test/roteamento.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "nova tentativa na mesma conversa sobe a partir da classe usada antes",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "roteamento desligado: padrão da empresa, registrado como padrão (não como escolha da pessoa)",
+      "arquivo": "test/roteamento.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "roteamento desligado não autoriza padrão insuficiente",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "falha na análise do pedido: responde com a exigência padrão e a governança intacta",
+      "arquivo": "test/roteamento.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "falha na análise do pedido: responde com a exigência padrão e a governança intacta",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "reserva de execução: só vai ao fornecedor se passar pelas regras; o uso da reserva fica no registro",
+      "arquivo": "test/roteamento.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "reserva de execução: só vai ao fornecedor se passar pelas regras; o uso da reserva fica no registro",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "Automático do serviço de IA: fora das regras de roteamento, identificado como tal e fora dos indicadores do roteador",
+      "arquivo": "test/roteamento.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "Automático externo nunca recebe conteúdo, mesmo ligado em configuração antiga",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "admin: Automático é o padrão; liga, desliga e muda a preferência; a preferência chega à decisão",
+      "arquivo": "test/roteamento.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "admin: Automático é o padrão; liga, desliga e muda a preferência; a preferência chega à decisão",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "feedback \"não serviu\" vale só para a próxima mensagem; a tentativa fica ligada à anterior; latência registrada",
+      "arquivo": "test/roteamento.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "feedback \"não serviu\" vale só para a próxima mensagem; a tentativa fica ligada à anterior; latência registrada",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "economia nunca supera autorização: o barato não autorizado nunca é usado, mesmo para pedido simples",
+      "arquivo": "test/sigilo-guardrails.test.js",
+      "classificacao": "A",
+      "caso_na_bateria_final": "economia nunca supera autorização: o barato não autorizado nunca é usado, mesmo para pedido simples",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "fallback: principal indisponível → outro recurso SÓ se autorizado e elegível; senão, nada mais é enviado",
+      "arquivo": "test/sigilo-guardrails.test.js",
+      "classificacao": "A",
+      "caso_na_bateria_final": "fallback: principal indisponível → outro recurso SÓ se autorizado e elegível; senão, nada mais é enviado",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "API, nova tentativa, anexo e streaming: a mesma governança em todo envio",
+      "arquivo": "test/sigilo-guardrails.test.js",
+      "classificacao": "A",
+      "caso_na_bateria_final": "API, nova tentativa, anexo e streaming: a mesma governança em todo envio",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "4. o necessário não está disponível para a pessoa: usa o mais capaz permitido e registra a causa",
+      "arquivo": "test/usuario-leigo.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "4. capacidade necessária bloqueada preserva pedido e solicita autorização",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "12. nível sem permissão para o grupo da pessoa, pedido à força: não é usado; o automático resolve",
+      "arquivo": "test/usuario-leigo.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "12. escolha forçada não concede acesso",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "13. pedido que exige mais capacidade: sobe de nível sozinho quando a pessoa tem acesso",
+      "arquivo": "test/usuario-leigo.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "13. pedido que exige mais capacidade: sobe de nível sozinho quando a pessoa tem acesso",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "18. Automático do provedor: nunca usado com dado sigiloso; fora dele, explicado sem termos técnicos",
+      "arquivo": "test/usuario-leigo.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "18. Automático do provedor: nunca usado com dado sigiloso; fora dele, explicado sem termos técnicos",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "10. configuração incompleta (quick win fixo numa classe sem modelo liberado): atende no automático e avisa o admin",
+      "arquivo": "test/usuario-leigo.test.js",
+      "classificacao": "R",
+      "caso_na_bateria_final": "10. configuração incompleta (quick win fixo numa classe sem modelo liberado): atende no automático e avisa o admin",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "a página não promete o que não existe nem mostra custo de fornecedor",
+      "arquivo": "test/vendas.test.js",
+      "classificacao": "L",
+      "caso_na_bateria_final": "a página não promete o que não existe nem mostra custo de fornecedor",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    },
+    {
+      "ocorrencia_original": "a LP mantém a demonstração e condições de integração com uma estrutura comercial curta",
+      "arquivo": "test/vendas.test.js",
+      "classificacao": "L",
+      "caso_na_bateria_final": "a LP mantém a demonstração e condições de integração com uma estrutura comercial curta",
+      "resultado": "aprovado",
+      "evidencia": "servicos.tap"
+    }
+  ]
+}

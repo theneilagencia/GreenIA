@@ -7,9 +7,33 @@ for (const demo of document.querySelectorAll('[data-op-demo]')) {
   const duration = 15000, boundaries = [0, 5000, 10000];
   let elapsed = 0, last = 0, frame = 0, playing = false, visible = false, started = false;
   demo.querySelector('.op-controls').hidden = false;
+  const resultados = demo.hasAttribute('data-op-resultados');
+  let ultimaEtapa = -1;
+  const renderResultados = etapa => {
+    if (!resultados || etapa === ultimaEtapa) return;
+    ultimaEtapa = etapa;
+    const valores = [[3, 0, 2, '—'], [3, 0, 6, '—'], [3, 1, 6, 6]][etapa];
+    demo.querySelectorAll('.m-resultados-indicadores b').forEach((el, i) => {
+      el.textContent = String(valores[i]);
+      if (!reduced.matches) el.animate([{ opacity: .3, transform: 'translateY(7px)' }, { opacity: 1, transform: 'none' }], { duration: 450, easing: 'ease-out' });
+    });
+    const concluido = etapa === 2;
+    demo.querySelector('.m-resultados-progresso b').textContent = concluido ? '1 de 3' : '0 de 3';
+    demo.querySelector('.m-resultados-progresso i').style.width = concluido ? '33.333%' : '0%';
+    demo.querySelector('.m-resultados-progresso p').textContent = concluido ? 'Os outros 2 trabalhos estão em andamento ou aguardando conferência' : 'Os 3 trabalhos ainda não têm conclusão verificada';
+    const linha = demo.querySelector('.m-resultados-linha');
+    linha.querySelector(':scope > div > span').textContent = etapa === 0 ? '1 tentativa registrada' : '2 tentativas no mesmo trabalho';
+    const status = linha.querySelector('.m-resultados-status');
+    status.textContent = ['Em preparação', 'Ajuste registrado', 'Concluído com verificação'][etapa];
+    status.classList.toggle('pendente', !concluido);
+    const marca = linha.querySelector('.m-resultados-marca');
+    marca.textContent = concluido ? '✓' : '◷';
+    marca.classList.toggle('m-resultados-pendente', !concluido);
+  };
   const render = () => {
     const stage = boundaries.findLastIndex(t => elapsed >= t);
     demo.dataset.stage = String(stage);
+    renderResultados(stage);
     demo.dataset.playing = String(playing && visible && !document.hidden);
     panels.forEach((panel, i) => { panel.hidden = i !== stage; });
     steps.forEach((button, i) => {

@@ -11,16 +11,17 @@ export function fmtCusto(v, { conversa = false } = {}) {
   const n = Number(v);
   if (unidade === 'creditos') {
     if (conversa) { const c = Math.max(1, Math.round(n)); return `cerca de ${c} ${c === 1 ? 'crédito' : 'créditos'}`; }
-    const t = n < 10 && n % 1 ? n.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : Math.round(n).toLocaleString('pt-BR');
+    const t = n < 10 && n % 1 ? n.toLocaleString('pt-BR', { maximumFractionDigits: 4 }) : Math.round(n).toLocaleString('pt-BR');
     return `${t} ${n === 1 ? 'crédito' : 'créditos'}`;
   }
   return `US$ ${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: Math.abs(n) < 1 ? 4 : 2 })}`;
 }
 export const definirCsrf = t => { csrf = t; };
 
-export async function api(caminho, { metodo = 'GET', corpo, bruto = false, independenteDaRota = false } = {}) {
+export async function api(caminho, { metodo = 'GET', corpo, bruto = false, independenteDaRota = false, sinal } = {}) {
   const rotaDeLeitura = metodo === 'GET' && !independenteDaRota ? location.hash : null;
   const r = await fetch(caminho, {
+    signal: sinal,
     method: metodo, credentials: 'same-origin',
     headers: { ...(corpo !== undefined ? { 'content-type': 'application/json' } : {}), ...(metodo !== 'GET' ? { 'x-csrf': csrf } : {}) },
     body: corpo !== undefined ? JSON.stringify(corpo) : undefined,
@@ -38,6 +39,9 @@ export async function api(caminho, { metodo = 'GET', corpo, bruto = false, indep
 
 const svg = (d, w = 1.7) => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 export const ICONE = {
+  relogio: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  camadas: svg('<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/>'),
+  chevron: svg('<path d="m9 5 7 7-7 7"/>'),
   seta: svg('<path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>', 1.8),
   voltar: svg('<path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/>', 1.8),
   enviar: svg('<path d="M12 19V5"/><path d="M5 12l7-7 7 7"/>', 1.9),

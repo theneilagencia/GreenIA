@@ -65,6 +65,7 @@ export const PADRAO = {
   emailSituacao: {},   // email próprio da empresa: último envio certo e última falha (motivo explicado, sem segredo)
   requisitosSigilo: { plataforma: false, exigeAutorizacao: false, exigeRetencaoZero: true, exigeSemTreino: true },
   // Limites (0 = sem limite).
+  advanced: { limiteMensalUsd: 0 },
   tetoMensal: 0, tetoPessoaMensal: 0, limiteDiarioPessoa: 0,
 };
 

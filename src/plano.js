@@ -12,7 +12,7 @@ import { acharModelo, homologadoPadrao, lerModelos, AUTO } from './modelos.js';
 
 export const CREDITO_USD = 0.01;
 export const TAXA_INTERMEDIARIO = 1.055;   // o OpenRouter cobra 5,5% sobre a compra de créditos
-export const creditosDe = usd => Math.round((Number(usd) || 0) / CREDITO_USD * 10) / 10;
+export const creditosDe = usd => Math.round((Number(usd) || 0) / CREDITO_USD * 10000) / 10000;
 
 export function lerPlano(env = {}) {
   const creditos = Math.floor(Number(env.PLANO_CREDITOS) || 0);
@@ -24,7 +24,7 @@ export function lerPlano(env = {}) {
 export const lerOperadores = (env = {}) => String(env.OPERADOR_EMAIL || '').split(/[\s,;]+/).map(e => e.trim().toLowerCase()).filter(Boolean);
 export const ehOperador = (app, pessoa) => !!pessoa && (app.operadores || []).includes(String(pessoa.email).toLowerCase());
 // Sem plano, a empresa usa a própria chave e vê o custo real. Com plano, só o operador vê dólar.
-export const veDolar = (app, pessoa) => !app.plano || ehOperador(app, pessoa);
+export const veDolar = () => false; // Dinheiro somente nas rotas da Administração Geral, nunca no ambiente do cliente.
 
 const mesDe = d => d.toISOString().slice(0, 7);
 const proximoMes = d => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
@@ -125,17 +125,24 @@ export function modeloNaReserva(app, cfg, m, sigilosa) {
 }
 
 // Converte custos em créditos e tira preços de qualquer resposta JSON.
-const CHAVES_CUSTO = new Set(['custo', 'custoMedio', 'custoConversa', 'custoPorExecucao', 'custoReferencia', 'previsao', 'tetoMensal', 'economia', 'economiaCache', 'custoIa', 'custoComTaxa']);
+const CHAVES_CUSTO = new Set(['custo', 'custoMedio', 'custoConversa', 'custoPorExecucao', 'custoReferencia', 'previsao', 'tetoMensal', 'economia', 'economiaCache', 'custoIa', 'custoComTaxa', 'tetoPessoaMensal', 'custo_real', 'custo_estimado', 'custo_referencia']);
 const CHAVES_PRECO = new Set(['precoEntrada', 'precoSaida', 'preco_entrada', 'preco_saida']);
 export function emCreditos(v, chave) {
   if (Array.isArray(v)) return v.map(x => emCreditos(x));
   if (v && typeof v === 'object') {
     const out = {};
     for (const [k, x] of Object.entries(v)) {
-      if (CHAVES_PRECO.has(k)) continue;
-      if (CHAVES_CUSTO.has(k)) out[k] = x === null || x === undefined ? x : creditosDe(x);
+      if(k==='financeiro')continue;
+      if(k==='detalhes'&&v.tipo==='model.price_changed'){out[k]='Revisão do catálogo registrada. Informações financeiras restritas à Administração Geral.';continue;}
+      // Faixa descritiva da sugestão não é um valor monetário.
+      if (k==='custo' && ['econômico','médio','alto'].includes(x)) {out[k]=x;continue;}
+      if (CHAVES_PRECO.has(k) || /^(preco|price|pricing|margem|receita|lucro|conversao|ai_credit_base_cost|precosAlternativos)/i.test(k)) continue;
+      if (/_usd$/i.test(k) || /Usd$/.test(k)) { out[k.replace(/_usd$/i,'_creditos').replace(/Usd$/,'Creditos')]=typeof x==='number'?x/CREDITO_USD:x; continue; }
+      if ((['porChamada','estimativa','saldoDisponivel','reservado'].includes(k)||k==='limite'&&'validadeDias' in v) && typeof x==='number') { out[k]=x/CREDITO_USD; continue; }
+      if (k==='catalogo' && x && typeof x==='object' && !Array.isArray(x)) {const c={...x};delete c.entrada;delete c.saida;delete c.precosAlternativos;if(c.rotas)c.rotas=c.rotas.map(({entrada,saida,...rota})=>rota);out[k]=emCreditos(c);continue;}
+      if (CHAVES_CUSTO.has(k)||/^custo[_A-Z]/.test(k)&&typeof x==='number') out[k] = x === null || x === undefined ? x : creditosDe(x);
       else if (k === 'aviso' && typeof x === 'string' && x.startsWith('Preço mudou')) out[k] = null;   // variação de preço: só o operador decide se avisa
-      else if (k === 'detalhes' && typeof x === 'string' && x.includes('"custo"')) out[k] = detalhesEmCreditos(x);
+      else if (k === 'detalhes' && typeof x === 'string') { try {const d=emCreditos(JSON.parse(x));if(d&&typeof d==='object'&&'custo' in d){d.creditos=d.custo;delete d.custo;}out[k]=JSON.stringify(d); } catch { out[k]=x; } }
       else out[k] = emCreditos(x, k);
     }
     return out;
@@ -143,13 +150,13 @@ export function emCreditos(v, chave) {
   return v;
 }
 export function detalhesEmCreditos(texto) {
-  try { const d = JSON.parse(texto); if ('custo' in d) { d.creditos = creditosDe(d.custo); delete d.custo; } return JSON.stringify(d); } catch { return texto; }
+  return emCreditos({detalhes:texto}).detalhes;
 }
 
 // Pacote liberado pelo operador: Capacity Pack (com o valor de tabela) ou cortesia (sem receita).
 export function liberarPacote(app, pessoa, creditos, { observacao = '', validade = null, origem = 'painel', operador = pessoa?.email, produto = 'cortesia', precoUsd = 0 } = {}) {
-  const n = Math.floor(Number(creditos) || 0);
-  if (n <= 0 || n > 1_000_000) throw erro(400, 'creditos', 'Informe a quantidade de créditos do pacote.');
+  const n = origem==='estorno'?Number(creditos):Math.floor(Number(creditos)||0);
+  if (!Number.isFinite(n) || n <= 0 || n > 1_000_000) throw erro(400, 'creditos', 'Informe a quantidade de créditos do pacote.');
   if (validade && (!/^\d{4}-\d{2}-\d{2}$/.test(validade) || validade < app.agora().toISOString().slice(0, 10))) throw erro(400, 'validade', 'A validade precisa ser uma data futura.');
   const obs = String(observacao || '').slice(0, 300);
   const quem = String(operador || '').slice(0, 200) || null;

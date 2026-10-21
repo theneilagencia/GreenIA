@@ -2,6 +2,32 @@
 export const celulas = l => l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
 export const ehTabela = (l, prox) => /^\s*\|.*\|\s*$/.test(l) && /^\s*\|?\s*:?-{2,}/.test(prox || '');
 
+// Alguns provedores omitem apenas a linha separadora. Corrigir a sintaxe sem
+// completar células ou alterar valores; blocos de código continuam intocados.
+export function normalizarTabelas(texto) {
+  const linhas = String(texto || '').split('\n'), saida = [];
+  let codigo = false;
+  for (let i = 0; i < linhas.length; i++) {
+    const l = linhas[i];
+    if (/^\s*(```|~~~)/.test(l)) codigo = !codigo;
+    saida.push(l);
+    if (codigo || !/^\s*\|.*\|\s*$/.test(l)) continue;
+    if (ehTabela(l, linhas[i + 1])) {
+      saida.push(linhas[++i]);
+      while (i + 1 < linhas.length && /^\s*\|/.test(linhas[i + 1])) saida.push(linhas[++i]);
+      continue;
+    }
+    const n = celulas(l).length;
+    let fim = i + 1;
+    while (fim < linhas.length && /^\s*\|.*\|\s*$/.test(linhas[fim]) && celulas(linhas[fim]).length === n) fim++;
+    if (n < 2 || fim === i + 1) continue;
+    saida.push('|' + Array(n).fill('---').join('|') + '|');
+    while (++i < fim) saida.push(linhas[i]);
+    i--;
+  }
+  return saida.join('\n');
+}
+
 export function extrairTabelas(texto) {
   const linhas = String(texto || '').replace(/\r/g, '').split('\n'), tabelas = [];
   for (let i = 0; i < linhas.length; i++) {

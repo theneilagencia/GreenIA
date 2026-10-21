@@ -26,19 +26,39 @@ export function memoriaDoConteiner() {
 }
 
 // Processos descendentes deste (filhos, netos...): o navegador e o OCR. Lido de /proc.
-export function descendentes(raiz = process.pid) {
+export function descendentes(raiz = process.pid, { proc = '/proc' } = {}) {
+  // /proc pode estar montado no namespace do host, enquanto process.kill usa o PID local.
+  // Monte a árvore com IDs de /proc e só então traduza os descendentes para nosso namespace.
+  let proprio, coluna;
+  try {
+    proprio = Number(/^\d+/.exec(readFileSync(`${proc}/self/stat`, 'utf8'))?.[0]);
+    const ids = /^NSpid:\s+(.+)$/m.exec(readFileSync(`${proc}/self/status`, 'utf8'))?.[1].trim().split(/\s+/).map(Number);
+    coluna = ids ? (ids.at(-1) === process.pid ? ids.length - 1 : -1) : (proprio === process.pid ? 0 : -1);
+    if (!proprio || coluna < 0) return [];
+  } catch { return []; }
   const pais = new Map();
-  for (const n of readdirSync('/proc')) {
+  try { for (const n of readdirSync(proc)) {
     if (!/^\d+$/.test(n)) continue;
     try {
-      const stat = readFileSync(`/proc/${n}/stat`, 'utf8');
-      const ppid = Number(stat.slice(stat.lastIndexOf(')') + 2).split(' ')[1]);
-      pais.set(Number(n), ppid);
+      const stat = readFileSync(`${proc}/${n}/stat`, 'utf8');
+      pais.set(Number(n), Number(stat.slice(stat.lastIndexOf(')') + 2).split(' ')[1]));
     } catch { /* processo já saiu */ }
-  }
-  const out = [], fila = [raiz];
-  while (fila.length) { const p = fila.shift(); for (const [pid, pai] of pais) if (pai === p) { out.push(pid); fila.push(pid); } }
-  return out;
+  } } catch { return []; }
+  // Busca em largura finita, inclusive quando um snapshot tem relações inconsistentes.
+  const filhos = inicio => {
+    const out = [], fila = [inicio], vistos = new Set(fila);
+    for (let i = 0; i < fila.length; i++) for (const [pid,pai] of pais) if (pai === fila[i] && !vistos.has(pid)) { vistos.add(pid); out.push(pid); fila.push(pid); }
+    return out;
+  };
+  const local = pid => {
+    if (proprio === process.pid && coluna === 0) return pid;
+    try { return Number(/^NSpid:\s+(.+)$/m.exec(readFileSync(`${proc}/${pid}/status`, 'utf8'))?.[1].trim().split(/\s+/)[coluna]) || null; }
+    catch { return null; }
+  };
+  const permitidos = filhos(proprio);
+  const inicio = raiz === process.pid ? proprio : permitidos.find(pid => local(pid) === raiz);
+  if (!inicio) return [];
+  return filhos(inicio).map(local).filter(pid => Number.isInteger(pid) && pid > 0 && pid !== process.pid);
 }
 
 export function iniciarVigia({ limiarMb = Number(process.env.MEMORIA_LIMIAR_MB || 72), intervaloMs = 250, log = console.log, ler = memoriaDoConteiner, matar = pid => process.kill(pid, 'SIGKILL'), filhos = descendentes } = {}) {

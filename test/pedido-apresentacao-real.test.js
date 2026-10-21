@@ -1,3 +1,4 @@
+import { autorizarAdvancedFalso } from './advanced-fixture.js';
 // O pedido real que falhou em produção: PowerPoint + PDF de outra apresentação como referência de layout + contrato
 // com CPF + proposta, com "o design/layout o mais próximo possível da apresentação X.pdf". Esperado: a apresentação
 // é montada no layout do PDF (arquivo para baixar), o CPF não sai para a IA, e a resposta nunca promete um arquivo
@@ -36,14 +37,16 @@ before(async () => {
     return 'Entendi: vou montar a apresentação da Rafisa no layout da Repet.\n\nO arquivo está pronto para download abaixo.\n\n## O que foi feito\n- Ajustes.';
   } });
   S = await subir({ ia: OR.ia });
-  salvarConfig(S.app.db, { dominios: ['exemplo.com.br'], acoesChat: { cpf: 'proteger' } });
+  salvarConfig(S.app.db, { dominios: ['exemplo.com.br'], acessoPerfis: { equilibrado: { todos: true }, avancado: { todos: true } }, acoesChat: { cpf: 'proteger' } });
   exec(S.app.db, 'update modelos set homologado = 0, homologacao = null, autorizacao_plataforma = null');   // como na empresa: sem recurso de sigilo
   ana = await S.cliente().entrar('ana@exemplo.com.br');
+  const admin=await S.cliente().entrar('admin@exemplo.com.br');
+  await autorizarAdvancedFalso(S,admin,ana.pessoa,['anthropic/claude-sonnet-5']);
 });
 after(async () => { await S.fechar(); await OR.fechar(); });
 const anexos = () => [
   { nome: 'Apresentacao-Kickoff-Rafisa.pptx', base64: pptx('# Kickoff Rafisa\n\nAgenda\n\n# 07 · Papéis\n\nTexto\n\n# 09 · Escopo\n\nTexto', { titulo: 'Rafisa' }).toString('base64') },
-  { nome: 'Apresentacao-Kickoff-Repet.pdf', base64: pdfColorido().toString('base64') },
+  { nome: 'Apresentacao-Kickoff-Repet.pdf', papel:'REFERENCE', base64: pdfColorido().toString('base64') },
   { nome: 'Contrato_Rafisa_assinado.docx', base64: docx(`# Contrato\n\nContratante: Fulano de Tal, CPF ${CPF}.\n\nEscopo: diagnóstico com até seis visitas.`, { titulo: 'Contrato' }).toString('base64') },
 ];
 
@@ -84,6 +87,22 @@ test('arquivo não gerado: a resposta não promete arquivo, diz que não foi ger
   assert.ok(msgs.findLastIndex(m => m.papel === 'aviso') < msgs.findIndex(m => m.papel === 'assistant') || !msgs.some(m => m.papel === 'aviso' && /arquivo original/.test(m.texto)), 'o motivo vai na resposta, não num aviso solto acima dela');
 });
 
+test('falha ao corrigir PPTX não entrega um PowerPoint contendo apenas o resumo da resposta', async () => {
+  const conv = (await ana.post('/api/conversas', {})).dados.conversa;
+  const r = await enviarMensagem(ana, conv.id, {
+    texto: 'Corrija a ortografia no próprio arquivo PowerPoint PPTX anexo, mantendo todo o resto igual.', anexos: [anexos()[0]],
+  });
+  assert.equal(r.status, 200);
+  assert.ok(!r.fim?.arquivos?.length, 'sem PPTX genérico para disfarçar a falha na edição');
+  const eventos = r.eventos;
+  const etapa = eventos.findIndex(e => e.t === 'etapa' && e.arquivo);
+  const texto = eventos.findIndex(e => e.t === 'texto');
+  assert.ok(etapa >= 0 && etapa < texto, 'o progresso do arquivo começa antes do texto');
+  const resposta = todos(S.app.db, "select texto from mensagens where conversa_id = ? and papel = 'assistant'", conv.id).at(-1).texto;
+  assert.match(resposta, /não foi gerado nesta resposta/);
+  assert.doesNotMatch(resposta, /Logo abaixo há uma versão simples|pronto para download/);
+});
+
 test('mesmo pedido numa mensagem seguinte (PDF já guardado na conversa): também monta no layout do PDF', { skip: semNavegador }, async () => {
   const conv = (await ana.post('/api/conversas', {})).dados.conversa;
   await enviarMensagem(ana, conv.id, { texto: 'analise o material', anexos: anexos() });
@@ -96,11 +115,11 @@ test('pediu arquivo, recebe arquivo: slides dentro de bloco de código viram o P
   const conv = (await ana.post('/api/conversas', {})).dados.conversa;
   const r = await enviarMensagem(ana, conv.id, { texto: 'Os slides do kickoff em PowerPoint, com estes slides: abertura e escopo, por favor.' });
   assert.equal(r.status, 200);
-  const a = r.fim?.arquivos?.find(x => x.tipo === 'da_resposta');
+  const a = r.fim?.arquivos?.find(x => x.origem === 'resposta_materializada');
   assert.equal(a?.formato, 'pptx', JSON.stringify({ arquivos: r.fim?.arquivos, artefatos: r.fim?.artefatos?.map(x => x.tipo), etapas: r.eventos.filter(e => e.t === 'etapa') }));
   // Reaberta, a conversa mostra o arquivo (não depende da tela adivinhar o pedido).
   const d = (await ana.get(`/api/conversas/${conv.id}`)).dados;
-  assert.ok(JSON.stringify(d).includes('"da_resposta"'));
+  assert.ok(JSON.stringify(d).includes('"resposta_materializada"'));
   // O arquivo tem os slides (o bloco de código foi desembrulhado), não um slide de código.
   const b = await fetch(`${S.base}/api/conversas/${conv.id}/mensagens/${r.fim.id}/arquivo/pptx`, { headers: { cookie: ana.cookie } });
   assert.equal(b.status, 200);
@@ -115,7 +134,7 @@ test('pediu arquivo, recebe arquivo: slides dentro de bloco de código viram o P
 test('conversa sigilosa com recurso autorizado: o mesmo pedido entrega o PowerPoint para baixar', { skip: semNavegador }, async () => {
   const { POLITICA_SIGILO } = await import('../src/sigilo.js');
   salvarConfig(S.app.db, { [POLITICA_SIGILO]: true });
-  exec(S.app.db, "update modelos set liberado = 1, homologado = 1, homologacao = ? where id = 'anthropic/claude-haiku-4.5'", JSON.stringify({ fornecedor: 'anthropic', endpoint: 'anthropic', retencaoZero: true, semTreino: true }));
+  exec(S.app.db, "update modelos set liberado = 1, homologado = 1, homologacao = ? where id in ('anthropic/claude-haiku-4.5', 'anthropic/claude-sonnet-5')", JSON.stringify({ fornecedor: 'anthropic', endpoint: 'anthropic', retencaoZero: true, semTreino: true }));
   const conv = (await ana.post('/api/conversas', {})).dados.conversa;
   const r = await enviarMensagem(ana, conv.id, { texto: PEDIDO, anexos: anexos() });
   assert.equal(r.status, 200, JSON.stringify(r.erro || r.falha));
@@ -127,7 +146,7 @@ test('conversa sigilosa com recurso autorizado: o mesmo pedido entrega o PowerPo
   assert.equal(d.status, 200);
   // Enquanto o arquivo é montado, a tela não lê "pronto para download": a frase sai assim que o texto termina e a
   // etapa avisa que o arquivo está sendo preparado.
-  const k = r.eventos.findIndex(e => e.t === 'etapa' && e.arquivo);
+  const k = r.eventos.findIndex(e => e.t === 'etapa' && e.arquivo && /Preparando o PowerPoint/.test(e.v));
   assert.ok(k > 0, 'etapa de arquivo');
   const antes = r.eventos.slice(0, k).filter(e => e.t === 'substituir').at(-1)?.v;
   assert.ok(antes && !/pronto para download/.test(antes), String(antes));
@@ -171,4 +190,14 @@ test('trava final: montagem com slides de conteúdo repetido não é entregue; a
   const resp = todos(S.app.db, "select texto from mensagens where conversa_id = ? and papel = 'assistant'", conv.id).at(-1).texto;
   assert.match(resp, /não foi gerado[\s\S]*conteúdo repetido/);
   assert.ok(OR.chamadas.length > antes);
+});
+
+test('pedido de gerar sem repetir o nome usa o PPTX da pessoa como conteúdo e o PDF apenas como design', { skip: semNavegador }, async () => {
+  const conv = (await ana.post('/api/conversas', {})).dados.conversa;
+  await enviarMensagem(ana, conv.id, { texto: 'Analise os materiais para preparar a próxima etapa.', anexos: anexos().slice(0, 2) });
+  const r = await enviarMensagem(ana, conv.id, { texto: 'Gere uma apresentação em PPTX a partir do material enviado.' });
+  assert.equal(r.status, 200, JSON.stringify(r.erro));
+  const a = r.fim?.arquivos?.[0];
+  assert.equal(a?.fonte, 'Apresentacao-Kickoff-Rafisa.pptx', JSON.stringify(a));
+  assert.equal(a.slides, 3, 'a quantidade vem do conteúdo da pessoa, não do modelo');
 });

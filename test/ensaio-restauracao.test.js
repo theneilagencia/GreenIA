@@ -12,6 +12,7 @@ import { DatabaseSync } from 'node:sqlite';
 import * as F from '../scripts/ensaio/s3-falso.js';
 import { bloquearRedeExterna, conferirDestino, ensaiar, ensaioSintetico, montarOrigemSintetica, descartar } from '../src/ensaio-restauracao.js';
 import { backupDaPlataforma } from '../src/iniciar.js';
+import { assinarS3 } from '../src/backup-s3.js';
 
 test('ensaio sintético completo: restaura do S3 falso, valida integridade, marcadores, isolamento, credenciais e app; mede RTO/RPO; descarta', async () => {
   const r = await ensaioSintetico(F);
@@ -34,6 +35,33 @@ test('ensaio sintético completo: restaura do S3 falso, valida integridade, marc
   assert.ok(!existsSync(r.raiz));
   // Nada de chave em claro no relatório.
   assert.doesNotMatch(JSON.stringify(r), /BACKUP_CHAVE_CIFRA|"mestra"/);
+});
+
+test('recupera backup de endpoint fora da lista de isolamento antes de subir a cópia isolada', async () => {
+  // O destino lógico é externo à lista permitida. Apenas o transporte do teste
+  // o encaminha e assina para o S3 falso local; nenhum serviço real é acessado.
+  const originalFetch = globalThis.fetch;
+  let endpoint, credenciaisFalsas;
+  globalThis.fetch = (entrada, op) => {
+    const u = new URL(entrada);
+    if (u.hostname !== 's3.ensaio.invalid') return originalFetch(entrada, op);
+    const url = endpoint + u.pathname + u.search;
+    const cabecalhos = Object.fromEntries(Object.entries(op.headers).filter(([k]) => !['authorization', 'x-amz-date', 'x-amz-content-sha256', 'host'].includes(k)));
+    const headers = assinarS3({ metodo: op.method, url, cabecalhos, hashCorpo: op.headers['x-amz-content-sha256'], chave: credenciaisFalsas.S3_CHAVE, segredo: credenciaisFalsas.S3_SEGREDO, regiao: credenciaisFalsas.S3_REGIAO });
+    return originalFetch(url, { ...op, headers });
+  };
+  try {
+    const r = await ensaioSintetico({ ...F, subirS3Falso: async op => {
+      const s3 = await F.subirS3Falso(op); endpoint = s3.endpoint; credenciaisFalsas = s3.env();
+      return { ...s3, env: prefixo => ({ ...s3.env(prefixo), S3_ENDPOINT: 'http://s3.ensaio.invalid' }) };
+    } });
+    assert.equal(r.ensaio.ok, true, JSON.stringify(r.ensaio.falhas));
+    assert.equal(r.ensaio.chave.origem, 'envelope S3');
+    assert.equal(r.ensaio.bancos.length, 3);
+    assert.ok(r.ensaio.verificacoes.some(v => v.nome === 'aplicação escuta só em 127.0.0.1' && v.ok));
+    assert.equal(r.ensaio.rede_bloqueada, 0);
+    assert.ok(r.descarte.every(d => d.removida));
+  } finally { globalThis.fetch = originalFetch; }
 });
 
 test('ensaio a partir de uma pasta local de backups (sem S3), com a chave-mestra do arquivo', async () => {

@@ -1,3 +1,5 @@
+import { responderDescobertaPublica, indexacaoAreaInterna } from '../seo-publico.js';
+import { sincronizarContas } from '../resultados.js';
 // Servidor multiempresa: uma base de código e um processo para todas as empresas.
 // Resolve a empresa (tenant) pelo domínio próprio, pelo subdomínio ou pelo caminho /<slug>,
 // sempre no servidor, e entrega a requisição ao ambiente daquela empresa com a sessão e as
@@ -41,6 +43,7 @@ import { criarEncontrar } from './encontrar.js';
 import { rotasEncerramentoEmpresa, migrarCanceladas, paginaDevolucao, entregarDevolucao } from './encerramento.js';
 import { migrarContatosAntigos, registrarFormulario } from './contatos.js';
 import { randomUUID } from 'node:crypto';
+import { validarPublicacao, empresaNaPublicacao } from '../publicacao-controlada.js';
 
 const RAIZ = fileURLToPath(new URL('../..', import.meta.url));
 const PUBLICO = join(RAIZ, 'public');
@@ -56,6 +59,7 @@ const ICONE_PADRAO = '/assets/ia-neutro.svg';   // empresa sem ícone próprio: 
 export function criarPlataforma(op = {}) {
   const db = abrirPlataforma(op.banco ?? ':memory:');
   const P = {
+    publicacaoControlada: validarPublicacao(op.publicacaoControlada),
     db, agora: op.agora ?? (() => new Date()), log: op.log ?? console.log, ia: iaTrocavel(op.ia ?? criarSimulada(), { aoRecusar: () => P.aoRecusarChave?.(), bloqueio: () => P.bloqueioChave?.() }), iaPadrao: op.ia ?? criarSimulada(),
     cookieSeguro: op.cookieSeguro ?? true, pastaEmpresas: op.pastaEmpresas ?? (op.banco && op.banco !== ':memory:' ? join(dirname(op.banco), 'empresas') : ':memory:'),
     hostPlataforma: (op.hostPlataforma || '').toLowerCase(), urlBase: op.urlBase || '', subdominioBase: (op.subdominioBase || '').toLowerCase(),
@@ -170,6 +174,8 @@ function abrirTenant(P, id) {
     get enviados() { return P.email.enviados; },
   };
   t = criarApp({ banco: c.banco, ia: P.ia, email, agora: P.agora, log: P.log, cookieSeguro: P.cookieSeguro, tenant: { companyId: id }, mestra: P.mestra });
+  t.pessoasResultados=()=>todos(P.db,`select u.id,u.name nome,u.email,u.status usuario_status,cu.status situacao from company_users cu join users u on u.id=cu.user_id where cu.company_id=?`,id).map(u=>({...u,id:um(t.db,'select id from pessoas where user_id=?',u.id)?.id,ativo:u.usuario_status==='ativo'?1:0,situacao:u.usuario_status==='ativo'?u.situacao:'inativo'})).filter(u=>u.id);
+  sincronizarContas(t);
   t.pessoasDoTrabalho = () => todos(P.db, "select u.id, u.name from users u join company_users cu on cu.user_id = u.id where cu.company_id = ? and cu.status = 'ativo' and u.status = 'ativo'", id).map(u => {
     const pid = sincronizarPessoa(P, id, u.id), perms = permissoesNaEmpresa(P.db, u.id, id);
     return { id: pid, nome: u.name || 'Pessoa da empresa', aprova: perms.has('integrations.approve'), prepara: perms.has('integrations.manage') };
@@ -258,6 +264,8 @@ function sincronizarPessoa(P, companyId, userId, { operador = false } = {}) {
   const existente = um(t.db, 'select id from pessoas where user_id = ?', userId) || um(t.db, 'select id from pessoas where email = ?', u.email);
   if (existente) exec(t.db, 'update pessoas set user_id = ?, email = ?, nome = ?, papel = ?, ativo = ? where id = ?', userId, u.email, u.name || u.email.split('@')[0], admin ? 'admin' : 'usuario', ativo, existente.id);
   else if (v || admin) exec(t.db, 'insert into pessoas (email, nome, papel, ativo, user_id) values (?, ?, ?, ?, ?)', u.email, u.name || u.email.split('@')[0], admin ? 'admin' : 'usuario', ativo, userId);
+  const resultadoPid=um(t.db,'select id from pessoas where user_id=?',userId)?.id;if(op&&resultadoPid)exec(t.db,"insert into resultado_contas(pessoa_id,categoria) values (?,'tecnica') on conflict(pessoa_id) do update set categoria='tecnica'",resultadoPid);
+  if(t.pessoasResultados)sincronizarContas(t);
   return um(t.db, 'select id from pessoas where user_id = ?', userId)?.id ?? null;
 }
 
@@ -330,6 +338,9 @@ async function tratar(P, rPlat, rEmp, req, res) {
     if (porHost?.redirecionar) { res.writeHead(301, { location: porHost.redirecionar + caminho }); return res.end(); }
     if (porHost?.inexistente) return paginaAmbienteNaoEncontrado(res);
 
+    indexacaoAreaInterna(res, caminho);
+    if (await responderDescobertaPublica(req, res, caminho, !porHost && P.paginaInicial === 'vendas')) return;
+
     // Documentos legais da GreenIA: um endereço canônico, no host da plataforma. No endereço próprio de uma empresa
     // (domínio ou subdomínio) levam à plataforma, para não parecerem termos da empresa (white label).
     const doc = DOCUMENTOS_LEGAIS[caminho];
@@ -352,7 +363,7 @@ async function tratar(P, rPlat, rEmp, req, res) {
       // Host da plataforma: console, APIs da plataforma, página inicial e caminhos /<slug>.
       if (caminho === '/plataforma' || caminho === '/plataforma/') return await servirPagina(res, 'plataforma.html');
       if (caminho.startsWith('/api/plataforma/')) return await despachar(P, rPlat, req, res, url, cookies, null);
-      if (caminho === '/api/saude') return enviarJson(res, 200, { ok: true, ia: P.ia.configurada !== false, versao: VERSAO, design: !!caminhoChromium() });
+      if (caminho === '/api/saude') return enviarJson(res, 200, { ok: true, ia: P.ia.configurada !== false, versao: VERSAO, design: !!caminhoChromium(), acessoRestrito: !!P.publicacaoControlada?.ativa });
       if (caminho === '/' ) {
         if (P.paginaInicial === 'vendas') { cabecalhosLpComercial(res); return await servirPagina(res, 'vendas.html'); }
         res.writeHead(302, { location: '/plataforma' }); return res.end();
@@ -380,7 +391,8 @@ async function tratar(P, rPlat, rEmp, req, res) {
       // Site publicado por uma empresa (página pública e isolada): /<slug>/s/<token>.
       const sp = req.method === 'GET' && /^\/([a-z0-9-]{3,40})\/s\/([A-Za-z0-9_-]{20,64})$/.exec(caminho);
       if (sp) {
-        const c = um(P.db, "select id from companies where slug = ? and status = 'ativa'", sp[1]);
+        const c = um(P.db, "select id,slug from companies where slug = ? and status = 'ativa'", sp[1]);
+        conferirPublicacao(P, c);
         if (c) return servirSite(P.tenant(c.id), sp[2], res);
         return paginaAmbienteNaoEncontrado(res);
       }
@@ -394,6 +406,7 @@ async function tratar(P, rPlat, rEmp, req, res) {
           return paginaAmbienteNaoEncontrado(res);
         }
         if (c.antigo) { res.writeHead(301, { location: `/${c.slug}${m[2] || ''}` }); return res.end(); }
+        conferirPublicacao(P, c);
         (await import('./sessao.js')).definirContexto(P, res, c.id);
         if (m[2]) { res.writeHead(302, { location: m[2] }); return res.end(); }
         return await servirPagina(res, 'index.html');
@@ -410,6 +423,7 @@ async function tratar(P, rPlat, rEmp, req, res) {
     }
 
     // Daqui em diante, tudo acontece dentro da empresa companyId.
+    conferirPublicacao(P, E.lerEmpresa(P, companyId));
     if (caminho === '/icone') return servirIcone(P, res, companyId);
     const spDominio = req.method === 'GET' && /^\/s\/([A-Za-z0-9_-]{20,64})$/.exec(caminho);
     if (spDominio && porHost) return E.lerEmpresa(P, companyId)?.status === 'ativa' ? servirSite(P.tenant(companyId), spDominio[1], res) : pagina404(P, res, porHost);
@@ -446,6 +460,10 @@ async function tratar(P, rPlat, rEmp, req, res) {
     P.log('erro', erroParaLog(e));   // sem a mensagem: uma exceção pode repetir o conteúdo do pedido
     enviarJson(res, 500, { erro: 'interno', mensagem: 'Algo deu errado. Tente de novo.' });
   }
+}
+
+function conferirPublicacao(P, empresa) {
+  if (!empresaNaPublicacao(P.publicacaoControlada, empresa)) throw new ErroHttp(503, 'publicacao_controlada', 'Estamos validando uma atualização. Este ambiente ainda não está liberado.');
 }
 
 // Rotas da plataforma e da empresa: sessão do escopo certo, CSRF em toda escrita, corpo limitado.
@@ -568,6 +586,10 @@ export function iaTrocavel(inicial, { aoRecusar = null, bloqueio = null } = {}) 
     get configurada() { return atual.configurada; }, get simulada() { return atual.simulada; },
     get geraImagem() { return typeof atual.gerarImagem === 'function' && atual.geraImagem !== false && atual.configurada !== false; },
     listarModelos: (...a) => atual.listarModelos(...a),
+    listarRotas: (...a) => {
+      if (typeof atual.listarRotas !== 'function') throw new ErroIA('A consulta de rotas não está disponível no provedor atual.', 503);
+      return atual.listarRotas(...a);
+    },
     conta: (...a) => (atual.conta ? atual.conta(...a) : Promise.resolve(null)),
     custoDaGeracao: (...a) => (atual.custoDaGeracao ? atual.custoDaGeracao(...a) : Promise.resolve(null)),
     // Envio: se a chave em uso já foi recusada pelo OpenRouter, não insiste (revalida no máximo a cada

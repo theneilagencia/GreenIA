@@ -11,6 +11,7 @@ const GRADES = '.l-pilares,.l-planos,.l-etapas,.l-inst,.p-passos,.p-recursos,.p-
 // Conta de 0 até o número (formato 15.420 ou 82%), mantendo o texto ao redor.
 function contar(raiz) {
   for (const el of raiz.querySelectorAll('.num, .l-inst-uso b')) {
+    if (el.closest('[data-op-resultados]')) continue;
     const no = [...el.childNodes].find(n => n.nodeType === 3 && /\d/.test(n.textContent));
     if (!no || el.dataset.contou) continue;
     const m = /(\d{1,3}(?:\.\d{3})*|\d+)(%?)/.exec(no.textContent);
@@ -28,6 +29,8 @@ function contar(raiz) {
 }
 
 if (!calmo && 'IntersectionObserver' in window) {
+  // A LP inteira usa o mesmo ritmo de entrada, sem linhas entre seções.
+  for (const bloco of document.querySelectorAll('.lv main>section .l-cab, .lv main>section .l-bloco>div:first-child')) bloco.classList.add('l-surge');
   for (const g of document.querySelectorAll(GRADES)) {
     if (!g.classList.contains('l-surge')) g.classList.add('l-surge');
     g.classList.add('l-cascata');

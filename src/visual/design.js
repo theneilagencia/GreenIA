@@ -237,6 +237,7 @@ export function conferirDesign(medidas, { conteudo, paginas, formato, extras = [
   // Cobertura: cada fragmento do conteúdo de cada página aparece na página certa.
   for (const [k, p] of paginas.entries()) {
     const alvo = norm(medidas[k]?.texto || ''), faltam = [];
+    if (p.titulo && !alvo.includes(norm(p.titulo))) add('titulo_omitido', `Página ${k + 1}: faltou o título, literalmente: "${limpar(p.titulo, 120)}".`);
     for (const it of p.itens) for (const f of fragmentos(it)) if (!alvo.includes(norm(f))) faltam.push(f);
     if (faltam.length) add('conteudo_omitido', `Página ${k + 1}: faltou, literalmente: ${faltam.slice(0, 6).map(f => `"${limpar(f, 70)}"`).join('; ')}${faltam.length > 6 ? ` e mais ${faltam.length - 6}` : ''}.`);
   }
@@ -360,9 +361,9 @@ export { contraste };
 // ---- Orquestração: IA -> limpeza -> render -> conferência -> (correção) -----------------------------------------
 // Devolve { ok, design, render, falhas, codigos, custo, tentativas, motivo }. Nunca lança por falha da IA ou do
 // navegador: quem chama decide o motor clássico com o motivo.
-export async function projetarDesign({ chamar, plano, conteudo, tr, identidade, assets = {}, objetivo, publico, titulo, data, etapa = () => {} }) {
+export async function projetarDesign({ chamar, plano, conteudo, tr, identidade, assets = {}, objetivo, publico, titulo, data, etapa = () => {}, maxPaginas = MAX_PAGINAS_DESIGN }) {
   const paginas = paginasParaPrompt(plano, conteudo);
-  if (!paginas.length || paginas.length > MAX_PAGINAS_DESIGN) return { ok: false, motivo: 'paginas' };
+  if (!paginas.length || paginas.length > Math.min(60, Math.max(1, Number(maxPaginas) || MAX_PAGINAS_DESIGN))) return { ok: false, motivo: 'paginas' };
   const temAsset = { heroi: !!assets.heroi?.bytes, logo: !!assets.logo?.bytes };
   const extras = [titulo, data, identidade.empresa || '', ...plano.paginas.flatMap(p => [p.titulo || '', p.subtitulo || ''])];
   let custo = 0, tentativas = 0, ajusteFeito = null;

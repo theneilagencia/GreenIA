@@ -7,13 +7,14 @@ import { inflateRawSync } from 'node:zlib';
 import { subir } from './ajuda.js';
 import { openRouterFalso, enviarMensagem, PNG_FALSO } from './openrouter-falso.js';
 import { salvarConfig } from '../src/config.js';
-import { um } from '../src/db.js';
+import { um, todos } from '../src/db.js';
 import { soEntregavel, blocos, slides, formulaDaCelula } from '../src/escritorio.js';
 import { pedidoDeImagem, proporcaoDoPedido } from '../src/imagem-chat.js';
 import { entregaDeCodigo } from '../src/codigo-chat.js';
 import { nomesDasTabelas } from '../public/tabelas.js';
 import { analisarPedido, requisitosDe } from '../src/roteador.js';
 import { pecaDaConversa } from '../src/conversas.js';
+import { catalogoAdvancedFalso } from './advanced-fixture.js';
 
 const texto = c => (typeof c === 'string' ? c : (c || []).map(p => p.text || '').join('\n'));
 const SITE = 'Entendi: você quer um site institucional. Vou entregar a página completa.\n\n## Código\n\n```html\n<!DOCTYPE html>\n<html><head><title>X</title><link rel="stylesheet" href="style.css"></head><body><h1>Olá</h1><script src="app.js"></script></body></html>\n```\n\n**style.css**\n```css\nh1{color:red}\n```\n\n**app.js**\n```js\ndocument.title="ok";\n```\n\n## O que foi feito\n- Site com uma página.';
@@ -57,17 +58,41 @@ test('sugestão de agente/automação usa só recursos da GreenIA, sem APIs de t
   assert.match(NOTA_AGENTE('automacao'), /não invente números, estudos ou benchmarks/);
 });
 
-test('imagem: gerada na conversa com a proporção pedida; "troque a roupa" edita a última; anexada é editada', async () => {
+test('restrições sem imagens e sem pesquisa não acionam ferramentas nem avisos de bloqueio', async () => {
   const conv = await nova();
   const antes = imagens().length;
-  const r = await enviarMensagem(ana, conv.id, { texto: 'Gere uma imagem fotorrealista em 16:9 de uma profissional de 40 anos num escritório, com espaço livre à direita.' });
+  const inicio = OR.chamadas.length;
+  const r = await enviarMensagem(ana, conv.id, { texto: 'Gere uma planilha XLSX com Item e Valor. Sem fórmulas, gráficos ou imagens. Não faça pesquisa na internet.' });
   assert.equal(r.status, 200);
+  assert.equal(imagens().length, antes);
+  const avisos = todos(S.app.db, "select texto from mensagens where conversa_id = ? and papel = 'aviso'", conv.id);
+  assert.ok(!avisos.some(a => /imagem não foi gerada|pesquisa na internet não foi usada/i.test(a.texto)));
+  assert.ok(OR.chamadas.slice(inicio).every(c => !c.plugins?.some(p => p.id === 'web')));
+});
+
+test('imagem: gerada na conversa com a proporção pedida; "troque a roupa" edita a última; anexada é editada', async () => {
+  const conv = await nova();
+  const pedido = 'Gere uma imagem fotorrealista em 16:9 de uma profissional de 40 anos num escritório, com espaço livre à direita.';
+  const chamadasAntes = OR.chamadas.length;
+  const semAcesso = await enviarMensagem(ana, conv.id, { texto: pedido });
+  assert.equal(semAcesso.status, 403);
+  assert.equal(OR.chamadas.length, chamadasAntes);
+  const modelo = 'anthropic/claude-opus-5.5';
+  catalogoAdvancedFalso(S.app, [modelo]);
+  salvarConfig(S.app.db, { advanced: { limiteMensalUsd: 20 } });
+  assert.equal((await admin.put(`/api/admin/modelos/${encodeURIComponent(modelo)}`, { liberado: true, perfil: 'avancado' })).status, 200);
+  assert.equal((await admin.put(`/api/admin/advanced/modelos/${encodeURIComponent(modelo)}`, { aprovado: true, provedores: ['anthropic'], justificativa: 'Rota controlada do provedor simulado neste teste.' })).status, 200);
+  const autorizacao = await admin.post('/api/admin/advanced/autorizacoes', { pessoa_id: ana.pessoa.id, modelos: [modelo], provedores: ['anthropic'], limite_usd: 10, limite_chamada_usd: 2, saida_tokens: 32768, expira_em: new Date(Date.now() + 86400000).toISOString() });
+  assert.equal(autorizacao.status, 200, JSON.stringify(autorizacao.dados));
+  const antes = imagens().length;
+  const r = await enviarMensagem(ana, conv.id, { texto: pedido });
+  assert.equal(r.status, 200, JSON.stringify(r));
   const a = r.fim.arquivos?.[0];
   assert.equal(a?.tipo, 'imagem', 'a imagem chega como arquivo da resposta');
-  const pedido = imagens().at(-1);
+  const chamadaImagem = imagens().at(-1);
   assert.equal(imagens().length, antes + 1);
-  assert.equal(pedido.image_config?.aspect_ratio, '16:9');
-  assert.match(texto(pedido.messages[0].content), /profissional de 40 anos/);
+  assert.equal(chamadaImagem.image_config?.aspect_ratio, '16:9');
+  assert.match(texto(chamadaImagem.messages[0].content), /profissional de 40 anos/);
   assert.match(texto(OR.chamadas.filter(b => !b.modalities).at(-1).messages[0].content), /vai gerar a imagem/, 'o texto não diz que não consegue');
   const ver = await ana.req('GET', `/api/conversas/${conv.id}/arquivos/${a.id}?ver=1`);
   assert.equal(ver.status, 200);
@@ -161,9 +186,17 @@ test('unidades: proporção, pedido de imagem, peças por formato, código, fór
   assert.equal(proporcaoDoPedido('imagem em 16:9'), '16:9');
   assert.equal(pedidoDeImagem('Crie uma apresentação com imagens'), null);
   assert.equal(pedidoDeImagem('Analise a imagem anexada'), null);
+  for (const pedido of ['Gere uma planilha, sem imagens.', 'Crie um XLSX. Sem fórmulas, gráficos ou imagens.', 'Crie um relatório; não gere imagens.', 'Faça uma tabela, evite imagens.', 'Não faça imagens. Crie uma tabela.', 'Não quero imagens; faça um resumo.'])
+    assert.equal(pedidoDeImagem(pedido), null, pedido);
+  assert.equal(pedidoDeImagem('Gere uma imagem de uma montanha, sem texto.').modo, 'nova');
+  assert.equal(pedidoDeImagem('Sem texto e gere uma imagem de uma montanha.').modo, 'nova');
+  assert.equal(pedidoDeImagem('Não crie imagens; crie uma imagem de uma montanha.').modo, 'nova');
   assert.equal(pedidoDeImagem('Deixe a iluminação mais quente', { ultima: { dataUrl: 'x' }, ultimaFoiImagem: false }), null, 'sem imagem na última resposta não é edição');
   const pecas = pecaDaConversa('Crie uma campanha para LinkedIn com peças visuais nos formatos quadrado e horizontal.').operacao.entregaveis;
   assert.deepEqual(pecas.map(e => e.visual.formato), ['1:1', '1.91:1']);
+  const multiplas = pecaDaConversa('Crie um carrossel de exatamente 3 páginas quadradas em PNG e PDF, e um post único quadrado em PNG e PDF. Use o tema Aurora.').operacao.entregaveis;
+  assert.deepEqual(multiplas.map(e => [e.visual.tipo, e.visual.formato, e.visual.paginas || null]), [['carousel', '1:1', 3], ['social_post', '1:1', null]]);
+  assert.equal(pecaDaConversa('Crie um carrossel sobre como escrever um post único quadrado.').operacao.entregaveis.length, 1);
   assert.deepEqual(nomesDasTabelas('### Premissas\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n| c |\n|---|\n| 3 |'), ['Premissas', null]);
   assert.equal(formulaDaCelula('=SOMA(B2;B5)'), 'SUM(B2,B5)');
   assert.equal(formulaDaCelula('=WEBSERVICE("http://x")'), null);
@@ -228,16 +261,19 @@ test('agente e automação viram Quick Win (não código); pesquisa atual usa a 
   assert.deepEqual(quickWinSugerido('Resumo.\n\n## Quick Win sugerido\n\nNome: Analisador de propostas\nDescrição: Lê a proposta e gera o relatório.\nPergunta o que faltar.\n\n## O que foi feito\n- x'),
     { nome: 'Analisador de propostas', descricao: 'Lê a proposta e gera o relatório.\nPergunta o que faltar.' });
   assert.ok(pedePesquisa('Pesquise as principais mudanças dos últimos 30 dias'));
+  assert.ok(!pedePesquisa('Crie um carrossel e não faça pesquisa na internet.'));
+  assert.ok(!pedePesquisa('Faça um resumo; nunca realize buscas externas.'));
   assert.ok(!pedePesquisa('Escreva um e-mail para o cliente'));
   // Na conversa: agente → nota de Quick Win; pesquisa desligada → diz o motivo; ligada → ferramenta de busca no envio.
   const conv = await nova();
   await enviarMensagem(ana, conv.id, { texto: 'Crie um agente para analisar propostas comerciais e reutilizar depois.' });
   assert.match(texto(OR.chamadas.filter(b => !b.modalities).at(-1).messages[0].content), /um agente reutilizável é um Quick Win/);
   salvarConfig(S.app.db, { pesquisaWeb: { ativa: false } });
-  await enviarMensagem(ana, (await nova()).id, { texto: 'Pesquise as novidades dos últimos 30 dias sobre IA.' });
-  let b = OR.chamadas.filter(x => !x.modalities).at(-1);
-  assert.match(texto(b.messages[0].content), /A pesquisa na internet não foi usada.*não está liberada pela empresa/s);
-  assert.equal(b.plugins, undefined);
+  const antesBloqueio = OR.chamadas.length;
+  const bloqueio = await enviarMensagem(ana, (await nova()).id, { texto: 'Pesquise as novidades dos últimos 30 dias sobre IA.' });
+  assert.equal(bloqueio.status, 409);
+  assert.equal(bloqueio.erro.erro, 'pesquisa_nao_liberada');
+  assert.equal(OR.chamadas.length, antesBloqueio, 'não inspeciona uma chamada antiga como se fosse a execução bloqueada');
   salvarConfig(S.app.db, { pesquisaWeb: { ativa: true } });
   try {
     const antes = OR.chamadas.length;

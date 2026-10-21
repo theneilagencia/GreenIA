@@ -27,6 +27,15 @@ export function montarCorpo(mensagens, op) {
     corpo.provider = { data_collection: op.semTreino === false ? 'allow' : 'deny' };
     if (op.reserva) corpo.models = [op.modelo, op.reserva];
   }
+  if (op.advanced) {
+    if (!op.fornecedor || op.reserva) throw new ErroIA('Rota Advanced sem aprovação fixa.',400);
+    corpo.provider = { only:[op.fornecedor], order:[op.fornecedor], allow_fallbacks:false, data_collection:'deny', require_parameters:true, ...(op.advancedMaxPrice ? {max_price:op.advancedMaxPrice} : {}), ...(op.sigilosa ? {zdr:true} : {}) };
+    delete corpo.models;
+    // Evita cobranças de escrita em cache fora da reserva autorizada.
+    const semCache=v=>Array.isArray(v)?v.map(semCache):v&&typeof v==='object'?Object.fromEntries(Object.entries(v).filter(([k])=>k!=='cache_control').map(([k,x])=>[k,semCache(x)])):v;
+    corpo.messages=semCache(mensagens);
+    if (op.raciocinio) corpo.reasoning = { effort:op.raciocinio };
+  }
   if (op.maxTokens) corpo.max_tokens = op.maxTokens;
   // Pesquisa na internet (plugin "web" do OpenRouter): só quando a governança liberou para esta chamada.
   // As citações voltam como anotações "url_citation" e viram as fontes da resposta.
@@ -64,11 +73,17 @@ export function criarOpenRouter({ chave, base = 'https://openrouter.ai/api/v1', 
       } catch { return null; }
     },
 
+    async listarRotas(id) {
+      const r=await f(`${base}/models/${id}/endpoints`,{headers:cab,signal:AbortSignal.timeout(15000)});
+      if(!r.ok)throw new ErroIA('Não foi possível confirmar as rotas do modelo.');
+      return ((await r.json()).data?.endpoints||[]).map(e=>({id:e.tag,nome:e.provider_name,contexto:e.context_length,maxSaida:e.max_completion_tokens,parametros:e.supported_parameters||[],entrada:Number(e.pricing?.prompt),saida:Number(e.pricing?.completion)}));
+    },
     async listarModelos() {
       const r = await f(`${base}/models`, { headers: cab });
       if (!r.ok) throw new ErroIA(`OpenRouter respondeu ${r.status} na lista de modelos.`);
       return ((await r.json()).data || []).map(m => ({
         id: m.id, nome: m.name || m.id, fornecedor: m.id.split('/')[0],
+        maxSaida:m.top_provider?.max_completion_tokens || null, parametros:m.supported_parameters || [], modalidades:m.architecture?.input_modalities || [], precosAlternativos:m.pricing?.overrides || [],
         precoEntrada: Number(m.pricing?.prompt ?? NaN), precoSaida: Number(m.pricing?.completion ?? NaN), contexto: m.context_length ?? null,
       }));
     },
@@ -105,7 +120,7 @@ export function criarOpenRouter({ chave, base = 'https://openrouter.ai/api/v1', 
         throw new ErroIA(d.error?.message ? `O serviço de IA recusou: ${d.error.message}` : `O serviço de IA respondeu ${r.status}.`, r.status >= 500 ? 502 : r.status);
       }
       const fim = { modelo: null, fornecedor: null, custo: 0, economia: 0, tokensEntrada: 0, tokensSaida: 0 };
-      let gerou = false;
+      let gerou = false, custoConfirmado = false, terminou = false, recebeuDone = false;
       const dec = new TextDecoder();
       let resto = '';
       for await (const pedaco of r.body) {
@@ -113,13 +128,17 @@ export function criarOpenRouter({ chave, base = 'https://openrouter.ai/api/v1', 
         const linhas = resto.split('\n');
         resto = linhas.pop();
         for (const l of linhas) {
-          if (!l.startsWith('data: ') || l === 'data: [DONE]') continue;
+          if(l === 'data: [DONE]'){recebeuDone=true;continue;}
+          if (!l.startsWith('data: ')) continue;
           let d; try { d = JSON.parse(l.slice(6)); } catch { continue; }
           // Identificação da geração: com ela, o custo de uma chamada interrompida é buscado depois (src/custo-ia.js).
           if (d.id && !gerou) { gerou = true; op.aoGerar?.(d.id); }
           if (d.error) throw new ErroIA(`O serviço de IA falhou: ${d.error.message || 'erro'}`);
           if (d.model) fim.modelo = d.model;
           if (d.provider) fim.fornecedor = d.provider;
+          const motivoFim = d.choices?.[0]?.finish_reason;
+          if (motivoFim === 'length') throw new ErroIA('O limite de saída foi atingido. A entrega está incompleta; aumente o limite autorizado antes de refazer.',409);
+          if (motivoFim) terminou = true;
           const texto = d.choices?.[0]?.delta?.content;
           if (texto) yield { tipo: 'texto', texto };
           for (const a of [...(d.choices?.[0]?.delta?.annotations || []), ...(d.choices?.[0]?.message?.annotations || [])]) {
@@ -127,6 +146,7 @@ export function criarOpenRouter({ chave, base = 'https://openrouter.ai/api/v1', 
             if (c?.url && /^https?:\/\//.test(c.url)) yield { tipo: 'fonte', url: String(c.url).slice(0, 500), titulo: String(c.title || c.url).slice(0, 200) };
           }
           if (d.usage) {
+            custoConfirmado = d.usage.cost != null && Number.isFinite(Number(d.usage.cost));
             fim.custo = Number(d.usage.cost ?? 0);
             fim.economia = Number(d.usage.cache_discount ?? 0);
             fim.tokensEntrada = d.usage.prompt_tokens ?? 0;
@@ -134,7 +154,8 @@ export function criarOpenRouter({ chave, base = 'https://openrouter.ai/api/v1', 
           }
         }
       }
-      yield { tipo: 'fim', ...fim };
+      if (op.advanced && !terminou && !recebeuDone) throw new ErroIA('A execução Advanced terminou sem confirmação de conclusão. A entrega não foi validada.',502);
+      yield { tipo: 'fim', ...fim, custoConfirmado };
     },
   };
 }

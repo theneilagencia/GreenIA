@@ -1,3 +1,5 @@
+import { ESQUEMA_RESULTADOS } from './resultados-schema.js';
+import { ESQUEMA_ADVANCED } from './advanced-schema.js';
 import { ESQUEMA_PAINEIS } from './paineis-modelos.js';
 import { ESQUEMA_PROGRAMACAO } from './qw-programacao-schema.js';
 import { fazerBackupLocal } from './backup.js';
@@ -9,7 +11,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname, basename, join } from 'node:path';
 
-const ESQUEMA = `
+const ESQUEMA = ESQUEMA_RESULTADOS + `
 create table if not exists config (chave text primary key, valor text not null);
 
 create table if not exists pessoas (
@@ -200,7 +202,7 @@ create table if not exists visual_assets (
 create table if not exists uso (
   id integer primary key, em text not null, pessoa_id integer, conversa_id integer, quick_win_id integer,
   modelo_pedido text, modelo_usado text, fornecedor text, custo real not null default 0,
-  economia real not null default 0, ms integer, sigilosa integer not null default 0, teste integer not null default 0);
+  economia real not null default 0, ms integer, sigilosa integer not null default 0, teste integer not null default 0, trabalho_id integer, tentativa_id integer);
 
 -- Integration Builder (governado). Toda linha tem tenant_id (o banco já é da empresa; o tenant_id é a segunda
 -- barreira contra acesso cruzado e entra em toda consulta). Nenhuma tabela guarda segredo em claro.
@@ -278,6 +280,7 @@ export function abrirBanco(arquivo = ':memory:') {
   }
   db.exec(ESQUEMA);
   db.exec(ESQUEMA_GOV);
+  transacao(db, () => db.exec(ESQUEMA_ADVANCED));
   transacao(db,()=>db.exec(ESQUEMA_PROGRAMACAO));
   transacao(db,()=>db.exec(ESQUEMA_PAINEIS));
   // Banco novo já nasce com a estrutura atual: as migrações servem aos bancos que já existiam.
@@ -444,6 +447,9 @@ create table if not exists arquivos_gerados (
   db => { if (!db.prepare("select 1 from pragma_table_info('arquivos_gerados') where name = 'textos'").get()) db.exec('alter table arquivos_gerados add column textos text'); },
   // 23. Conversa com dados pessoais mascarados (sem recurso autorizado para sigilo): as mensagens seguintes também saem mascaradas.
   db => { if (!db.prepare("select 1 from pragma_table_info('conversas') where name = 'mascarada'").get()) db.exec('alter table conversas add column mascarada integer not null default 0'); },
+  // 24. Critérios do pedido Advanced, sem conteúdo, para recomendar a liberação.
+  db => { if (!db.prepare("select 1 from pragma_table_info('advanced_pedidos') where name = 'requisitos'").get()) db.exec("alter table advanced_pedidos add column requisitos text not null default '{}'"); },
+  db => { for (const c of ['trabalho_id','tentativa_id']) if (!db.prepare('pragma table_info(uso)').all().some(x=>x.name===c)) db.exec(`alter table uso add column ${c} integer`); if(!db.prepare('pragma table_info(trabalho_verificacoes)').all().some(c=>c.name==='evidencia'))db.exec('alter table trabalho_verificacoes add column evidencia text'); },
 ];
 
 export function migrar(db, lista = MIGRACOES) {

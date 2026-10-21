@@ -1,3 +1,4 @@
+import { autorizarAdvancedFalso } from './advanced-fixture.js';
 // Design pela IA (diretora de arte): o HTML/CSS da IA é dado (limpo: sem script, evento ou recurso externo), é
 // composto num Chromium isolado (JavaScript desligado, rede bloqueada) e conferido nos pixels e no DOM; falhou, uma
 // correção; falhou de novo, motor clássico. Prévia, PDF, PNG/JPG, edição sem IA, restauração e acesso pela API.
@@ -110,10 +111,13 @@ test('isolamento do navegador: JavaScript da página não roda e nenhum pedido s
   const porta = srv.address().port;
   const bruto = `<!doctype html><html><head><style>@import url('http://127.0.0.1:${porta}/a.css'); body{background:url('http://127.0.0.1:${porta}/b.png')}</style><link rel="stylesheet" href="http://127.0.0.1:${porta}/c.css"></head>
 <body><img src="http://127.0.0.1:${porta}/d.png"><iframe src="http://127.0.0.1:${porta}/e"></iframe><p id="p">original</p><script>document.getElementById('p').textContent='HACK';fetch('http://127.0.0.1:${porta}/f')</script></body></html>`;
-  const txt = await comPagina({ largura: 400, altura: 300, documento: bruto }, page => page.evaluate(() => document.body.innerText));
-  await new Promise(ok => srv.close(ok));
-  assert.match(txt, /original/); assert.doesNotMatch(txt, /HACK/);
-  assert.equal(pedidos, 0, 'nenhum pedido chegou ao servidor local');
+  try {
+    const txt = await comPagina({ largura: 400, altura: 300, documento: bruto }, page => page.evaluate(() => document.body.innerText));
+    assert.match(txt, /original/); assert.doesNotMatch(txt, /HACK/);
+    assert.equal(pedidos, 0, 'nenhum pedido chegou ao servidor local');
+  } finally {
+    await new Promise(ok => { srv.close(ok); srv.closeAllConnections?.(); });
+  }
 });
 
 test('conferência no navegador: transbordo, margem, fonte pequena, contraste (nos pixels), sobreposição, número inventado e conteúdo omitido', async () => {
@@ -315,4 +319,68 @@ test('QF-05 ajuste de contraste vence cor !important e fundo médio (tarja atrá
   assert.equal(r.ok, true, JSON.stringify(r.falhas));
   assert.deepEqual(r.ajuste.codigos, ['contraste']);
   assert.match(r.design.paginas[0], /color: rgb\(\d+, \d+, \d+\) !important|color: #(111111|FFFFFF) !important/i);
+});
+
+test('alta qualidade: 13 slides mantêm design pela IA em quatro lotes e passam pela conferência visual', async () => {
+  const conteudo = analisarConteudo(Array.from({ length: 13 }, (_, k) => `### Tema ${k + 1}\n- Conteúdo validado do tema ${k + 1}.`).join('\n\n'), { titulo: 'Material final' });
+  const plano = { formato: '16:9', paginas: conteudo.secoes.map(s => ({ papel: 'conteudo', titulo: s.titulo, blocos: s.itens.map(it => ({ refs: [it.id] })) })) };
+  let chamadas = 0;
+  const r = await projetarDesign({
+    plano, conteudo, tr: { formato: '16:9' }, identidade: resolverIdentidade({}), objetivo: 'Crie uma apresentação de alta qualidade', titulo: 'Material final', data: '17/10/2026', maxPaginas: 60,
+    chamar: async messages => { chamadas++; return { texto: designFalso({ messages }), custo: 0.001 }; },
+  });
+  assert.equal(r.ok, true, JSON.stringify({ motivo: r.motivo, codigos: r.codigos }));
+  assert.equal(r.design.paginas.length, 13);
+  assert.equal(chamadas, 4, 'um lote por grupo de até quatro slides, sem refazer o trabalho inteiro');
+  assert.equal(r.custo, 0.004);
+});
+
+test('PPTX usa o design aprovado, preserva texto editável, formas e número de páginas', async () => {
+  const { pptxDoDesign } = await import('../src/visual/pptx.js');
+  const { previaDoPptx } = await import('../src/previa-pptx.js');
+  const identidade = resolverIdentidade({});
+  const design = { css: '.bloco{position:absolute;inset:60px;background:#112F35;color:#fff;padding:50px;font-size:30px}.linha{color:#F5CD67;font-size:26px}', paginas: ['<div class="bloco"><h1 style="font-size:48px">Cronograma do projeto</h1><p class="linha">26 e 27 de outubro de 2026</p><p>Diagnóstico com a equipe</p></div>', '<div class="bloco"><h1 style="font-size:48px">Entrega final</h1><p>Conteúdo integral com design validado</p></div>'] };
+  const render = await renderizarDesign(design, { formato:'16:9', identidade });
+  const r = await pptxDoDesign({ plano: { motor:'design' }, render, paginas:2 }, { titulo:'Apresentação final' });
+  const p = previaDoPptx(r.dados);
+  assert.equal(p.slides.length,2);
+  const texto = p.slides.flatMap(s=>s.formas.filter(f=>f.tipo==='texto').flatMap(f=>f.paragrafos.flatMap(p=>p.runs.map(r=>r.t)))).join(' ');
+  assert.match(texto,/26 e 27 de outubro de 2026/);
+  assert.match(texto,/Conteúdo integral com design validado/);
+  assert.ok(p.slides.every(s=>s.formas.some(f=>f.tipo==='caminho'||f.tipo==='retangulo')),'formas do design exportadas, sem template textual');
+  assert.equal(r.detalhes.origem,'design_validado');
+});
+
+test('refatore o PPTX premium: fluxo completo entrega PowerPoint do design, não arquivo da resposta', async () => {
+  const { pptx, MIMES } = await import('../src/escritorio.js');
+  const { previaDoPptx } = await import('../src/previa-pptx.js');
+  salvarConfig(S.app.db, { acessoPerfis: { equilibrado: { todos:true }, avancado:{ todos:true } } });
+  const admin=await S.cliente().entrar('admin@exemplo.com.br');
+  await autorizarAdvancedFalso(S,admin,ana.pessoa,['anthropic/claude-sonnet-5']);
+  const chamadas = OR.chamadas.length;
+  OR.responder = b => {
+    const sis = texto(b.messages[0].content);
+    if (sis.includes('diretora de arte')) return designFalso(b);
+    if (sis.includes('diretor de arte')) return 'sem plano';
+    return DECK;
+  };
+  try {
+    const conv = (await ana.post('/api/conversas', {})).dados.conversa;
+    const r = await enviarMensagem(ana, conv.id, { texto:'Refatore o PPTX para deixá-lo mais premium', anexos:[{ nome:'Material-original.pptx', base64:pptx(DECK).toString('base64') }] });
+    assert.ok(r.fim,JSON.stringify(r));
+    const arquivo = r.fim.arquivos?.find(a=>a.origem==='design_validado');
+    assert.ok(arquivo,JSON.stringify(r.fim));
+    assert.equal(arquivo.tipo,'design');
+    const salvo = um(S.app.db,'select * from arquivos_gerados where id=?',arquivo.id);
+    assert.equal(salvo.mime,MIMES.pptx,'PowerPoint real, não URI para converter Markdown');
+    const menu = await binario(ana, `/api/conversas/${conv.id}/mensagens/${salvo.mensagem_id}/arquivo/pptx`);
+    assert.equal(menu.status,200);
+    assert.deepEqual(Buffer.from(await menu.arrayBuffer()),Buffer.from(salvo.dados),'Baixar como usa exatamente o mesmo design');
+    const p = previaDoPptx(Buffer.from(salvo.dados));
+    assert.ok(p.slides.length>=3);
+    const textoExportado = p.slides.flatMap(s=>s.formas.filter(f=>f.tipo==='texto').flatMap(f=>f.paragrafos.flatMap(p=>p.runs.map(r=>r.t)))).join(' ');
+    assert.match(textoExportado,/Contratar os 2 vendedores/);
+    assert.ok(OR.chamadas.slice(chamadas).some(b=>texto(b.messages[0].content).includes('apresentacao_fonte')),'fonte completa vai no contexto autorizado');
+    assert.ok(!todos(S.app.db,'select mime from arquivos_gerados where conversa_id=?',conv.id).some(a=>a.mime==='text/uri-list'));
+  } finally { OR.responder=roteiro; }
 });

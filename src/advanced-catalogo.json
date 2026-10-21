@@ -1,0 +1,797 @@
+[
+  {
+    "id": "anthropic/claude-opus-5.5",
+    "nome": "Anthropic: Claude Opus 5.5",
+    "fornecedor": "anthropic",
+    "contexto": 1000000,
+    "maxSaida": 128000,
+    "parametros": [
+      "include_reasoning",
+      "max_completion_tokens",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "stop",
+      "structured_outputs",
+      "tool_choice",
+      "tools",
+      "verbosity"
+    ],
+    "modalidades": [
+      "text",
+      "image",
+      "file"
+    ],
+    "entrada": 4e-06,
+    "saida": 2e-05,
+    "precosAlternativos": [],
+    "consultadoEm": "2026-10-17T10:09:54.758288+00:00",
+    "rotas": [
+      {
+        "id": "amazon-bedrock",
+        "nome": "Amazon Bedrock",
+        "contexto": 1000000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "stop",
+          "tool_choice",
+          "tools",
+          "response_format",
+          "verbosity",
+          "reasoning_effort"
+        ],
+        "entrada": 4e-06,
+        "saida": 2e-05
+      },
+      {
+        "id": "azure/global",
+        "nome": "Azure",
+        "contexto": 1000000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "structured_outputs",
+          "max_tokens",
+          "max_completion_tokens",
+          "tools",
+          "tool_choice",
+          "response_format",
+          "verbosity",
+          "stop",
+          "reasoning_effort"
+        ],
+        "entrada": 4e-06,
+        "saida": 2e-05
+      },
+      {
+        "id": "google-vertex/global",
+        "nome": "Google",
+        "contexto": 1000000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "response_format",
+          "tool_choice",
+          "tools",
+          "verbosity",
+          "structured_outputs",
+          "stop",
+          "reasoning_effort"
+        ],
+        "entrada": 4e-06,
+        "saida": 2e-05
+      },
+      {
+        "id": "claude-on-aws",
+        "nome": "Claude Platform on AWS",
+        "contexto": 1000000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "stop",
+          "tool_choice",
+          "tools",
+          "structured_outputs",
+          "response_format",
+          "verbosity",
+          "reasoning_effort"
+        ],
+        "entrada": 4e-06,
+        "saida": 2e-05
+      },
+      {
+        "id": "anthropic",
+        "nome": "Anthropic",
+        "contexto": 1000000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "stop",
+          "tool_choice",
+          "tools",
+          "structured_outputs",
+          "response_format",
+          "verbosity",
+          "reasoning_effort"
+        ],
+        "entrada": 4e-06,
+        "saida": 2e-05
+      },
+      {
+        "id": "amazon-bedrock/eu-west-1",
+        "nome": "Amazon Bedrock",
+        "contexto": 1000000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "stop",
+          "tool_choice",
+          "tools",
+          "response_format",
+          "verbosity",
+          "reasoning_effort"
+        ],
+        "entrada": 4.4e-06,
+        "saida": 2.2e-05
+      },
+      {
+        "id": "amazon-bedrock/us-east-1",
+        "nome": "Amazon Bedrock",
+        "contexto": 1000000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "stop",
+          "tool_choice",
+          "tools",
+          "response_format",
+          "verbosity",
+          "reasoning_effort"
+        ],
+        "entrada": 4.4e-06,
+        "saida": 2.2e-05
+      },
+      {
+        "id": "azure/us",
+        "nome": "Azure",
+        "contexto": 1000000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "structured_outputs",
+          "max_tokens",
+          "max_completion_tokens",
+          "tools",
+          "tool_choice",
+          "response_format",
+          "verbosity",
+          "stop",
+          "reasoning_effort"
+        ],
+        "entrada": 4.4e-06,
+        "saida": 2.2e-05
+      },
+      {
+        "id": "google-vertex/us",
+        "nome": "Google",
+        "contexto": 1000000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "response_format",
+          "tool_choice",
+          "tools",
+          "verbosity",
+          "structured_outputs",
+          "stop",
+          "reasoning_effort"
+        ],
+        "entrada": 4.4e-06,
+        "saida": 2.2e-05
+      },
+      {
+        "id": "google-vertex/europe",
+        "nome": "Google",
+        "contexto": 1000000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "response_format",
+          "tool_choice",
+          "tools",
+          "verbosity",
+          "structured_outputs",
+          "stop",
+          "reasoning_effort"
+        ],
+        "entrada": 4.4e-06,
+        "saida": 2.2e-05
+      },
+      {
+        "id": "anthropic/fast",
+        "nome": "Anthropic",
+        "contexto": 1000000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "stop",
+          "tool_choice",
+          "tools",
+          "structured_outputs",
+          "response_format",
+          "verbosity",
+          "reasoning_effort"
+        ],
+        "entrada": 8e-06,
+        "saida": 4e-05
+      }
+    ],
+    "fonte": "https://openrouter.ai/api/v1/models/anthropic/claude-opus-5.5/endpoints"
+  },
+  {
+    "id": "anthropic/claude-sonnet-5.5",
+    "nome": "Anthropic: Claude Sonnet 5.5",
+    "fornecedor": "anthropic",
+    "contexto": 1000000,
+    "maxSaida": 128000,
+    "parametros": [
+      "include_reasoning",
+      "max_completion_tokens",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "stop",
+      "structured_outputs",
+      "tool_choice",
+      "tools",
+      "verbosity"
+    ],
+    "modalidades": [
+      "text",
+      "image",
+      "file"
+    ],
+    "entrada": 2e-06,
+    "saida": 1e-05,
+    "precosAlternativos": [],
+    "consultadoEm": "2026-10-17T10:09:54.758297+00:00",
+    "rotas": [
+      {
+        "id": "google-vertex/global",
+        "nome": "Google",
+        "contexto": 1000000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "response_format",
+          "tool_choice",
+          "tools",
+          "verbosity",
+          "structured_outputs",
+          "stop",
+          "reasoning_effort"
+        ],
+        "entrada": 2e-06,
+        "saida": 1e-05
+      },
+      {
+        "id": "amazon-bedrock",
+        "nome": "Amazon Bedrock",
+        "contexto": 1000000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "stop",
+          "tool_choice",
+          "tools",
+          "response_format",
+          "verbosity",
+          "reasoning_effort"
+        ],
+        "entrada": 2e-06,
+        "saida": 1e-05
+      },
+      {
+        "id": "azure/global",
+        "nome": "Azure",
+        "contexto": 1000000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "structured_outputs",
+          "max_tokens",
+          "max_completion_tokens",
+          "tools",
+          "tool_choice",
+          "response_format",
+          "verbosity",
+          "stop",
+          "reasoning_effort"
+        ],
+        "entrada": 2e-06,
+        "saida": 1e-05
+      },
+      {
+        "id": "claude-on-aws",
+        "nome": "Claude Platform on AWS",
+        "contexto": 1000000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "stop",
+          "tool_choice",
+          "tools",
+          "response_format",
+          "verbosity",
+          "reasoning_effort"
+        ],
+        "entrada": 2e-06,
+        "saida": 1e-05
+      },
+      {
+        "id": "anthropic",
+        "nome": "Anthropic",
+        "contexto": 1000000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "stop",
+          "tools",
+          "tool_choice",
+          "structured_outputs",
+          "response_format",
+          "verbosity",
+          "reasoning_effort"
+        ],
+        "entrada": 2e-06,
+        "saida": 1e-05
+      },
+      {
+        "id": "google-vertex/us",
+        "nome": "Google",
+        "contexto": 1000000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "response_format",
+          "tool_choice",
+          "tools",
+          "verbosity",
+          "structured_outputs",
+          "stop",
+          "reasoning_effort"
+        ],
+        "entrada": 2.2e-06,
+        "saida": 1.1e-05
+      },
+      {
+        "id": "azure/us",
+        "nome": "Azure",
+        "contexto": 1000000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "structured_outputs",
+          "max_tokens",
+          "max_completion_tokens",
+          "tools",
+          "tool_choice",
+          "response_format",
+          "verbosity",
+          "stop",
+          "reasoning_effort"
+        ],
+        "entrada": 2.2e-06,
+        "saida": 1.1e-05
+      },
+      {
+        "id": "google-vertex/europe",
+        "nome": "Google",
+        "contexto": 1000000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "response_format",
+          "tool_choice",
+          "tools",
+          "verbosity",
+          "structured_outputs",
+          "stop",
+          "reasoning_effort"
+        ],
+        "entrada": 2.2e-06,
+        "saida": 1.1e-05
+      }
+    ],
+    "fonte": "https://openrouter.ai/api/v1/models/anthropic/claude-sonnet-5.5/endpoints"
+  },
+  {
+    "id": "openai/gpt-5.6-sol",
+    "nome": "OpenAI: GPT-5.6 Sol",
+    "fornecedor": "openai",
+    "contexto": 1050000,
+    "maxSaida": 128000,
+    "parametros": [
+      "include_reasoning",
+      "max_completion_tokens",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "seed",
+      "structured_outputs",
+      "tool_choice",
+      "tools",
+      "verbosity"
+    ],
+    "modalidades": [
+      "file",
+      "image",
+      "text"
+    ],
+    "entrada": 4e-06,
+    "saida": 2e-05,
+    "precosAlternativos": [
+      {
+        "min_prompt_tokens": 272000,
+        "prompt": "0.000008",
+        "completion": "0.00003",
+        "input_cache_read": "0.0000008",
+        "input_cache_write": "0.00001"
+      }
+    ],
+    "consultadoEm": "2026-10-17T10:09:54.758300+00:00",
+    "rotas": [
+      {
+        "id": "openai/flex",
+        "nome": "OpenAI",
+        "contexto": 1050000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "seed",
+          "max_tokens",
+          "response_format",
+          "structured_outputs",
+          "tools",
+          "tool_choice",
+          "verbosity",
+          "reasoning_effort"
+        ],
+        "entrada": 2e-06,
+        "saida": 1e-05
+      },
+      {
+        "id": "azure",
+        "nome": "Azure",
+        "contexto": 1050000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_completion_tokens",
+          "tools",
+          "tool_choice",
+          "seed",
+          "response_format",
+          "structured_outputs",
+          "verbosity",
+          "reasoning_effort"
+        ],
+        "entrada": 4e-06,
+        "saida": 2e-05
+      },
+      {
+        "id": "openai",
+        "nome": "OpenAI",
+        "contexto": 1050000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "seed",
+          "max_tokens",
+          "response_format",
+          "structured_outputs",
+          "tools",
+          "tool_choice",
+          "verbosity",
+          "reasoning_effort"
+        ],
+        "entrada": 4e-06,
+        "saida": 2e-05
+      },
+      {
+        "id": "azure/us",
+        "nome": "Azure",
+        "contexto": 1050000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_completion_tokens",
+          "tools",
+          "tool_choice",
+          "seed",
+          "response_format",
+          "structured_outputs",
+          "verbosity",
+          "reasoning_effort"
+        ],
+        "entrada": 4.4e-06,
+        "saida": 2.2e-05
+      },
+      {
+        "id": "amazon-bedrock/us-east-1",
+        "nome": "Amazon Bedrock",
+        "contexto": 1050000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "tools",
+          "tool_choice",
+          "response_format",
+          "structured_outputs",
+          "verbosity",
+          "reasoning_effort"
+        ],
+        "entrada": 4.4e-06,
+        "saida": 2.2e-05
+      },
+      {
+        "id": "azure/eu",
+        "nome": "Azure",
+        "contexto": 1050000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_completion_tokens",
+          "tools",
+          "tool_choice",
+          "seed",
+          "response_format",
+          "structured_outputs",
+          "verbosity",
+          "reasoning_effort"
+        ],
+        "entrada": 4.4e-06,
+        "saida": 2.2e-05
+      },
+      {
+        "id": "openai/fast",
+        "nome": "OpenAI",
+        "contexto": 1050000,
+        "maxSaida": 128000,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "seed",
+          "max_tokens",
+          "response_format",
+          "structured_outputs",
+          "tools",
+          "tool_choice",
+          "verbosity",
+          "reasoning_effort"
+        ],
+        "entrada": 8e-06,
+        "saida": 4e-05
+      }
+    ],
+    "fonte": "https://openrouter.ai/api/v1/models/openai/gpt-5.6-sol/endpoints"
+  },
+  {
+    "id": "google/gemini-3.1-pro-preview",
+    "nome": "Google: Gemini 3.1 Pro Preview",
+    "fornecedor": "google",
+    "contexto": 1048576,
+    "maxSaida": 65536,
+    "parametros": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "seed",
+      "stop",
+      "structured_outputs",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_p"
+    ],
+    "modalidades": [
+      "audio",
+      "file",
+      "image",
+      "text",
+      "video"
+    ],
+    "entrada": 2e-06,
+    "saida": 1.2e-05,
+    "precosAlternativos": [
+      {
+        "min_prompt_tokens": 200000,
+        "prompt": "0.000004",
+        "completion": "0.000018",
+        "audio": "0.000004",
+        "input_audio_cache": "0.0000004",
+        "input_cache_read": "0.0000004"
+      }
+    ],
+    "consultadoEm": "2026-10-17T10:09:54.758301+00:00",
+    "rotas": [
+      {
+        "id": "google-vertex/global/flex",
+        "nome": "Google",
+        "contexto": 1048576,
+        "maxSaida": 65536,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "temperature",
+          "top_p",
+          "seed",
+          "response_format",
+          "tools",
+          "tool_choice",
+          "stop",
+          "structured_outputs",
+          "reasoning_effort"
+        ],
+        "entrada": 1e-06,
+        "saida": 6e-06
+      },
+      {
+        "id": "google-ai-studio/flex",
+        "nome": "Google AI Studio",
+        "contexto": 1048576,
+        "maxSaida": 65536,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "temperature",
+          "top_p",
+          "seed",
+          "response_format",
+          "tools",
+          "tool_choice",
+          "structured_outputs",
+          "reasoning_effort"
+        ],
+        "entrada": 1e-06,
+        "saida": 6e-06
+      },
+      {
+        "id": "google-vertex/global",
+        "nome": "Google",
+        "contexto": 1048576,
+        "maxSaida": 65536,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "temperature",
+          "top_p",
+          "seed",
+          "response_format",
+          "tools",
+          "tool_choice",
+          "stop",
+          "structured_outputs",
+          "reasoning_effort"
+        ],
+        "entrada": 2e-06,
+        "saida": 1.2e-05
+      },
+      {
+        "id": "google-ai-studio",
+        "nome": "Google AI Studio",
+        "contexto": 1048576,
+        "maxSaida": 65536,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "temperature",
+          "top_p",
+          "seed",
+          "response_format",
+          "tools",
+          "tool_choice",
+          "structured_outputs",
+          "reasoning_effort"
+        ],
+        "entrada": 2e-06,
+        "saida": 1.2e-05
+      },
+      {
+        "id": "google-vertex/global/priority",
+        "nome": "Google",
+        "contexto": 1048576,
+        "maxSaida": 65536,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "temperature",
+          "top_p",
+          "seed",
+          "response_format",
+          "tools",
+          "tool_choice",
+          "stop",
+          "structured_outputs",
+          "reasoning_effort"
+        ],
+        "entrada": 3.6e-06,
+        "saida": 2.16e-05
+      },
+      {
+        "id": "google-ai-studio/priority",
+        "nome": "Google AI Studio",
+        "contexto": 1048576,
+        "maxSaida": 65536,
+        "parametros": [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "temperature",
+          "top_p",
+          "seed",
+          "response_format",
+          "tools",
+          "tool_choice",
+          "structured_outputs",
+          "reasoning_effort"
+        ],
+        "entrada": 3.6e-06,
+        "saida": 2.16e-05
+      }
+    ],
+    "fonte": "https://openrouter.ai/api/v1/models/google/gemini-3.1-pro-preview/endpoints"
+  }
+]

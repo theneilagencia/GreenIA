@@ -1,0 +1,17 @@
+# GreenIA
+
+> Plataforma de IA da TheNeil para empresas. Conversas, documentos, conhecimento da empresa e Quick Wins, com gestão de acessos e consumo de créditos.
+
+## Fontes públicas oficiais
+- [GreenIA](https://www.greenia.com.br/): recursos da plataforma, Quick Wins, uso e resultados, planos por créditos e demonstração.
+- [Perguntas frequentes](https://www.greenia.com.br/faq.html): respostas sobre uso, créditos, dados, programação de Quick Wins e projetos.
+- [Política de Privacidade](https://www.greenia.com.br/privacidade): condições de tratamento de dados, suporte e exportação.
+- [Termos de Uso](https://www.greenia.com.br/termos): condições de uso da plataforma.
+- [TheNeil](https://www.theneil.com.br): empresa responsável pela GreenIA.
+
+## Plataforma e projetos
+A assinatura mensal dá acesso à GreenIA. Projetos com a TheNeil são contratados à parte, com escopo próprio.
+As telas demonstrativas do site usam dados fictícios. Seus números não são resultados de clientes nem compromissos de desempenho.
+
+## Acesso
+Este índice contém apenas páginas comerciais públicas. Conversas, arquivos, dados de empresas, áreas administrativas e APIs não integram este índice.

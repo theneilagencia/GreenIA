@@ -1,3 +1,5 @@
+import { painelAdvancedChat } from '/advanced.js';
+import { eventosDaResposta } from '/fluxo-resposta.js';
 import { dialogo, ligarAcoesConversas } from '/historico-conversas.js';
 import { confirmar } from '/admin-ui.js';
 import { detalheExecucao } from '/execucao-detalhe.js';
@@ -39,7 +41,7 @@ export async function vistaConversa({ id = null, qw = null, teste = false, envia
   if (id) {
     const d = await api(`/api/conversas/${id}`);
     if (C !== estado) return;
-    Object.assign(C, { conv: d.conversa, mensagens: d.mensagens });
+    Object.assign(C, { conv: d.conversa, mensagens: d.mensagens, enviando: !!d.conversa.em_execucao, pensando: !!d.conversa.em_execucao });
     d.mensagens.forEach(m => vistos.add(String(m.id)));
     if (d.conversa.quick_win_id && !qw) C.qw = await api(`/api/quick-wins/${d.conversa.quick_win_id}`).catch(() => null);
     if (C !== estado) return;
@@ -52,6 +54,8 @@ export async function vistaConversa({ id = null, qw = null, teste = false, envia
     materialEmRevisao = null;
   }
   desenhar();
+  atualizarAdvanced();
+  if (C.conv?.em_execucao) acompanharExecucao(C);
   if (C.textoRetomado) { $('entrada').value = C.textoRetomado; ajustarAltura(); atualizarEnviar(); }
   // Conversa vazia no computador: o cursor já fica na caixa, como nos assistentes de chat. No celular, não abre o
   // teclado sozinho; a saudação e a caixa já estão à vista.
@@ -61,12 +65,12 @@ export async function vistaConversa({ id = null, qw = null, teste = false, envia
 }
 
 async function carregarModelos() {
-  const q = new URLSearchParams({ sigilosa: C.conv?.sigilosa ? '1' : '0', ...(C.qw ? { quick_win: C.qw.id } : {}) });
+  const q = new URLSearchParams({ conversa:C.conv?.id||'', sigilosa: C.conv?.sigilosa ? '1' : '0', ...(C.qw ? { quick_win: C.qw.id } : {}) });
   const s = C, m = await api(`/api/modelos?${q}`);
   if (C !== s) return;
   C.opcoes = m.opcoes;
   C.homologadoPadrao = m.homologadoPadrao;
-  const preferido = C.conv?.modelo || m.padrao;
+  const preferido = C.conv?.modelo || (!C.qw && C.opcoes.some(o => o.id === 'classe:auto' && !o.bloqueado) ? 'classe:auto' : m.padrao);
   const livres = C.opcoes.filter(o => !o.bloqueado);
   C.modelo = livres.some(o => o.id === preferido) ? preferido : C.conv?.sigilosa ? m.homologadoPadrao : livres[0]?.id || null;
 }
@@ -93,7 +97,7 @@ function desenhar() {
       `${['em_uso', 'em_avaliacao', 'aprovado', 'em_expansao'].includes(qw.status) ? '' : `<a class="btn btn-verde btn-pequeno" href="#/qw/${qw.id}/publicar">Publicar para a equipe</a>`}<a class="btn btn-linha btn-pequeno" href="#/qw/${qw.id}/editar">Ajustar instruções</a><a class="btn btn-texto btn-pequeno" href="#/qw/${qw.id}">Voltar ao Quick Win</a>`)}</div>` : ''}
     ${qw?.v2 && C.teste && qw.podeEditar ? `<div class="faixa-teste" role="region" aria-label="Teste do Quick Win">${aviso('<b>Teste do Quick Win.</b> Usa a versão em edição e não entra nos resultados.', 'info',
       `<a class="btn btn-verde btn-pequeno" href="#/qw/${qw.id}/publicar">Publicar Quick Win</a><a class="btn btn-linha btn-pequeno" href="#/qw/${qw.id}/ajustar">Ajustar</a>`)}</div>` : ''}
-    <div class="mensagens" id="msgs"><div class="coluna" id="coluna"></div></div>
+    <div class="mensagens" id="msgs"><div id="advanced-chat" aria-live="polite"></div><div class="coluna" id="coluna"></div></div>
     <div class="compositor"><div class="compositor-dentro">
       ${avisoPesquisa(C.conv?.pesquisa)}
       ${qw?.v2 && C.proximaExecucao ? `<div class="proxima-execucao" role="status"><span>${ICONE.raio}</span><span><b>Nova execução do Quick Win.</b> O próximo envio roda o trabalho completo, com conferência.</span><button type="button" class="btn btn-texto btn-pequeno" id="cancelar-execucao">Cancelar</button></div>` : ''}
@@ -112,9 +116,10 @@ function desenhar() {
               <button type="button" role="menuitem" id="anexar-link" aria-controls="link-novo" aria-expanded="false">${ICONE.link}<span><b>Adicionar link</b><small>Página pública usada como fonte</small></span></button>
             </div>
           </div>
-          ${C.opcoes.length > 1 && !qw?.v2 ? `<select class="caixa-nivel" id="modelo" aria-label="Nível" title="Nível. Opcional: no Automático, cada pedido já recebe o nível certo." ${podeTrocar ? '' : 'disabled'}>
-            ${C.opcoes.map(o => `<option value="${esc(o.id)}" ${o.id === C.modelo ? 'selected' : ''} ${o.bloqueado ? 'disabled' : ''}>${esc(o.automatico ? 'Automático' : o.nivel || o.nome)}${o.bloqueado ? ' · indisponível até a renovação' : ''}</option>`).join('')}
-          </select>` : ''}
+          ${C.opcoes.length > 1 && !qw?.v2 ? `<details class="preferencias-resposta"><summary>Preferências</summary><div class="preferencias-resposta-painel"><p>A plataforma recomenda a opção adequada para o seu pedido, dentro do seu acesso e do limite de consumo.</p><label for="modelo">Como responder</label><select class="caixa-nivel" id="modelo" aria-label="Como responder" title="A plataforma recomenda a opção adequada dentro do seu acesso e do orçamento." ${podeTrocar ? '' : 'disabled'}>
+            ${C.opcoes.map(o => `<option value="${esc(o.id)}" ${o.id === C.modelo ? 'selected' : ''} ${o.bloqueado ? 'disabled' : ''}>${esc(o.automatico ? 'Seguir a recomendação' : o.nivel || o.nome)}${o.bloqueado ? ' · indisponível até a renovação' : ''}</option>`).join('')}
+          </select></div></details>` : ''}
+          <details class="preferencias-resposta"><summary>Acompanhar trabalho</summary><div class="preferencias-resposta-painel"><label for="resultado-vinculo">Este pedido é</label><select class="entrada" id="resultado-vinculo"><option value="nao_classificado">Continuação do trabalho atual</option><option value="etapa">Próxima etapa planejada</option><option value="correcao">Correção do que foi pedido</option><option value="preferencia">Mudança de preferência</option><option value="escopo">Ampliação do trabalho</option><option value="novo">Um novo trabalho</option></select><p>O consumo fica reunido no mesmo trabalho. Novo trabalho e ampliação ficam separados.</p><a href="#/resultados">Conferir entregas e consumo</a></div></details>
           <button type="button" class="caixa-chave" id="sigilosa" role="switch" aria-checked="${sig}" ${sig ? 'aria-readonly="true"' : ''} aria-describedby="efeito-sigilo"
             title="${esc(sig ? `Dados sigilosos: ligado até a conversa ser apagada${conv.motivo_sigilosa ? ` (${conv.motivo_sigilosa})` : ''}` : 'Dados sigilosos: desligado')}">${sig ? ICONE.cadeado : ICONE.cadeadoAberto}<span class="caixa-chave-rotulo">Dados sigilosos</span></button>
           <span class="sr" id="efeito-sigilo">${sig ? `Ligado até a conversa ser apagada.${conv.motivo_sigilosa ? ` Motivo: ${esc(conv.motivo_sigilosa)}.` : ''}` : 'Desligado. Ao ligar, a plataforma pede confirmação.'}</span>
@@ -134,6 +139,7 @@ function desenhar() {
   if (texto) { $('entrada').value = texto; ajustarAltura(); }
   if (focado) $('entrada').focus();
   desenharAnexos(); atualizarEnviar();
+  atualizarAdvanced();
 }
 
 // Conversa vazia: sugestões (chips que preenchem a caixa) e, na conversa livre, até 3 Quick Wins publicados para
@@ -171,14 +177,14 @@ const ARQ = { docx: ['documento', 'Documento Word', '.docx editável'], pptx: ['
 // Arquivo gerado no servidor para esta resposta (apresentação no layout do modelo enviado).
 function arquivosGerados(m) {
   if (!C.conv || !(m.arquivos || []).length) return '';
-  return `<div class="arquivos-resposta">${m.arquivos.map(a => a.tipo === 'imagem' ? cartaoImagem(a) : a.tipo === 'site' || a.tipo === 'codigo' ? cartaoCodigo(a) : a.tipo === 'edicao' ? cartaoEdicao(a) : a.tipo === 'da_resposta' ? cartaoDaResposta(m, a) : a.tipo === 'pull_request' ? cartaoPullRequest(a) : a.tipo === 'site_publicado' ? cartaoPublicado(a) : cartaoComPrevia({ previa: `/api/conversas/${C.conv.id}/arquivos/${a.id}/previa`, baixar: `/api/conversas/${C.conv.id}/arquivos/${a.id}`, nome: a.nome,
-    detalhe: `PowerPoint editável · ${a.slides} slides no layout de ${a.modelo || 'modelo'}${a.sem_adaptacao ? ` · ${a.sem_adaptacao} textos sem adaptação` : ''}` })).join('')}</div>`;
+  return `<div class="arquivos-resposta">${m.arquivos.map(a => a.tipo === 'imagem' ? cartaoImagem(a) : a.tipo === 'site' || a.tipo === 'codigo' ? cartaoCodigo(a) : a.tipo === 'edicao' || a.tipo === 'documento' ? cartaoEdicao(a) : a.tipo === 'da_resposta' ? cartaoDaResposta(m, a) : a.tipo === 'pull_request' ? cartaoPullRequest(a) : a.tipo === 'site_publicado' ? cartaoPublicado(a) : cartaoComPrevia({ previa: `/api/conversas/${C.conv.id}/arquivos/${a.id}/previa`, baixar: `/api/conversas/${C.conv.id}/arquivos/${a.id}`, nome: a.nome,
+    detalhe: a.tipo === 'design' ? `PowerPoint editável · ${a.slides} slides · design da apresentação` : `PowerPoint editável · ${a.slides} slides no layout de ${a.modelo || 'modelo'}${a.sem_adaptacao ? ` · ${a.sem_adaptacao} textos sem adaptação` : ''}` })).join('')}</div>`;
 }
 // Arquivo que a pessoa enviou, ajustado no próprio original (layout, estilos e fórmulas preservados).
 const FORMATO_EDICAO = { pptx: ['slides', 'PowerPoint'], docx: ['documento', 'Word'], xlsx: ['planilha', 'Excel'] };
 function cartaoEdicao(a) {
   const href = `/api/conversas/${C.conv.id}/arquivos/${a.id}`, [icone, app] = FORMATO_EDICAO[a.formato] || FORMATO_EDICAO.docx;
-  const detalhe = `${app} · o seu arquivo com ${a.alteracoes === 1 ? '1 alteração' : `${a.alteracoes} alterações`}, layout preservado${a.nao_aplicadas ? ` · ${a.nao_aplicadas} não aplicada${a.nao_aplicadas > 1 ? 's' : ''}` : ''}`;
+  const detalhe = a.tipo === 'documento' ? `${app} · arquivo gerado para este pedido` : `${app} · o seu arquivo com ${a.alteracoes === 1 ? '1 alteração' : `${a.alteracoes} alterações`}, layout preservado${a.nao_aplicadas ? ` · ${a.nao_aplicadas} não aplicada${a.nao_aplicadas > 1 ? 's' : ''}` : ''}`;
   if (a.formato === 'pptx') return cartaoComPrevia({ previa: `${href}/previa`, baixar: href, nome: a.nome, detalhe });
   return `<a class="anexo-resposta" href="${esc(href)}" download><span class="anexo-resposta-icone">${ICONE_RESPOSTA[icone] || ICONE_RESPOSTA.documento}</span><span class="anexo-resposta-texto"><b>${esc(a.nome)}</b><small>${esc(detalhe)}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span></a>`;
 }
@@ -247,15 +253,9 @@ function cartaoComPrevia({ previa, baixar, nome, detalhe }) {
     <a class="anexo-resposta" href="${esc(baixar)}" download><span class="anexo-resposta-icone">${ICONE_RESPOSTA.slides}</span><span class="anexo-resposta-texto"><b>${esc(nome)}</b><small>${esc(detalhe)}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span></a></div>`;
 }
 function arquivosPedidos(m, tabelas) {
-  if (!servidor(m)) return '';
-  if ((m.arquivos || []).length) return arquivosGerados(m);
-  const i = C.mensagens.indexOf(m), pedido = C.mensagens.slice(0, i).reverse().find(x => x.papel === 'user')?.texto || '';
-  // Pedido "no mesmo layout" de um modelo: só vale o arquivo montado no layout (m.arquivos); nada genérico no lugar.
-  if (MESMO_LAYOUT.test(pedido)) return '';
-  const pedidos = Object.keys(PEDE).filter(f => PEDE[f].test(pedido) && (f !== 'xlsx' || tabelas.length));
-  // Excel com uma tabela só: o cartão da própria tabela já é a planilha.
-  const lista = pedidos.filter(f => !(f === 'xlsx' && tabelas.length === 1));
-  return lista.length ? `<div class="arquivos-resposta">${lista.map(f => f === 'pptx' ? cartaoComPrevia({ previa: `${arquivoHref(m, 'pptx')}/previa`, baixar: arquivoHref(m, 'pptx'), nome: ARQ.pptx[1], detalhe: `Baixar arquivo ${ARQ.pptx[2]}` }) : `<a class="anexo-resposta" href="${arquivoHref(m, f)}" download data-arquivo="${f}"><span class="anexo-resposta-icone">${ICONE_RESPOSTA[ARQ[f][0]]}</span><span class="anexo-resposta-texto"><b>${ARQ[f][1]}</b><small>Baixar arquivo ${ARQ[f][2]}</small></span><span class="anexo-resposta-acao">${ICONE_RESPOSTA.baixar}</span></a>`).join('')}</div>` : '';
+  // O pedido pode citar um formato apenas para excluí-lo. Só o servidor
+  // confirma a entrega; os formatos opcionais continuam no menu Baixar como.
+  return servidor(m) && (m.arquivos || []).length ? arquivosGerados(m) : '';
 }
 // "Baixar como": qualquer resposta guardada vira Word ou PowerPoint; com tabela, também Excel.
 function baixarComo(m) {
@@ -291,12 +291,13 @@ function htmlMensagem(m) {
   const anim = vistos.has(String(m.id)) || m.carregando ? '' : ' anim';
   if (!m.carregando) vistos.add(String(m.id));
   if (m.papel === 'user') {
+    if (C.editandoPrompt?.id === m.id) return `<div class="msg-eu"><div class="editor-pedido"><label for="editar-pedido">Editar pedido</label><textarea id="editar-pedido" rows="6" maxlength="20000">${esc(C.editandoPrompt.texto)}</textarea><p>A edição abre uma nova versão e preserva a conversa original. Executar novamente usa créditos conforme as regras da empresa.</p><button type="button" class="btn btn-linha" data-cancelar-edicao>Cancelar</button> <button type="button" class="btn btn-primario" data-salvar-edicao>Salvar e executar</button></div></div>`;
     // Pedido da pessoa: balão à direita (quebras de linha preservadas), anexos em etiquetas logo acima.
-    return `<div class="msg-eu${anim}">${(m.anexos || []).length ? `<div class="msg-eu-anexos">${m.anexos.map(a => `<span class="anexo-chip">${ICONE.doc} ${esc(a)}</span>`).join('')}</div>` : ''}<div class="bolha-eu">${esc(m.texto)}</div></div>`;
+    return `<div class="msg-eu${anim}">${(m.anexos || []).length ? `<div class="msg-eu-anexos">${m.anexos.map(a => `<span class="anexo-chip">${ICONE.doc} ${esc(a)}</span>`).join('')}</div>` : ''}<div class="bolha-eu">${esc(m.texto)}</div>${servidor(m) && !C.qw && !C.teste && !C.enviando && !/^\[Conteúdo processado e não guardado/.test(m.texto) ? `<button type="button" class="btn btn-linha btn-pequeno" data-editar-pedido="${m.id}" aria-label="Editar pedido">Editar</button>` : ''}</div>`;
   }
   if (m.papel === 'aviso' && /^Execução (dos testes|do código)/.test(m.texto) && m.texto.includes('\n')) { const [cab, ...resto] = m.texto.split('\n'); return `<div class="linha-aviso execucao-saida${anim}"><b>${esc(cab)}</b><pre>${esc(resto.join('\n'))}</pre></div>`; }
   if (m.papel === 'aviso') return `<div class="linha-aviso${anim}">${esc(m.texto)}${/habilitar no seu perfil/.test(m.texto) && C.conv ? ' <button type="button" class="btn btn-linha btn-pequeno" data-pedir-acesso>Solicitar acesso</button>' : ''}</div>`;
-  const { html, tabelas } = m.carregando ? { html: esc(semPromessaAoVivo(m.texto)).replace(/\n/g, '<br>') + '<span class="cursor"></span>' + andamentoDaResposta(), tabelas: [] } : renderizar(m.texto, servidor(m) ? { csvHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/csv`, xlsxHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/xlsx` } : {});
+  const { html, tabelas } = m.carregando ? { html: renderizar(semPromessaAoVivo(m.texto)).html + '<span class="cursor"></span>' + andamentoDaResposta(), tabelas: [] } : renderizar(m.texto, servidor(m) ? { csvHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/csv`, xlsxHref: i => `/api/conversas/${C.conv.id}/mensagens/${m.id}/tabelas/${i}/xlsx` } : {});
   C.tabelas[m.id] = tabelas;
   // Execução do Quick Win: resultado primeiro e conferência logo abaixo, secundária. Mensagens seguintes: normais.
   const execucao = !m.carregando && !!m.qualidade && m.qualidade.status !== 'pergunta';
@@ -398,7 +399,7 @@ function rolarSeNoFim() { const msgs = $('msgs'); if (!msgs || !C) return; if (!
 // reescrevia a bolha sem o cartão: em produção ele nunca aparecia).
 // O arquivo ainda vai ser montado: frase "o arquivo está pronto para download" não aparece enquanto o texto é escrito
 // (o servidor também a tira no fim). QA em produção: ela piscava antes de a versão final chegar.
-const semPromessaAoVivo = t => C.vaiArquivo ? String(t).replace(/[^.!\n]*\b(pront[oa]|dispon[ií]vel)\b[^.!\n]*\b(download|baixar)\b[^.!\n]*[.!]?/gi, '').replace(/[^.!\n]*\b(download|baixar)\b[^.!\n]*\b(pront[oa]|dispon[ií]vel)\b[^.!\n]*[.!]?/gi, '') : t;
+const semPromessaAoVivo = t => String(t).replace(/[^.!\n]*\b(pront[oa]|dispon[ií]vel)\b[^.!\n]*\b(download|baixar)\b[^.!\n]*[.!]?/gi, '').replace(/[^.!\n]*\b(download|baixar)\b[^.!\n]*\b(pront[oa]|dispon[ií]vel)\b[^.!\n]*[.!]?/gi, '');
 function andamentoDaResposta() {
   if (!C.etapa || C.execucao) return '';
   return C.montandoArquivo
@@ -407,8 +408,14 @@ function andamentoDaResposta() {
 }
 function ajustarAltura() { const t = $('entrada'), vh = window.visualViewport?.height || innerHeight, celular = innerWidth <= 760, max = Math.round(C.expandida ? vh * (celular ? 0.5 : 0.68) : celular ? Math.max(96, Math.min(168, vh * 0.24)) : Math.max(120, Math.min(320, vh * 0.4))); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, max) + 'px'; t.style.overflowY = t.scrollHeight > max ? 'auto' : 'hidden'; const ex = $('expandir'); if (ex) ex.hidden = !C.expandida && t.scrollHeight < 110; }
 function atualizarEnviar() {
+  if (!$('entrada') || !$('enviar') || !C) return;
   const vazio = !$('entrada').value.trim() && !C.anexos.length;
-  $('enviar').disabled = C.enviando || vazio;
+  const botao = $('enviar');
+  botao.disabled = C.enviando ? !!C.interrompendo || !C.conv : vazio;
+  const rotulo = C.enviando ? (C.interrompendo ? 'Interrompendo execução…' : 'Interromper execução') : 'Enviar';
+  botao.setAttribute('aria-label', rotulo); botao.title = rotulo;
+  botao.classList.toggle('interromper', !!C.enviando);
+  botao.innerHTML = (C.enviando ? '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>' : ICONE.enviar) + `<span class="sr">${rotulo}</span>`;
   // Celular (referência: ChatGPT): com texto ou anexo na caixa, as sugestões do início saem e o espaço fica para o pedido.
   $('inicio-atalhos')?.classList.toggle('compondo', !vazio);
 }
@@ -437,8 +444,8 @@ function ligar() {
     b.setAttribute('aria-label', C.expandida ? 'Recolher a caixa de texto' : 'Expandir a caixa de texto'); b.title = C.expandida ? 'Recolher' : 'Expandir';
     ajustarAltura(); t.focus();
   };
-  t.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); if (!$('enviar').disabled) enviar(); } });
-  $('enviar').onclick = () => enviar();
+  t.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); if (!C.enviando && !$('enviar').disabled) enviar(); } });
+  $('enviar').onclick = () => C.enviando ? interromperExecucao() : enviar();
   const estado = C;
   $('msgs').addEventListener('scroll', ev => { const m = ev.currentTarget; if (C === estado && m.isConnected) C.noFim = m.scrollHeight - m.scrollTop - m.clientHeight < 40; });
   if ($('modelo')) $('modelo').onchange = ev => { C.modelo = ev.target.value; desenhar(); };
@@ -497,7 +504,17 @@ function ligar() {
   caixa.addEventListener('dragleave', ev => { if (!caixa.contains(ev.relatedTarget)) caixa.classList.remove('soltando'); });
   caixa.addEventListener('drop', ev => { if (!temArquivos(ev)) return; ev.preventDefault(); caixa.classList.remove('soltando'); adicionarArquivos([...ev.dataTransfer.files]); });
   $('entrada').addEventListener('paste', ev => { const fs = [...(ev.clipboardData?.files || [])]; if (fs.length) { ev.preventDefault(); adicionarArquivos(fs); } });
+  $('coluna').addEventListener('input', ev => { if (ev.target.id === 'editar-pedido' && C.editandoPrompt) C.editandoPrompt.texto = ev.target.value; });
   $('coluna').addEventListener('click', ev => {
+    const editar = ev.target.closest('[data-editar-pedido]');
+    if (editar && !C.enviando) {
+      const m = C.mensagens.find(m => String(m.id) === editar.dataset.editarPedido);
+      if (m) { C.editandoPrompt = { id: m.id, texto: m.texto }; desenharMensagens(); $('editar-pedido')?.focus(); }
+      return;
+    }
+    if (ev.target.closest('[data-cancelar-edicao]')) { C.editandoPrompt = null; desenharMensagens(); return; }
+    if (ev.target.closest('[data-salvar-edicao]')) { salvarEdicaoDoPedido(); return; }
+
     if (ev.target.closest('[data-resolver-pesquisa]')) resolverPesquisa();
     const melhorar = ev.target.closest('[data-melhorar-resultado]');
     if (melhorar) {
@@ -638,6 +655,26 @@ function avaliarNegativo() {
   (fundo.querySelector('[name=fb-valor]:checked') || fundo.querySelector('[name=fb-valor]')).focus();
 }
 
+async function salvarEdicaoDoPedido() {
+  const estado = C, edicao = C.editandoPrompt;
+  if (!edicao || C.enviando || C.salvandoEdicao) return;
+  const texto = edicao.texto.trim();
+  if (!texto) { toast('Escreva o pedido antes de executar.'); return; }
+  C.salvandoEdicao = true;
+  document.querySelector('[data-salvar-edicao]').disabled = true;
+  try {
+    const r = await api(`/api/conversas/${C.conv.id}/mensagens/${edicao.id}/editar`, { metodo: 'POST', corpo: {} });
+    if (C !== estado) return;
+    history.pushState(null, '', `#/c/${r.conversa.id}`);
+    await vistaConversa({ id: r.conversa.id, enviarAgora: { texto } });
+    await recarregarLateral();
+  } catch (e) {
+    toast(e.message || 'Não foi possível executar a versão editada.');
+  } finally {
+    if (C === estado) { C.salvandoEdicao = false; desenharMensagens(); }
+  }
+}
+
 async function garantirConversa() {
   if (C.conv) return;
   C.conv = (await api('/api/conversas', { metodo: 'POST', corpo: { quick_win_id: C.qw?.id, teste: C.teste } })).conversa;
@@ -661,6 +698,7 @@ async function enviar(reenvio = null, { executar = false } = {}) {
   }
   const texto = reenvio?.texto ?? $('entrada').value.trim();
   const anexos = reenvio?.anexos ?? C.anexos;
+  const acompanhamento = $('resultado-vinculo')?.value || 'nao_classificado';
   if (!texto && !anexos.length) return;
   C.enviando = true; C.expandida = false; atualizarEnviar();
   try { await garantirConversa(); } catch (e) { toast(e.message); C.enviando = false; atualizarEnviar(); return; }
@@ -668,10 +706,13 @@ async function enviar(reenvio = null, { executar = false } = {}) {
     C.mensagens.push({ id: 'eu' + Date.now(), papel: 'user', texto, anexos: anexos.map(a => a.nome) });
     $('entrada').value = ''; C.anexos = []; ajustarAltura(); desenharAnexos();
   }
-  C.pensando = true; C.etapa = null; C.montandoArquivo = false; C.vaiArquivo = false; C.execucao = false; C.noFim = true; desenharMensagens();
+  C.pensando = true; C.etapa = null; C.montandoArquivo = false; C.vaiArquivo = false; C.execucao = false; C.noFim = true; desenharMensagens(); atualizarEnviar();
   // Quick Win 2.0: quem usa não escolhe modelo; o roteamento da GreenIA decide.
   const arquivos = anexos.filter(a => !a.link), links = anexos.filter(a => a.link).map(a => ({ url: a.url, ...(a.papel ? { papel: a.papel } : {}) }));
-  const r = await api(`/api/conversas/${C.conv.id}/mensagens`, { metodo: 'POST', corpo: { texto, anexos: arquivos, ...(links.length ? { links } : {}), ...(C.qw?.v2 ? (executar ? { executar_quick_win: true } : {}) : { modelo: C.modelo }) }, bruto: true });
+  let r;
+  try { r = await api(`/api/conversas/${C.conv.id}/mensagens`, { metodo: 'POST', corpo: { texto, acompanhamento, anexos: arquivos, ...(reenvio?.advanced_alternativa?{advanced_alternativa:reenvio.advanced_alternativa}:{}), ...(links.length ? { links } : {}), ...(C.qw?.v2 ? (executar ? { executar_quick_win: true } : {}) : { modelo: C.modelo }) }, bruto: true }); }
+  catch { C.enviando = false; C.pensando = false; desenharMensagens(); atualizarEnviar(); toast('A conexão falhou. Confira a conversa antes de enviar de novo.'); return; }
+  if (r.ok && $('resultado-vinculo')) $('resultado-vinculo').value='nao_classificado';
   if (!r.ok) {
     const d = await r.json().catch(() => ({}));
     C.pensando = false;
@@ -688,6 +729,7 @@ async function enviar(reenvio = null, { executar = false } = {}) {
     if (!reenvio) { $('entrada').value = texto; C.anexos = anexos; desenharAnexos(); ajustarAltura(); }
     C.mensagens.push({ id: 'er' + Date.now(), papel: 'assistant', texto: d.mensagem || 'Não foi possível enviar.', erro: true });
     C.enviando = false; desenharMensagens(); atualizarEnviar();
+    atualizarAdvanced();
     return;
   }
   await receberResposta(r);
@@ -696,21 +738,15 @@ async function enviar(reenvio = null, { executar = false } = {}) {
 // Resposta em streaming (uma linha JSON por evento), do envio normal e do "Gerar de novo".
 // manterErro: a falha continua à vista depois de reler a conversa (ao gerar de novo, a resposta anterior volta).
 async function receberResposta(r, { manterErro = false } = {}) {
+  const estado = C;
+  C.recebendo = true; C.leituraCancelamento = new AbortController();
   const resposta = { id: 'ia' + Date.now(), papel: 'assistant', texto: '', carregando: true };
-  const leitor = r.body.getReader();
-  const dec = new TextDecoder();
-  let resto = '';
-  for (;;) {
-    const { value, done } = await leitor.read();
-    if (done) break;
-    resto += dec.decode(value, { stream: true });
-    const linhas = resto.split('\n');
-    resto = linhas.pop();
-    for (const l of linhas.filter(Boolean)) {
-      const ev = JSON.parse(l);
+  try {
+    for await (const ev of eventosDaResposta(r.body, { sinal: estado.leituraCancelamento.signal })) {
+      if (C !== estado) return;
       if (ev.t === 'inicio' && ev.cortada && C.conv) C.conv.cortada = true;
       if (ev.t === 'inicio' && ev.qualidade) C.execucao = true;
-      if (ev.t === 'inicio' && ev.arquivo) C.vaiArquivo = true;
+      if (ev.t === 'inicio' && ev.arquivo) { C.vaiArquivo = true; C.montandoArquivo = true; C.etapa = 'Analisando o pedido e os arquivos…'; }
       if (ev.t === 'etapa') { C.etapa = ev.v; if (ev.arquivo) C.montandoArquivo = true; $('ao-vivo').textContent = ev.v; if (!C.pensando && !C.execucao) desenharMensagens(); }
       if (ev.t === 'texto') {
         if (C.pensando) { C.pensando = false; C.mensagens.push(resposta); }
@@ -718,17 +754,27 @@ async function receberResposta(r, { manterErro = false } = {}) {
       }
       if (ev.t === 'substituir') resposta.texto = ev.v;   // versão final, depois da conferência de escrita
       if (ev.t === 'erro') { C.pensando = false; if (!C.mensagens.includes(resposta)) C.mensagens.push(resposta); Object.assign(resposta, { texto: ev.mensagem, erro: true, carregando: false }); }
+      if (ev.t === 'interrompido') { resposta.interrompida = true; resposta.carregando = false; resposta.texto = ev.mensagem; }
       if (ev.t === 'fim' && ev.executar) C.executarDepois = ev.executar;
       if (ev.t === 'fim') Object.assign(resposta, { id: ev.id, guardado: ev.guardado, modelo: ev.modelo, classe: ev.classe, fornecedor: ev.fornecedor, fontes: ev.fontes, qualidade: ev.qualidade, artefatos: ev.artefatos, arquivos: ev.arquivos, rota_modo: ev.rota?.modo, rota_explicacao: ev.rota?.explicacao, rota_explicacao_simples: ev.rota?.explicacao_simples, carregando: false });
+      // Durante o streaming, atualiza só a bolha da resposta.
+      const bolha = resposta.carregando && document.querySelector(`[data-msg="${resposta.id}"] .bolha-ia`);
+      if (bolha) { bolha.innerHTML = renderizar(semPromessaAoVivo(resposta.texto)).html + '<span class="cursor"></span>' + andamentoDaResposta(); rolarSeNoFim(); } else desenharMensagens();
     }
-    // Durante o streaming, atualiza só a bolha da resposta.
-    const bolha = resposta.carregando && document.querySelector(`[data-msg="${resposta.id}"] .bolha-ia`);
-    if (bolha) { bolha.innerHTML = esc(semPromessaAoVivo(resposta.texto)).replace(/\n/g, '<br>') + '<span class="cursor"></span>' + andamentoDaResposta(); rolarSeNoFim(); } else desenharMensagens();
+  } catch {
+    if (C !== estado) return;
+    resposta.texto = 'A conexão foi interrompida antes da confirmação de entrega. Confira a conversa: se o arquivo foi concluído, o download aparecerá nela. Nenhuma nova geração foi iniciada automaticamente.';
+    if (C.interrompendo) { resposta.texto = 'Execução interrompida por você.'; resposta.interrompida = true; }
+    resposta.erro = !resposta.interrompida; resposta.carregando = false;
   }
-  C.etapa = null; C.montandoArquivo = false; C.vaiArquivo = false; C.execucao = false;
-  $('ao-vivo').textContent = resposta.erro ? resposta.texto : resposta.qualidade ? 'Pronto.' : 'Resposta pronta.';
+  if (C !== estado) return;
+  C.recebendo = false; C.interrompendo = false; C.pensando = false; C.etapa = null; C.montandoArquivo = false; C.vaiArquivo = false; C.execucao = false;
+  $('ao-vivo').textContent = resposta.interrompida ? 'Execução interrompida.' : resposta.erro ? resposta.texto : resposta.qualidade ? 'Pronto.' : 'Resposta pronta.';
   C.enviando = false;
-  await recarregarConversa(true);
+  try { await recarregarConversa(true); } catch { if(C===estado && $('coluna')) desenharMensagens(); }
+  if (C!==estado || !$('coluna')) return;
+  atualizarEnviar();
+  if (C.conv?.em_execucao) acompanharExecucao(C);
   if (C.executarDepois) { const x = C.executarDepois; C.executarDepois = null; executarProjeto(x.arquivo, x.modo); }
   // A falha continua à vista depois de reler a conversa (a resposta não foi guardada; sem isto a tela ficava só com o
   // pedido, como se estivesse travada).
@@ -745,7 +791,7 @@ async function gerarDeNovo(id, depoisDaCiencia = false) {
   C.enviando = true; atualizarEnviar();
   const pos = C.mensagens.indexOf(anterior);
   C.mensagens.splice(pos, 1);
-  C.pensando = true; C.etapa = null; C.montandoArquivo = false; C.vaiArquivo = false; C.execucao = false; C.noFim = true; desenharMensagens();
+  C.pensando = true; C.etapa = null; C.montandoArquivo = false; C.vaiArquivo = false; C.execucao = false; C.noFim = true; desenharMensagens(); atualizarEnviar();
   $('ao-vivo').textContent = 'Gerando outra resposta…';
   const voltar = texto => {
     C.pensando = false;
@@ -773,6 +819,34 @@ async function gerarDeNovo(id, depoisDaCiencia = false) {
   await receberResposta(r, { manterErro: true });
 }
 
+async function interromperExecucao() {
+  if (!C.conv || C.interrompendo) return;
+  const estado = C;
+  C.interrompendo = true; atualizarEnviar();
+  try {
+    const r = await api(`/api/conversas/${estado.conv.id}/interromper`, { metodo: 'POST', corpo: {}, sinal: AbortSignal.timeout(10000) });
+    if (C !== estado) return;
+    if (!r.interrompida && C.recebendo) { C.leituraCancelamento?.abort(); return; }
+    if (!r.interrompida || !C.recebendo) {
+      C.interrompendo = false; C.enviando = false; C.pensando = false;
+      await recarregarConversa(true);
+      if (C.conv.em_execucao) acompanharExecucao(C);
+    }
+  } catch (e) { if (C === estado) { C.interrompendo = false; toast(e.message); } }
+  if (C === estado) atualizarEnviar();
+}
+
+// Reabrir uma conversa em andamento também oferece Interromper. Consulta apenas
+// o estado; nunca inicia outra chamada de IA ou outra geração.
+function acompanharExecucao(estado, restantes = 60) {
+  if (!restantes || C !== estado || estado.recebendo || !estado.conv?.em_execucao) return;
+  setTimeout(async () => {
+    if (C !== estado || estado.recebendo) return;
+    try { await recarregarConversa(true); } catch { return; }
+    acompanharExecucao(estado, restantes - 1);
+  }, 2000);
+}
+
 async function recarregarConversa(redesenharTudo) {
   const atual = C;
   let d;
@@ -781,9 +855,20 @@ async function recarregarConversa(redesenharTudo) {
   if (C !== atual || !$('coluna')) return;
   const sigAntes = C.conv.sigilosa;
   C.conv = d.conversa;
+  if (!C.recebendo) { C.enviando = !!d.conversa.em_execucao; C.pensando = !!d.conversa.em_execucao; }
   if (redesenharTudo) { C.mensagens = d.mensagens; d.mensagens.forEach(m => vistos.add(String(m.id))); }
   if (sigAntes !== d.conversa.sigilosa) await carregarModelos();
   const noFim = C.noFim;
   desenhar();
   C.noFim = noFim; rolarSeNoFim();
+}
+
+function atualizarAdvanced() {
+  const estado=C;
+  painelAdvancedChat(C.conv?.id, async corpo=>{
+    if(C!==estado||C.enviando)return;
+    await carregarModelos();
+    C.modelo='classe:auto';
+    await enviar({texto:corpo.texto,advanced_alternativa:corpo.advanced_alternativa,anexos:[...(corpo.anexos||[]),...(corpo.links||[]).map(l=>({...l,link:true}))]},{executar:corpo.executar_quick_win===true});
+  },{ocupado:!!C.enviando}).catch(()=>{});
 }

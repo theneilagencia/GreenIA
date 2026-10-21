@@ -1,3 +1,5 @@
+import { EXEMPLOS_TRABALHO } from '/trabalhos.js';
+import { painelAdvancedAdmin } from '/advanced.js';
 import { nomeEvento } from '/jornadas.js';
 import { corpoAuditoria, resumoAuditoria } from '/auditoria-detalhe.js';
 import { ligarVisao } from '/preferencias.js';
@@ -15,7 +17,7 @@ import { campoData, lerData } from '/data-br.js';
 
 const $ = id => document.getElementById(id);
 const S = { get eu() { return E.eu; }, get perm() { return E.permQw; }, get plano() { return E.plano; }, set plano(v) { E.plano = v; }, get operador() { return E.operador; } };
-const PERFIS = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
+const PERFIS = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Advanced' };
 // Perfil público para pesquisa externa (mesmos campos de src/quickwin-operacao.js PERFIL_PUBLICO).
 const PERFIL_PUBLICO = { nome: 'Nome público', setor: 'Setor', categoria: 'Categoria de produto ou serviço', regiao: 'País ou região', mercado: 'Mercado-alvo' };
 const DADOS = { cpf: 'CPF', rg: 'RG', cnpj: 'CNPJ', email: 'Email pessoal (Gmail, Hotmail...)', telefone: 'Telefone', cep: 'CEP', endereco: 'Endereço', cartao: 'Cartão', banco: 'Dados bancários', pix: 'Chave PIX', pessoal_restrito: 'Dado pessoal restrito (disciplinar, remuneração individual)', sensivel: 'Dado pessoal sensível (saúde, biometria, religião...)', confidencial: 'Documento marcado como confidencial' };
@@ -90,9 +92,12 @@ const NIVEL_CLASSE = { rapido: 1, equilibrado: 2, avancado: 3 };
 const idDom = id => esc(id).replace(/[^\w-]/g, '-');
 const opcaoModelos = (lista, sel, vazio = '') => `${vazio ? `<option value="">${vazio}</option>` : ''}${lista.map(x => `<option value="${esc(x.id)}" ${x.id === sel ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}`;
 
+const exemplosDeTrabalho = () => `<section class="trabalho-exemplos" aria-labelledby="trabalho-exemplos-titulo"><div class="trabalho-secao"><h2 id="trabalho-exemplos-titulo">Um pedido, os recursos certos</h2><p>Alguns exemplos do que sua equipe pode fazer.</p></div><div class="trabalho-grade">${EXEMPLOS_TRABALHO.map(([titulo,texto,icone])=>`<article class="trabalho-exemplo"><span class="trabalho-icone">${ICONE[icone]}</span><h3>${titulo}</h3><p>${texto}</p></article>`).join('')}</div><p class="trabalho-nota">${ICONE.escudo} Os recursos necessários variam conforme os arquivos e as etapas de cada pedido.</p></section>`;
+
 // Modelos, aba principal: o que a empresa decide. Modo (recomendado ou manual), os níveis e quem usa cada um.
 // O catálogo técnico (cada modelo, aprovação para dados sigilosos, capacidades, adicionar) é a aba Catálogo técnico.
 async function abaModelos() {
+  const detalhesAbertos=document.querySelector('#cfg-modelos > details')?.open || false;
   const [m, { grupos }, { areas }, gov, sig, sug] = await Promise.all([api('/api/admin/modelos'), api('/api/admin/grupos'), api('/api/admin/areas'), api('/api/admin/governanca'), api('/api/admin/sigilo'),
     api('/api/admin/modelos/sugestao').catch(() => null)]);
   const cfg = m.config;
@@ -106,8 +111,8 @@ async function abaModelos() {
   const cartaoGov = `<div class="editor" id="governanca"><span class="editor-titulo">Como a empresa usa a IA</span>
     <div class="escolhas" role="radiogroup" aria-label="Como a empresa usa a IA" data-sem-alteracao>
       <label class="escolha"><input type="radio" name="gov" value="recomendado" ${recomendado ? 'checked' : ''}>
-        <span class="escolha-titulo">Seguir recomendações da GreenIA <span class="selo-recomendado">Recomendado</span></span>
-        <span class="escolha-desc">A GreenIA escolhe e mantém os modelos de cada nível.</span></label>
+        <span class="escolha-titulo">Deixar o GreenIA escolher conforme o trabalho <span class="selo-recomendado">Recomendado</span></span>
+        <span class="escolha-desc">Sua equipe descreve o que precisa fazer. O GreenIA escolhe os recursos adequados para cada pedido, respeitando os acessos e o limite de consumo definidos pela empresa.</span></label>
       <label class="escolha"><input type="radio" name="gov" value="manual" ${recomendado ? '' : 'checked'}>
         <span class="escolha-titulo">Configurar manualmente</span>
         <span class="escolha-desc">Você ajusta níveis, acesso e modelos.</span></label>
@@ -126,21 +131,21 @@ async function abaModelos() {
       ${niveisSug.segue ? `<span class="selo selo-verde">${ICONE.escudo} Sua configuração já segue a sugestão</span>` : `<button type="button" class="btn ${recomendado ? 'btn-verde' : 'btn-linha'} btn-pequeno" id="sug-niveis-usar">Usar a sugestão</button>`}</div>
     <p class="dica">${esc(sug.uso.frase)}</p>
     <ul class="adm-sug-niveis-lista">${niveisSug.itens.map(i => `<li data-nivel="${i.nivel}"><b>${esc(i.nome)}</b><span>${esc(i.texto)}</span>${i.segue ? '' : '<span class="tag tag-ambar">Muda</span>'}</li>`).join('')}</ul></section>` : '';
-  $('conteudo').innerHTML = `${topoTela('Os níveis de IA que a empresa usa e quem usa cada um.')}
+  $('conteudo').innerHTML = `${topoTela('Defina os acessos da equipe. A plataforma escolhe os recursos conforme o trabalho de cada pedido.')}
     <form id="cfg-modelos">
-    ${cartaoGov}${aviso}${blocoSugestao}
+    ${cartaoGov}${aviso}${exemplosDeTrabalho()}<details ${detalhesAbertos?'open':''}><summary>Detalhes da configuração de IA</summary>${blocoSugestao}
     <h2>Níveis</h2>
     <div class="tabela-rolagem"><table class="tabela tabela-empilha"><thead><tr><th>Nível</th><th>Modelos do nível</th><th>Alternativa se falhar</th><th>Consumo por conversa típica</th><th>Quem usa no dia a dia</th></tr></thead><tbody>
       ${Object.entries(PERFIS).map(([k, v]) => { const x = m.modelos.find(y => y.id === cfg.padroes[k]); const r = x && m.modelos.find(y => y.id === x.reserva); const a = cfg.acessoPerfis[k] || {}; const pool = liberados.filter(y => y.perfil === k && y.noCatalogo);
         return `<tr><td data-r="Nível"><b>${v}</b></td><td data-r="Modelos do nível"><b>${pool.length} ${pool.length === 1 ? 'modelo disponível' : 'modelos disponíveis'}</b><br><span class="dica">${pool.map(y => esc(y.nome)).join(' · ') || 'Nenhum modelo disponível'}${x ? `<br>Preferência: ${esc(x.nome)}` : ''}</span></td>
           <td data-r="Alternativa se falhar">${r ? esc(r.nome) : pool.length > 1 ? '<span class="dica">Seleção automática no mesmo nível, quando elegível. Em sigilo, nova conferência das regras.</span>' : '<span class="dica">Sem alternativa no nível</span>'}</td><td data-r="Consumo">${x ? fmtCusto(x.custoConversa, { conversa: true }) : '—'}</td>
-          <td data-r="Quem usa">${k === 'rapido' || a.todos ? 'Todas as pessoas' : (a.grupos || []).length + (a.areas || []).length ? 'Grupos e áreas escolhidos' : 'Só pelo Quick Win'}</td></tr>`; }).join('')}
+          <td data-r="Quem usa">${k === 'avancado' ? 'Somente com liberação administrativa e limite de consumo' : k === 'rapido' || a.todos ? 'Todas as pessoas' : (a.grupos || []).length + (a.areas || []).length ? 'Grupos e áreas escolhidos' : 'Só pelo Quick Win'}</td></tr>`; }).join('')}
     </tbody></table></div>
-    <div class="secao-titulo"><h2>Quem usa cada nível</h2>${recomendado ? botaoRevelar('modelos-manuais', 'Ajustar manualmente') : ''}</div>
+    </details><div class="secao-titulo"><h2>Ajustes opcionais de acesso</h2>${recomendado ? botaoRevelar('modelos-manuais', 'Ajustar manualmente') : ''}</div>
     <div id="modelos-manuais" ${recomendado ? 'hidden' : ''}>
     ${recomendado ? '<p class="dica">Salvar um ajuste aqui passa a empresa para o modo manual. As regras de sigilo continuam valendo.</p>' : ''}
       <p class="dica">${PERFIS.rapido}: todas as pessoas, sempre.</p>
-      ${acesso('equilibrado')}${acesso('avancado')}
+      ${acesso('equilibrado')}<p>O Advanced usa as liberações recomendadas para cada trabalho, no painel abaixo. Configurar um Quick Win não concede esse acesso.</p>
       <h3>Níveis que podem ser escolhidos em Quick Win</h3>
       <div class="opcoes">${Object.entries(PERFIS).map(([k, v]) => `<label><input type="checkbox" name="perfis-qw" value="${k}" ${cfg.perfisQuickWin.includes(k) ? 'checked' : ''}> ${v}</label>`).join('')}</div>
       <div class="adm-mais">${botaoRevelar('modelos-mais', 'Mais opções')}</div>
@@ -178,13 +183,16 @@ async function abaModelos() {
       catch (e) { falhar(e); }
       finally { await abaModelos(); }
   }; });
+  // Controles sem uma opção elegível podem aparecer vazios. Salvar outros ajustes não deve apagar o padrão já registrado.
+  const padroesIniciais = Object.fromEntries(['chat','homologado','rapido','equilibrado','avancado'].map(k => [k, $(`pd-${k}`).value || null]));
   $('cfg-modelos').onsubmit = async ev => {
     ev.preventDefault();
+    const padroesAlterados = Object.fromEntries(Object.keys(padroesIniciais).map(k => [k, $(`pd-${k}`).value || null]).filter(([k,v]) => v !== padroesIniciais[k]));
     const ac = p => ({ todos: $(`todos-${p}`).checked, grupos: marcados(`ac-g-${p}`), areas: marcados(`ac-a-${p}`) });
     try {
       await api('/api/admin/modelos-config', { metodo: 'PUT', corpo: {
-        padroes: { chat: $('pd-chat').value, homologado: $('pd-homologado').value || null, rapido: $('pd-rapido').value || null, equilibrado: $('pd-equilibrado').value || null, avancado: $('pd-avancado').value || null },
-        acessoPerfis: { equilibrado: ac('equilibrado'), avancado: ac('avancado') },
+        ...(Object.keys(padroesAlterados).length ? { padroes: padroesAlterados } : {}),
+        acessoPerfis: { equilibrado: ac('equilibrado'), avancado: cfg.acessoPerfis.avancado },
         perfisQuickWin: [...document.querySelectorAll('input[name=perfis-qw]:checked')].map(i => i.value),
         exigirSemTreino: $('sem-treino').checked, automatico: $('automatico').checked } });
       toast('Configuração salva.'); abaModelos();
@@ -192,6 +200,7 @@ async function abaModelos() {
   };
   // O formulário cobre a tela inteira, para a barra de salvar ficar presa ao pé da tela; no modo recomendado, ela só
   // aparece depois de "Ajustar manualmente".
+  await painelAdvancedAdmin($('conteudo'));
   vigiarAlteracoes($('cfg-modelos'), { barra: $('modelos-salvar') });
   document.querySelector('[aria-controls="modelos-manuais"]')?.addEventListener('click', () => setTimeout(() => { $('modelos-salvar').hidden = $('modelos-manuais').hidden; }));
 }
@@ -389,7 +398,7 @@ const percentualPlano = p => (p.usados > 0 && p.percentual < 1 ? 'menos de 1%' :
 
 // ---------------------------------------------------------------- Plano (empresa com plano contratado)
 const dataBr = iso => new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR');
-const NOME_CLASSE = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
+const NOME_CLASSE = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Advanced' };
 const MES_CURTO = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 function barrasMes(lista, ate) {
   const [a, m] = ate.split('-').map(Number);
@@ -878,9 +887,9 @@ const RESULTADO = { respondido: 'respondido', respondido_pela_reserva: 'respondi
 const FALLBACK = { abaixo_do_necessario: 'abaixo do necessário (regras ou permissões)', abaixo_do_necessario_por_escolha: 'abaixo do necessário (escolha manual)',
   trocado_por_falta_de_contexto: 'trocado: conteúdo grande demais', trocado_pela_reserva_do_plano: 'trocado pela reserva do plano', sem_modelo: 'nenhum modelo permitido' };
 const TIPO_TAREFA = { edicao: 'edição e formatação', classificacao: 'classificação', traducao: 'tradução', extracao: 'extração', sintese: 'síntese', redacao: 'redação', analise: 'análise', programacao: 'programação', raciocinio: 'raciocínio', consulta: 'consulta' };
-const PREFERENCIAS = [['economia', 'Economia', 'O modelo de menor consumo que atende ao que o pedido exige. Nunca abaixo do necessário.'],
-  ['equilibrio', 'Equilíbrio', 'Recomendado: atende ao que o pedido exige e prefere o modelo padrão de cada nível quando custa até cerca de 2 vezes o mais barato.'],
-  ['qualidade', 'Qualidade', 'Em tarefas que não são simples, usa um nível acima do mínimo. Maior consumo, menos risco de resposta fraca.']];
+const PREFERENCIAS = [['economia', 'Menor consumo adequado', 'Seleciona o recurso de menor consumo entre os que conseguem executar o pedido.'],
+  ['equilibrio', 'Seleção recomendada', 'Considera as etapas, os recursos já aprovados pela empresa e o consumo estimado.'],
+  ['qualidade', 'Capacidade adicional em tarefas com várias etapas', 'Pode usar recursos de maior capacidade em pedidos com análise ou execução em várias etapas. Continua dependendo dos acessos e do orçamento disponíveis.']];
 function barrasDist(titulo, dist, nomes) {
   const total = Object.values(dist).reduce((a, b) => a + b, 0);
   const linhas = Object.entries(nomes).filter(([k]) => dist[k]).map(([k, nome]) => { const n = dist[k], pct = Math.round(n / total * 100);
@@ -888,24 +897,34 @@ function barrasDist(titulo, dist, nomes) {
   return `<div class="or-card cartao sem-seta"><span class="or-rotulo">${esc(titulo)}</span>${linhas.join('') || '<p class="or-sub">Sem decisões ainda.</p>'}</div>`;
 }
 async function abaRoteamento() {
-  const d = await api('/api/admin/roteamento');
-  const c = d.config, r = d.resumo;
-  $('conteudo').innerHTML = `${topoTela('A GreenIA escolhe o nível de cada resposta conforme o que o pedido exige. Clique numa decisão para ver os motivos.')}
-    <form id="cfg-rota" class="editor">
-      <label class="opcoes"><span><input type="checkbox" id="rota-ativo" ${c.ativo ? 'checked' : ''}> Escolha automática do nível ligada (a opção "Automático" é o padrão das conversas)</span></label>
-      <span class="legenda">Preferência da empresa</span>
-      <div class="rt-pref">${PREFERENCIAS.map(([k, n, dica]) => `<label><input type="radio" name="rota-pref" value="${k}" ${c.preferencia === k ? 'checked' : ''}><span><b>${n}</b><small>${dica}</small></span></label>`).join('')}</div>
-      <div class="linha-botoes" style="margin-top:12px"><button class="btn btn-verde">Salvar escolha automática</button></div>
+  const consulta=new URLSearchParams(location.hash.split('?')[1]||'');
+  const d=await api('/api/admin/roteamento?'+new URLSearchParams({pagina:consulta.get('pagina')||'1',limite:'20',situacao:consulta.get('situacao')||''}));
+  const c=d.config,r=d.resumo,a=r.atencao||{},pg=d.paginacao||{pagina:1,paginas:1,total:d.decisoes.length};
+  const tituloPagina=document.querySelector('.cabeca h1');if(tituloPagina)tituloPagina.textContent='Escolha automática';
+  $('conteudo').innerHTML = `${topoTela('')}
+    <form id="cfg-rota" class="trabalho-config">
+      <section class="trabalho-principal" aria-labelledby="rota-titulo">
+        <div class="trabalho-config-topo"><span class="trabalho-icone trabalho-icone-destaque">${ICONE.camadas}</span><span class="trabalho-recomendado">Recomendado</span></div>
+        <h2 id="rota-titulo">Deixar o GreenIA escolher os recursos</h2>
+        <p class="trabalho-descricao">Sua equipe descreve o trabalho. O GreenIA escolhe os recursos dentro dos acessos e do limite de consumo da empresa.</p>
+        <div class="trabalho-ativacao"><div><strong id="rota-switch-rotulo">Escolha automática de recursos</strong><p>Você mantém o controle dos acessos e do consumo.</p></div><div class="trabalho-switch-estado"><span id="rota-estado" role="status">${c.ativo?'Ativado':'Desativado'}</span><button type="button" id="rota-switch" class="switch" role="switch" aria-labelledby="rota-switch-rotulo" aria-checked="${!!c.ativo}"><span></span></button><input id="rota-ativo" type="checkbox" hidden ${c.ativo?'checked':''}></div></div><p class="trabalho-pendente" id="rota-pendente" role="status" hidden>Alteração pendente. Salve para aplicar.</p><a class="trabalho-link" id="rota-manual" href="#/modelos" ${c.ativo?'hidden':''}>Ver os recursos definidos pela empresa ${ICONE.seta}</a>
+      </section>
+      ${exemplosDeTrabalho()}
+      <details id="rota-ajustes" class="trabalho-detalhes"><summary><span class="trabalho-icone">${ICONE.engrenagem}</span><span><strong>Limites e preferências de consumo</strong><small id="rota-resumo">${esc(PREFERENCIAS.find(([k])=>k===c.preferencia)?.[1]||'Seleção recomendada')} · limites da empresa preservados</small></span><span class="trabalho-chevron">${ICONE.chevron}</span></summary><div class="trabalho-detalhes-corpo"><p>A plataforma avalia cada pedido. Ajuste a preferência somente se sua empresa precisar.</p>
+      <div class="rt-pref">${PREFERENCIAS.map(([k,n,dica])=>`<label><input type="radio" name="rota-pref" value="${k}" ${c.preferencia===k?'checked':''}><span><b>${n}</b><small>${dica}</small></span></label>`).join('')}</div><a class="trabalho-link" href="#/configuracoes">Revisar limites da empresa ${ICONE.seta}</a></div></details>
+      <div id="rota-feedback" class="trabalho-feedback" role="status" aria-live="polite"></div>
+      <div class="linha-botoes trabalho-salvar" hidden><button type="button" class="btn btn-linha" id="rota-descartar">Descartar</button><button type="submit" class="btn btn-verde">Salvar alterações</button></div>
     </form>
-    <h2>Últimos 30 dias</h2>
-    <div class="or-grade grade-cartoes adm-resumo-rota adm-numeros">
-      <div class="or-card cartao sem-seta"><span class="or-rotulo">Decisões</span><b class="or-numero">${num(r.decisoes)}</b><span class="or-sub">respostas com a escolha registrada</span></div>
-      <div class="or-card cartao sem-seta"><span class="or-rotulo">Consumo realizado</span><b class="or-numero">${fmtCusto(r.consumo.realizado.custo)}</b><span class="or-sub">medido nas respostas</span></div>
-      <div class="or-card cartao sem-seta destaque"><span class="or-rotulo">Consumo evitado (estimativa)</span><b class="or-numero">${r.consumoEvitadoEstimadoPercentual === null ? '—' : `${r.consumoEvitadoEstimadoPercentual}%`}</b><span class="or-sub">comparado a usar sempre o nível Avançado. É uma estimativa, não economia medida.</span></div>
-      <div class="or-card cartao sem-seta"><span class="or-rotulo">Abaixo do necessário</span><b class="or-numero">${num(r.limitadas + r.abaixoPorEscolha)}</b><span class="or-sub">${num(r.limitadas)} por regras ou permissões, ${num(r.abaixoPorEscolha)} por escolha manual</span></div>
-      <div class="or-card cartao sem-seta"><span class="or-rotulo">Fora da escolha automática</span><b class="or-numero">${num(r.foraDoRoteador.externo + r.foraDoRoteador.bloqueadas)}</b><span class="or-sub">${num(r.foraDoRoteador.externo)} no Automático do serviço de IA, ${num(r.foraDoRoteador.bloqueadas)} bloqueadas antes do envio</span></div>
-    </div>
-    <details class="uso-detalhes"><summary>Ver o diagnóstico da escolha automática</summary>
+    <section class="trabalho-resumo" aria-labelledby="resumo-rota-titulo"><div class="trabalho-secao"><h2 id="resumo-rota-titulo">Uso nos últimos 30 dias</h2><p>Escolhas da plataforma com resposta registrada.</p></div>
+      <div class="trabalho-metricas"><div><span>Decisões registradas</span><strong>${num(r.decisoes)}</strong><small>Com resposta · últimos 30 dias</small></div><div><span>${emCreditos()?'Créditos utilizados':'Consumo realizado'}</span><strong>${fmtCusto(r.consumo.realizado.custo)}</strong><small>Nas decisões com resposta · últimos 30 dias</small></div></div>
+      <details class="trabalho-detalhes trabalho-atencao"><summary><span class="trabalho-icone">${ICONE.atividade}</span><span><strong>Registros para acompanhar</strong><small>Bloqueios, escolhas e capacidade utilizada</small></span><span class="trabalho-chevron">${ICONE.chevron}</span></summary><div class="trabalho-detalhes-corpo"><ul class="trabalho-casos">
+        <li><span><strong>${num(a.bloqueios||0)} envios bloqueados</strong><small>Registros impedidos antes da execução.</small></span><a href="#/modelos/roteamento?situacao=bloqueado">Consultar</a></li>
+        <li><span><strong>${num(a.respostasAbaixo||0)} respostas abaixo da capacidade indicada</strong><small>Classificação histórica do roteador; não é uma avaliação do conteúdo.</small></span><a href="#/modelos/roteamento?situacao=abaixo">Consultar</a></li>
+        <li><span><strong>${num(a.roteamentoExterno||0)} registros de roteamento externo</strong><small>Exigem análise individual; esta contagem não confirma desvio de política.</small></span><a href="#/modelos/roteamento?situacao=externo">Consultar</a></li>
+      </ul><p>${num(a.alternativasIniciadas||0)} alternativas iniciadas após aceite e ${num(a.manuais||0)} respostas com escolha manual registrada. São situações diferentes de uma execução com capacidade insuficiente.</p></div></details>
+      <details class="trabalho-detalhes"><summary><span class="trabalho-icone">${ICONE.grafico}</span><span><strong>Como ler estes números</strong><small>Escopo e cobertura dos registros</small></span><span class="trabalho-chevron">${ICONE.chevron}</span></summary><div class="trabalho-detalhes-corpo"><p>As duas medidas principais contam decisões classificadas como respondidas pelo roteador GreenIA. Registros antigos sem status usam sua classificação histórica de resposta. Excluem testes, bloqueios e roteamento externo; não representam todos os lançamentos da empresa.</p><p>A estimativa de consumo evitado está suspensa: o cenário hipotético não comprova economia nem resultado equivalente.</p><p>Alternativas iniciadas são contadas pelos eventos de início após aceite; não comprovam conclusão. Escolhas manuais, bloqueios e registros externos possuem contagens separadas.</p></div></details>
+    </section>
+    <details class="trabalho-detalhes uso-detalhes"><summary><span class="trabalho-icone">${ICONE.lista}</span><span><strong>Diagnóstico detalhado</strong><small>Classificação, tempos e critérios</small></span><span class="trabalho-chevron">${ICONE.chevron}</span></summary><div class="trabalho-detalhes-corpo">
     <p class="dica">${r.realizadoSobreEstimado ? `Consumo estimado antes de cada resposta × consumo medido: ${Math.round(Math.min(r.realizadoSobreEstimado, 1 / r.realizadoSobreEstimado) * 100)}% de proximidade.` : 'Ainda sem amostra para comparar o consumo estimado com o medido.'}</p>
     <div class="or-grade grade-cartoes adm-resumo-rota">${barrasDist('Complexidade dos pedidos', r.porComplexidade, COMPLEXIDADE)}${barrasDist('Nível exigido pelo pedido', r.porNecessaria, PERFIS)}${barrasDist('Nível usado', r.porClasse, PERFIS)}${barrasDist('Como o nível foi definido', r.porModo, MODO)}</div>
     <h3>Classificação dos pedidos</h3>
@@ -917,13 +936,13 @@ async function abaRoteamento() {
     <p class="dica">Só observação: o tempo não entra na escolha. Primeiro trecho é o que a pessoa sente; total inclui a resposta inteira.</p>
     ${tabela(['Modelo', '#Respostas', '#Primeiro trecho', '#Total'], r.latencia.map(l => `<tr><td>${esc(l.modelo)}</td><td class="num">${num(l.n)}</td>
       <td class="num">${l.primeiroTokenMs == null ? '—' : `${(l.primeiroTokenMs / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} s`}</td><td class="num">${(l.totalMs / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} s</td></tr>`), 'Sem respostas ainda.')}
-    </details>
-    <h2>Decisões recentes</h2>
-    ${tabela(['Quando', 'Pessoa', 'Pedido', 'Nível exigido', 'Nível usado', 'Por quê'], d.decisoes.map((x, i) => `<tr data-registro="${i}" aria-label="${esc(`Decisão de ${dataHora(x.em)}. Enter abre os requisitos, candidatos e critérios.`)}">
-      <td data-r="Quando" style="white-space:nowrap">${dataHora(x.em)}<br><span class="dica">${esc(RESULTADO[x.resultado] || x.resultado || '')}</span></td><td data-r="Pessoa">${esc(x.pessoa || '—')}${x.quick_win ? `<br><span class="dica">${esc(x.quick_win)}</span>` : ''}</td>
-      <td data-r="Pedido">${esc(x.tipos.map(t => TIPO_TAREFA[t] || t).join(', '))}<br><span class="dica">${COMPLEXIDADE[x.complexidade] || ''}${x.sigilosa ? ' · sigilosa' : ''}</span></td>
-      <td data-r="Nível exigido">${PERFIS[x.classe_necessaria] || '—'}</td><td data-r="Nível usado"><b>${PERFIS[x.classe] || (x.modo === 'externo' ? 'Serviço de IA' : '—')}</b><br><span class="dica">${esc(x.modelo_usado || x.modelo || '')}</span>${x.fallback ? `<br><span class="selo selo-ambar">${esc(FALLBACK[x.fallback.tipo] || x.fallback.tipo)}</span>` : ''}</td>
-      <td data-r="Por quê" class="decisao-porque">${esc(x.explicacao)}</td></tr>`), 'Nenhuma decisão registrada ainda.').replace('class="tabela"', 'class="tabela tabela-decisoes adm-registros"')}`;
+    </div></details>
+    <section class="trabalho-historico" id="historico-rota"><div class="trabalho-historico-topo"><div class="trabalho-secao"><h2>Decisões recentes</h2><p>${pg.filtro?'Filtro dos últimos 30 dias':'Histórico de decisões'} · ${num(pg.total)} registros</p></div><label class="trabalho-filtro">Mostrar<select class="entrada" id="rota-filtro"><option value="">Todos os registros</option><option value="bloqueado" ${pg.filtro==='bloqueado'?'selected':''}>Envios bloqueados</option><option value="abaixo" ${pg.filtro==='abaixo'?'selected':''}>Capacidade abaixo da indicada</option><option value="manual" ${pg.filtro==='manual'?'selected':''}>Escolha manual</option><option value="externo" ${pg.filtro==='externo'?'selected':''}>Roteamento externo</option></select></label></div>
+    ${tabela(['Quando','Tipo de trabalho','Escolha realizada','Motivo'],d.decisoes.map((x,i)=>`<tr data-registro="${i}" aria-label="${esc(`Decisão de ${dataHora(x.em)}. Enter abre os detalhes.`)}"><td data-r="Quando">${dataHora(x.em)}</td><td data-r="Trabalho">${esc(x.tipos.map(t=>TIPO_TAREFA[t]||t).join(', ')||'Consulta')}</td><td data-r="Escolha"><strong>${esc(RESULTADO[x.resultado]||x.resultado||'Registrada')}</strong><br><span class="dica">${esc(MODO[x.modo]||x.modo)}</span></td><td data-r="Motivo" class="trabalho-motivo"><span>${esc(x.explicacao||'Motivo não registrado.')}</span></td></tr>`),'Nenhum registro para este filtro.').replace('class="tabela"','class="tabela tabela-decisoes adm-registros"')}
+    <nav class="trabalho-paginacao" aria-label="Páginas do histórico"><button class="btn btn-linha" id="rota-anterior" ${pg.pagina<=1?'disabled':''}>Anterior</button><span>Página ${pg.pagina} de ${pg.paginas}</span><button class="btn btn-linha" id="rota-proxima" ${pg.pagina>=pg.paginas?'disabled':''}>Próxima</button></nav></section>`;
+  const irHistorico=(pagina,filtro=pg.filtro)=>{location.hash='/modelos/roteamento?'+new URLSearchParams({pagina:String(pagina),situacao:filtro||''});};
+  $('rota-filtro').onchange=e=>irHistorico(1,e.target.value);
+  $('rota-anterior').onclick=()=>irHistorico(pg.pagina-1);$('rota-proxima').onclick=()=>irHistorico(pg.pagina+1);
   // Requisitos, candidatos e critérios de uma decisão: no painel lateral, uma por vez.
   ligarLinhas(document.querySelector('#conteudo .tabela-decisoes'), i => {
     const x = d.decisoes[Number(i)];
@@ -933,14 +952,18 @@ async function abaRoteamento() {
       <section class="px-secao"><h3>Candidatos</h3><ul class="dica">${x.candidatos.map(k => `<li>${esc(k.id)} (${PERFIS[k.classe] || k.classe}): ${esc(STATUS_CAND[k.status] || k.status)}${k.motivos?.length ? ` · ${esc(k.motivos.map(m => MOTIVO_CAND[m] || m).join(', '))}` : ''}${k.custo != null ? ` · ${fmtCusto(k.custo)}` : ''}</li>`).join('')}</ul></section>
       <section class="px-secao"><h3>Critérios</h3><p class="dica">Regras: ${esc(x.politicas.join(', ') || '—')} · escolha: ${esc(x.motivo_escolha || '—')}${x.reserva ? ` · reserva: ${esc(x.reserva)}` : ''} · versão ${esc(x.versao)}</p></section>` });
   });
-  const vig = vigiarAlteracoes($('cfg-rota'), { barra: $('cfg-rota').querySelector('.linha-botoes') });
-  $('cfg-rota').onsubmit = async ev => {
-    ev.preventDefault();
-    try {
-      await api('/api/admin/modelos-config', { metodo: 'PUT', corpo: { roteamento: { ativo: $('rota-ativo').checked, preferencia: document.querySelector('input[name=rota-pref]:checked')?.value } } });
-      vig.limpar(); toast('Escolha automática salva.'); abaRoteamento();
-    } catch (e) { falhar(e); }
-  };
+  const form=$('cfg-rota'),barra=form.querySelector('.trabalho-salvar'),feedback=$('rota-feedback');
+  const vig=vigiarAlteracoes(form,{barra});
+  let salvo={ativo:!!c.ativo,preferencia:c.preferencia},salvando=false;
+  const atual=()=>({ativo:$('rota-ativo').checked,preferencia:form.querySelector('input[name=rota-pref]:checked')?.value});
+  const atualizar=()=>{const a=atual(),mudou=JSON.stringify(a)!==JSON.stringify(salvo);barra.hidden=!mudou;$('rota-pendente').hidden=!mudou;$('rota-manual').hidden=a.ativo;vig.limpar();if(mudou)vig.marcar();$('rota-estado').textContent=a.ativo?'Ativado':'Desativado';$('rota-switch').setAttribute('aria-checked',String(a.ativo));$('rota-resumo').textContent=(PREFERENCIAS.find(([k])=>k===a.preferencia)?.[1]||'Seleção recomendada')+' · limites da empresa preservados';};
+  $('rota-switch').onclick=async e=>{const b=e.currentTarget;if(salvando||b.disabled)return;b.disabled=true;try{const ativar=!$('rota-ativo').checked;if(!ativar&&!await confirmar({titulo:'Desativar a escolha automática?',texto:'Os próximos pedidos usarão a configuração manual da empresa. A plataforma continuará verificando permissões, segurança e consumo; trabalhos sem recursos adequados poderão ficar bloqueados. A mudança só será aplicada ao salvar.',botao:'Desativar escolha automática'}))return;$('rota-ativo').checked=ativar;atualizar();feedback.textContent='';}finally{b.disabled=false;}};
+  $('rota-descartar').onclick=()=>{$('rota-ativo').checked=salvo.ativo;form.querySelectorAll('input[name=rota-pref]').forEach(x=>x.checked=x.value===salvo.preferencia);atualizar();feedback.textContent='Alterações descartadas.';};
+  form.addEventListener('change',()=>{atualizar();feedback.textContent='';});
+  form.onsubmit=async ev=>{ev.preventDefault();if(salvando)return;salvando=true;const b=barra.querySelector('button[type=submit]'),dados=atual();b.disabled=true;$('rota-descartar').disabled=true;b.textContent='Salvando…';form.setAttribute('aria-busy','true');form.querySelectorAll('input, #rota-switch').forEach(x=>x.disabled=true);feedback.textContent='';try{
+    await api('/api/admin/modelos-config',{metodo:'PUT',corpo:{roteamento:dados}});salvo=dados;atualizar();feedback.setAttribute('role','status');feedback.textContent='Alterações salvas. A configuração já está em uso.';toast('Alterações salvas.');
+  }catch(e){feedback.setAttribute('role','alert');feedback.textContent=`Não foi possível salvar. ${e.message} Seus ajustes foram mantidos; tente novamente.`;}finally{salvando=false;b.disabled=false;$('rota-descartar').disabled=false;b.textContent='Salvar alterações';form.removeAttribute('aria-busy');form.querySelectorAll('input, #rota-switch').forEach(x=>x.disabled=false);}};
+  atualizar();
 }
 
 // ---------------------------------------------------------------- Histórico de modelos
@@ -954,7 +977,7 @@ const NOMES_EVENTO = { 'model.pool_expanded': 'Modelos do nível ampliados', 'mo
 
 // ---------------------------------------------------------------- rotas
 const TELAS = {
-  uso: { titulo: 'Uso e créditos', perm: 'usage.read', fn: abaUso },
+  uso: { titulo: 'Créditos do plano', perm: 'usage.read', fn: abaUso },
   // Pessoas: uma tela com abas. Cada aba aparece só para quem tem a permissão da tela que ela substitui
   // (o servidor confere de novo em cada rota): Perfis é role.manage, Quem cria Quick Wins lê uma rota de company.manage.
   pessoas: { titulo: 'Pessoas', perm: () => pode('user.read') || (!!E.plataforma && pode('role.manage')), abas: true, sub: [

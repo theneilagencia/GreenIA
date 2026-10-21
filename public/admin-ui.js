@@ -73,7 +73,7 @@ export function painelLateral({ migalha = '', titulo, corpo }) {
   const soltar = () => { document.removeEventListener('keydown', tecla, true); removeEventListener('hashchange', fechar); painelAberto = null; };
   const fechar = () => { soltar(); host.innerHTML = ''; if (anterior?.isConnected) anterior.focus({ preventScroll: true }); };
   // Uma confirmação ou um formulário aberto por cima do painel cuida das próprias teclas.
-  const tecla = ev => { if (document.querySelector('.adm-confirmar, #modal .modal-fundo')) return; if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); fechar(); } else if (ev.key === 'Tab') { const f = [...host.querySelectorAll('button, a[href], [tabindex="0"]')]; if (!f.length) return; const i = f.indexOf(document.activeElement); if (ev.shiftKey && i <= 0) { ev.preventDefault(); f.at(-1).focus(); } else if (!ev.shiftKey && i === f.length - 1) { ev.preventDefault(); f[0].focus(); } } };
+  const tecla = ev => { if (document.querySelector('.adm-confirmar, #modal .modal-fundo')) return; if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); fechar(); } else if (ev.key === 'Tab') { const f = [...host.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]')]; if (!f.length) return; const i = f.indexOf(document.activeElement); if (ev.shiftKey && i <= 0) { ev.preventDefault(); f.at(-1).focus(); } else if (!ev.shiftKey && i === f.length - 1) { ev.preventDefault(); f[0].focus(); } } };
   document.addEventListener('keydown', tecla, true);
   addEventListener('hashchange', fechar);
   host.querySelector('#px-fundo').onclick = ev => { if (ev.target.id === 'px-fundo') fechar(); };

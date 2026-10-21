@@ -8,7 +8,7 @@ const STATUS = {
   parcial: ['Pronto, com ressalvas', 'atencao'], inconsistente: ['Revise antes de usar', 'erro'],
 };
 const FORMATOS = { a4: 'A4 retrato', a4_paisagem: 'A4 paisagem', '16:9': 'Tela 16:9', '1:1': 'Quadrado 1:1', '4:5': 'Vertical 4:5', '9:16': 'Vertical 9:16', '1.91:1': 'Horizontal 1.91:1' };
-const EXP = { pdf: 'PDF', png: 'PNG', jpg: 'JPG', svg: 'SVG' };
+const EXP = { pdf: 'PDF', png: 'PNG', jpg: 'JPG', svg: 'SVG', pptx: 'PowerPoint' };
 const paginasTxt = n => `${n} ${n === 1 ? 'página' : 'páginas'}`;
 const baixar = (a, f, pagina = null) => `/api/artefatos/${a.id}/baixar?formato=${f}${pagina ? `&pagina=${pagina}` : ''}`;
 const imagem = (a, n, mini = false) => `/api/artefatos/${a.id}/paginas/${n}?${mini ? 'miniatura=1&' : ''}v=${a.id}`;
@@ -35,10 +35,10 @@ function cartao(a) {
       ${a.avisos?.length ? `<ul class="artefato-avisos">${a.avisos.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
       ${fin && !fin.gerada && fin.briefing ? `<details class="artefato-briefing"><summary>Briefing da imagem</summary><p>${esc(fin.briefing)}</p></details>` : ''}
       <div class="artefato-acoes">
-        ${formatos.slice(0, 1).map(f => `<a class="btn btn-linha btn-pequeno" href="${baixar(a, f)}" download data-baixar="${f}">Baixar ${EXP[f]}${f !== 'pdf' && a.paginas > 1 ? ' (zip)' : ''}</a>`).join('')}
+        ${formatos.slice(0, 1).map(f => `<a class="btn btn-linha btn-pequeno" href="${baixar(a, f)}" download data-baixar="${f}">Baixar ${EXP[f]}${['png', 'jpg', 'svg'].includes(f) && a.paginas > 1 ? ' (zip)' : ''}</a>`).join('')}
         <button type="button" class="btn btn-texto btn-pequeno" data-editar="${a.id}">Editar</button>
         ${formatos.length > 1 || fin ? `<details class="menu-acoes artefato-mais"><summary class="btn btn-texto btn-pequeno" aria-label="Mais opções de ${esc(a.rotulo)}">Mais opções</summary><div class="menu-lista">
-          ${formatos.slice(1).map(f => `<a href="${baixar(a, f)}" download data-baixar="${f}">Baixar ${EXP[f]}${f !== 'pdf' && a.paginas > 1 ? ' (zip)' : ''}</a>`).join('')}
+          ${formatos.slice(1).map(f => `<a href="${baixar(a, f)}" download data-baixar="${f}">Baixar ${EXP[f]}${['png', 'jpg', 'svg'].includes(f) && a.paginas > 1 ? ' (zip)' : ''}</a>`).join('')}
           ${fin ? `<button type="button" data-gerar-imagem="${a.id}">${fin.gerada ? 'Gerar outra imagem' : 'Tentar gerar a imagem'}</button>${fin.gerada ? `<button type="button" data-variacao="${a.id}">Variação</button>` : ''}` : ''}
         </div></details>` : ''}
       </div>

@@ -63,7 +63,7 @@ function montarSecao(app) {
     return quem.length ? quem.join(', ') : '';
   };
   // Nível sem ninguém com acesso não entra na lista ("Avançado: ninguém" soava como erro); a nota explica a ausência.
-  const niveis = [[PERFIS.rapido, 'todas as pessoas'], [PERFIS.equilibrado, acesso('equilibrado')], [PERFIS.avancado, acesso('avancado')]].filter(([, q]) => q);
+  const niveis = [[PERFIS.rapido, 'todas as pessoas'], [PERFIS.equilibrado, acesso('equilibrado')]].filter(([, q]) => q);
   const areasSigilosas = todos(app.db, 'select nome from areas where sigilosa = 1 and ativa = 1 order by nome').map(a => a.nome);
   const ligada = politicaSigiloLigada(cfg);
   const protegidos = Object.entries(cfg.acoesChat).filter(([t, v]) => t !== 'credencial' && v === 'proteger').map(([t]) => ROTULOS[t]);
@@ -95,7 +95,8 @@ function montarSecao(app) {
     ...(naoEnviados.length ? ['### Dados que a empresa não envia à IA', `Por política da empresa, mensagens com ${naoEnviados.join(', ')} não são enviadas.`] : []),
     '### Quem usa cada nível',
     ...niveis.map(([nivel, quem]) => `- ${nivel}: ${quem}.`),
-    ...(niveis.length < 3 ? ['Os níveis que não aparecem na lista não estão liberados nesta empresa.'] : []),
+    ...(niveis.length < 2 ? ['Os níveis que não aparecem na lista não estão liberados nesta empresa.'] : []),
+    '- Advanced: depende de liberação administrativa válida para a pessoa ou perfil e para o trabalho a realizar. As regras de dados, ferramentas e consumo continuam sendo aplicadas.',
     '### O sistema não reconhece tudo',
     'Números estratégicos, nomes soltos e informações de negócio não são reconhecidos automaticamente. Se houver informação sigilosa que o sistema não reconhece, ligue a opção "Esta conversa tem dados sigilosos" antes de enviar.',
     '### Quem vê o quê e por quanto tempo',

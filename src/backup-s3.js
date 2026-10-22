@@ -64,7 +64,7 @@ export function configS3(destino, env = {}, { mestra = null } = {}) {
   if (sse && !['AES256', 'aws:kms'].includes(sse)) throw new ErroBackup('S3_SSE_INVALIDA', 'S3_SSE aceita AES256 ou aws:kms.');
   const prefixo = (m[2] || '').replace(/^\/+|\/+$/g, '');
   return { endpoint: endpointS3(env.S3_ENDPOINT), bucket: m[1], prefixo: prefixo ? prefixo + '/' : '', chave: env.S3_CHAVE, segredo: env.S3_SEGREDO,
-    regiao: env.S3_REGIAO || 'us-east-1', sse, kmsChave: env.S3_SSE_KMS_ID || '', cifra: chaveCifraDe(env, { mestra }), timeoutMs: Number(env.S3_TIMEOUT_MS) || 120e3 };
+    regiao: env.S3_REGIAO || 'us-east-1', incremental: env.BACKUP_INCREMENTAL === '1', sse, kmsChave: env.S3_SSE_KMS_ID || '', cifra: chaveCifraDe(env, { mestra }), timeoutMs: Number(env.S3_TIMEOUT_MS) || 120e3 };
 }
 
 export const urlS3 = (cfg, chaveObjeto = '', query = '') => `${cfg.endpoint}/${cfg.bucket}${chaveObjeto ? '/' + chaveObjeto.split('/').map(codificar).join('/') : ''}${query ? '?' + query : ''}`;
@@ -186,6 +186,7 @@ export async function enviarBackupS3(cfg, { banco, carimbo, gz, criadoEm, verifi
   if (!BANCO_VALIDO.test(banco)) throw new ErroBackup('S3_BANCO_INVALIDO', 'Identificador de banco inválido para o nome do objeto.');
   if (!verificacao.resultado?.ok) throw new ErroBackup('S3_SEM_EXPIRACAO', `Envio ao S3 recusado: ${verificacao.resultado?.motivo || 'expiração do bucket não conferida'}.`, { ciclo: verificacao.resultado || null });
   const objeto = objetoBackup(cfg, banco, carimbo);
+  if (cfg.incremental) return (await import('./backup-incremental.js')).enviarIncremental(cfg, { objeto, banco, gz, criadoEm }, f);
   const corpo = cifrarBackup(cfg.cifra, objeto, gz);
   const meta = { 'x-amz-meta-sha256': sha256(gz), 'x-amz-meta-sha256-cifrado': sha256(corpo), 'x-amz-meta-banco': banco, 'x-amz-meta-criado-em': criadoEm, 'x-amz-meta-formato': FORMATO };
   const sse = cfg.sse ? { 'x-amz-server-side-encryption': cfg.sse, ...(cfg.sse === 'aws:kms' && cfg.kmsChave ? { 'x-amz-server-side-encryption-aws-kms-key-id': cfg.kmsChave } : {}) } : {};
@@ -203,6 +204,11 @@ export async function baixarBackupS3(cfg, objeto, f = globalThis.fetch) {
   const esperadoCifrado = r.headers.get('x-amz-meta-sha256-cifrado'), esperado = r.headers.get('x-amz-meta-sha256');
   if (!esperadoCifrado || !esperado) throw new ErroBackup('S3_SEM_METADADOS', 'O objeto não tem os metadados de integridade (sha256): não foi enviado por esta versão.');
   if (sha256(r.corpo) !== esperadoCifrado) throw new ErroBackup('S3_INTEGRIDADE', 'O arquivo baixado não confere com o SHA-256 registrado no envio.');
+  const { ehIncremental } = await import('./backup-incremental-formato.js');
+  if (ehIncremental(r.corpo)) {
+    const x = await (await import('./backup-incremental.js')).reconstruirIncremental(cfg, objeto, r.corpo, esperado, f);
+    return { ...x, sha256: sha256(x.gz), criadoEm: r.headers.get('x-amz-meta-criado-em') };
+  }
   const { dados } = decifrarBackup(cfg.cifra, r.corpo, { nomeEsperado: objeto });
   if (sha256(dados) !== esperado) throw new ErroBackup('S3_INTEGRIDADE', 'O backup decifrado não confere com o SHA-256 registrado no envio.');
   return { gz: dados, sha256: esperado, banco: r.headers.get('x-amz-meta-banco'), criadoEm: r.headers.get('x-amz-meta-criado-em') };

@@ -15,10 +15,11 @@ async function subir(pasta){
  return {...r,cfg:{endpoint:`http://127.0.0.1:${r.servidor.address().port}`,bucket:'greenia-backups',chave:'teste',segredo,regiao:'us-east-1',timeoutMs:2000},fechar:()=>new Promise(ok=>{r.servidor.close(ok);r.servidor.closeAllConnections();})};
 }
 for(const etapa of ['dados','metadados'])test(`ENOSPC em ${etapa}: limpa estágio, preserva cópia anterior e aceita nova tentativa`,async()=>{
- const pasta=fs.mkdtempSync(join(tmpdir(),'greenia-enospc-'));const R=await subir(pasta);const original=fs.writeFileSync;
+ const pasta=fs.mkdtempSync(join(tmpdir(),'greenia-enospc-'));const R=await subir(pasta);const original=fs.writeFileSync, escrever=fs.writeSync;
  try{
   const objeto='greenia/empresa-teste/copia.enc';
   await pedirS3(R.cfg,'PUT',{objeto,corpo:Buffer.from('copia anterior cifrada')});
+  fs.writeSync=function(fd,d,...resto){if(etapa==='dados'){escrever(fd,d.subarray(0,3));throw Object.assign(new Error('disco cheio'),{code:'ENOSPC'});}return escrever(fd,d,...resto);};
   fs.writeFileSync=function(p,d,...resto){
    if(String(p).startsWith(join(pasta,'objetos')) && String(p).endsWith('.tmp') && (etapa==='dados'?!String(p).endsWith('.json.tmp'):String(p).endsWith('.json.tmp'))){
     original(p,Buffer.from(d).subarray(0,3));throw Object.assign(new Error('disco cheio'),{code:'ENOSPC'});
@@ -28,10 +29,10 @@ for(const etapa of ['dados','metadados'])test(`ENOSPC em ${etapa}: limpa estági
   await assert.rejects(pedirS3(R.cfg,'PUT',{objeto,corpo:Buffer.from('nova copia cifrada')}),e=>e.code==='S3_HTTP_507');
   assert.deepEqual(fs.readdirSync(join(pasta,'objetos')).filter(n=>n.endsWith('.tmp')),[]);
   assert.equal((await pedirS3(R.cfg,'GET',{objeto})).corpo.toString(),'copia anterior cifrada');
-  fs.writeFileSync=original;syncBuiltinESMExports();
+  fs.writeFileSync=original;fs.writeSync=escrever;syncBuiltinESMExports();
   await pedirS3(R.cfg,'PUT',{objeto,corpo:Buffer.from('nova copia cifrada')});
   assert.equal((await pedirS3(R.cfg,'GET',{objeto})).corpo.toString(),'nova copia cifrada');
- }finally{fs.writeFileSync=original;syncBuiltinESMExports();await R.fechar();fs.rmSync(pasta,{recursive:true,force:true});}
+ }finally{fs.writeFileSync=original;fs.writeSync=escrever;syncBuiltinESMExports();await R.fechar();fs.rmSync(pasta,{recursive:true,force:true});}
 });
 test('reinício remove somente estágios reconhecidos e preserva cópias dentro da retenção',async()=>{
  const pasta=fs.mkdtempSync(join(tmpdir(),'greenia-estagio-'));let R=await subir(pasta);

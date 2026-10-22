@@ -32,6 +32,8 @@ const proximoMes = d => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 
 // Situação do mês. Ordem de consumo: créditos do plano, depois pacotes (todos os
 // modelos; o que sobra passa para o mês seguinte), por último a reserva (só rápido).
 export function situacaoPlano(app) {
+  const pago = app.cobranca?.();
+  if (pago) return pago;
   const p = app.plano;
   if (!p) return null;
   const agora = app.agora(), mesAtual = mesDe(agora), hoje = agora.toISOString().slice(0, 10);
@@ -98,6 +100,7 @@ export const COMO_FUNCIONAM_OS_CREDITOS = [
 // Antes de cada envio: bloqueia no fim da reserva (contando as execuções que já estão em andamento).
 export function checarPlano(app) {
   const s = situacaoPlano(app);
+  if (s?.cobrancaPendente) throw erro(402, 'pagamento_pendente', 'A empresa não tem um período de uso pago vigente. O histórico continua disponível; fale com o responsável financeiro.');
   if (s?.fase === 'esgotado') throw erro(429, 'plano_esgotado', MSG.esgotado(s));
   if (s?.fase === 'reserva') {
     const emAndamento = app.execucoesNaReserva || 0;
@@ -192,8 +195,8 @@ export async function enviarParaTodos(app, assunto, texto, { soOperador = false 
 
 export async function verificarAvisos(app) {
   const s = situacaoPlano(app);
-  if (!s || s.ilimitado) return [];
-  const mes = app.agora().toISOString().slice(0, 7);
+  if (!s || s.ilimitado || s.cobrancaPendente) return [];
+  const mes = s.ciclo || app.agora().toISOString().slice(0, 7);
   const reg = lerConfig(app.db).avisosPlano || {};
   const enviados = reg.mes === mes ? [...(reg.enviados || [])] : [];
   const novos = [];

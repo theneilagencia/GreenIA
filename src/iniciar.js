@@ -1,5 +1,6 @@
 // Ponto de entrada: node src/iniciar.js. Sobe o servidor com a configuração das variáveis de ambiente.
 import { CAPACITY_PACK } from './plataforma/catalogo.js';
+import { rodadaRenovacoesStripe } from './plataforma/stripe-pagamentos.js';
 import { PUBLICACAO_CONTROLADA } from './publicacao-controlada.js';
 import { iniciarProgramadas, recuperarProgramadas, rodadaProgramadas } from './qw-programacao.js';
 import { conferirSaldo, contaOpenRouter } from './plataforma/consumo.js';
@@ -177,6 +178,7 @@ export async function iniciarPlataforma(env = process.env) {
   const host = (env.PLATAFORMA_HOST || '').toLowerCase();
   const legado = env.BANCO || 'dados/greenia.sqlite';
   const P = criarPlataforma({
+    stripe: { env },
     publicacaoControlada: producao ? PUBLICACAO_CONTROLADA : null,
     ia, chaveVariavel: mascarar(env.OPENROUTER_API_KEY), fuso: env.PLATAFORMA_FUSO || undefined, banco: env.BANCO_PLATAFORMA || 'dados/plataforma.sqlite', pastaEmpresas: env.PASTA_EMPRESAS || 'dados/empresas',
     cookieSeguro: env.COOKIE_SEGURO ? env.COOKIE_SEGURO !== '0' : producao,
@@ -198,6 +200,7 @@ export async function iniciarPlataforma(env = process.env) {
   if (!iaReal()) P.log(producao ? 'ATENÇÃO: sem chave do OpenRouter. A IA está desligada até a chave ser informada no console (Uso) ou em OPENROUTER_API_KEY.' : 'Sem chave do OpenRouter: usando a IA simulada.');
   const tarefa = (fn, ms) => { const t = () => Promise.resolve().then(fn).catch(e => P.log('tarefa', e.message)); t(); setInterval(t, ms).unref(); };
   const todas = fn => () => Promise.all([...P.tenants.values()].map(t => Promise.resolve().then(() => fn(t)).catch(e => P.log('tarefa', e.message))));
+  tarefa(() => rodadaRenovacoesStripe(P),15*60_000);
   if (!P.publicacaoControlada?.ativa) for (const t of P.tenants.values()) recuperarProgramadas(t);
   else P.log('Publicação controlada: acesso restrito à homologação e programações pausadas.');
   // Uma empresa por vez; a fila local guarda o progresso mesmo durante reinícios.

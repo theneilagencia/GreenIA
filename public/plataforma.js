@@ -376,6 +376,7 @@ async function abaResumo(d, id) {
   acoesAba(`${menuMais([
     ...(!entrarPrincipal && e.status !== 'cancelada' ? [{ acao: 'entrar', rotulo: 'Entrar no ambiente…' }] : []),
     { acao: 'plano', rotulo: 'Alterar plano…' },
+    ...(C.eu?.stripeTeste ? [{ acao: 'cobrancas', rotulo: 'Cobranças Stripe (teste)…' }] : []),
     ...(u.plano ? [{ acao: 'pacote', rotulo: 'Liberar Capacity Pack…' }] : []),
     { acao: 'dados', rotulo: 'Editar dados cadastrais…' },
     { acao: 'exportar', rotulo: 'Exportar dados…' },
@@ -425,6 +426,7 @@ async function abaResumo(d, id) {
   $('entrar-amb')?.addEventListener('click', entrar);
   Object.assign(C.mais, {
     entrar, suspender: () => mudarStatus('suspensa'), reabrir: () => mudarStatus('em_implantacao'),
+    cobrancas: () => import('/stripe-console.js').then(m => m.abrirCobrancasStripe({ empresa:e, api, modal, esc })),
     plano: () => alterarPlano(e, id), pacote: () => liberarPacote(e, id), dados: () => editarDados(e, id),
     exportar: () => pedirMotivo({ titulo: `Exportar os dados da ${e.name}`, botao: 'Exportar', tipos: FINALIDADES_EXPORTACAO, rotuloTipo: 'Finalidade',
       explica: 'A exportação é uma cópia completa do banco da empresa, conversas incluídas, e só vale por pedido do cliente, incidente de segurança ou obrigação legal. A cópia fica no servidor e é eliminada 7 dias depois de encerrada a necessidade, salvo bloqueio legal. O registro aparece para a empresa, e os admins dela recebem um aviso por email.',

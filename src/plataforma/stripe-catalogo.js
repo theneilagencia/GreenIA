@@ -39,7 +39,8 @@ export function clienteStripeTeste(env, transporte = fetch) {
   const versao = env.STRIPE_API_VERSION || '';
   if (!/^\d{4}-\d{2}-\d{2}(\.[a-z]+)?$/.test(versao)) throw new Error('Defina STRIPE_API_VERSION conforme a versão escolhida no Stripe Workbench.');
   return async (metodo, caminho, dados = {}, idempotencia) => {
-    if (!/^\/v1\/(products|prices)(\/[A-Za-z0-9_]+)?$/.test(caminho)) throw new Error('Rota não permitida no preparador de catálogo.');
+    if (!['GET','POST'].includes(metodo) || !/^\/v1\/(products|prices|customers|invoiceitems|invoices|subscriptions|checkout\/sessions)(\/[A-Za-z0-9_]+)?(\/finalize)?$/.test(caminho)) throw new Error('Rota não permitida na integração Stripe.');
+    if (metodo==='POST' && (!idempotencia || idempotencia.length>255)) throw new Error('Operação Stripe exige referência de idempotência.');
     const query = form(dados);
     let resposta;
     try {

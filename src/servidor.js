@@ -240,7 +240,7 @@ async function tratar(app, r, req, res, externo) {
 function planoParaTela(app, pessoa) {
   const s = situacaoPlano(app);
   if (!s) return null;
-  const mensagem = s.fase === 'reserva' ? MSG_PLANO.reserva(s) : s.fase === 'esgotado' ? MSG_PLANO.esgotado(s) : s.fase === 'aviso' ? `Os créditos da empresa estão em ${s.percentual}% neste ciclo.` : null;
+  const mensagem = s.cobrancaPendente ? 'O período pago terminou. O histórico continua disponível; fale com o responsável financeiro para renovar.' : s.fase === 'reserva' ? MSG_PLANO.reserva(s) : s.fase === 'esgotado' ? MSG_PLANO.esgotado(s) : s.fase === 'aviso' ? `Os créditos da empresa estão em ${s.percentual}% neste ciclo.` : null;
   // Todos veem o percentual e a renovação (não os números nem valores); o admin vê o resto em Uso.
   const pedido = pedidosDeCreditos(app).find(x => x.pessoa === pessoa.id)?.em || null;
   const publico = { fase: s.fase, mensagem, percentual: s.ilimitado ? null : s.percentual, renova: s.renova, ilimitado: !!s.ilimitado, pedido };

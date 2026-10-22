@@ -16,7 +16,8 @@ import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { assinarS3 } from './backup-s3.js';
+import { assinarS3, ehCifrado } from './backup-s3.js';
+import { blocoIncremental, ehIncremental, indiceIncremental } from './backup-incremental-formato.js';
 
 const sha256 = d => createHash('sha256').update(d).digest('hex');
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -46,7 +47,23 @@ export function criarReceptor({ pasta, bucket = 'greenia-backups', chave, segred
   // Expiração: apaga do disco o que passou do prazo (é a regra que o ?lifecycle declara).
   function expirar() {
     const limite = agora().getTime() - dias * 864e5; let n = 0;
-    for (const m of todos()) if (Date.parse(m.em) < limite) { rmSync(arq(m.chave), { force: true }); rmSync(arq(m.chave) + '.json', { force: true }); n++; }
+    // Primeiro expiram os pontos de recuperação; blocos só saem quando nenhum
+    // ponto válido depende deles. Uma cópia nova não renova o histórico antigo.
+    const metas = todos(), refs = new Set();
+    let seguro = !readdirSync(objs).filter(x => x.endsWith('.json')).some(x => !lerMeta(x));
+    for (const m of metas) {
+      if (blocoIncremental(m.chave)) continue;
+      if (Date.parse(m.em) < limite) { rmSync(arq(m.chave), { force: true }); rmSync(arq(m.chave) + '.json', { force: true }); n++; }
+      else if (m.incremental) {
+        try { for (const k of indiceIncremental(readFileSync(arq(m.chave)), m.chave).refs) refs.add(k); }
+        catch { seguro = false; }
+      }
+    }
+    // Margem para upload em andamento/interrompido; o índice é publicado por último.
+    if (seguro) for (const m of metas) if (blocoIncremental(m.chave) && !refs.has(m.chave) && Date.parse(m.em) < agora().getTime() - 3600e3) {
+      rmSync(arq(m.chave), { force: true }); rmSync(arq(m.chave) + '.json', { force: true }); n++;
+    }
+    if (!seguro) log('receptor: coleta de blocos suspensa por índice/metadados inválidos');
     if (n) log(`receptor: ${n} objeto(s) expirado(s) após ${dias} dias`);
     return n;
   }
@@ -81,6 +98,7 @@ export function criarReceptor({ pasta, bucket = 'greenia-backups', chave, segred
       try {
         if (!objeto) {
           if (req.method !== 'GET') return responder(405, xmlErro('MethodNotAllowed'));
+          if ('greenia-incremental' in q) return responder(200, JSON.stringify({ v: 1, retencao: 'referencias' }), { 'content-type': 'application/json' });
           if ('lifecycle' in q) return responder(200, lifecycle);
           if ('object-lock' in q) return responder(404, xmlErro('ObjectLockConfigurationNotFoundError'));
           if ('versioning' in q) return responder(200, '<?xml version="1.0" encoding="UTF-8"?><VersioningConfiguration></VersioningConfiguration>');
@@ -100,11 +118,32 @@ export function criarReceptor({ pasta, bucket = 'greenia-backups', chave, segred
           if (req.headers['x-amz-server-side-encryption']) return responder(501, xmlErro('NotImplemented', 'sem SSE: os objetos já chegam cifrados no cliente'));
           const meta = Object.fromEntries(Object.entries(req.headers).filter(([k]) => k.startsWith('x-amz-meta-')));
           const f = arq(objeto), tmp = `${f}.${process.pid}.tmp`;
+          const incremental = ehIncremental(corpo);
+          if (blocoIncremental(objeto)) {
+            if (existsSync(f)) {
+              const anterior = lerMeta(sha256(objeto) + '.json');
+              // Bloco íntegro é imutável. Um bloco corrompido pode ser reparado
+              // pelo cliente autenticado, com a mesma publicação atômica.
+              if (anterior?.sha256 === anterior?.meta?.['x-amz-meta-sha256-cifrado'] && sha256(readFileSync(f)) === anterior?.sha256) return responder(409, xmlErro('ImmutableBlock'));
+            }
+            if (!ehCifrado(corpo) || corpo.length > 262144 + 4096 || meta['x-amz-meta-formato'] !== 'greenia-aes256gcm-v1' || meta['x-amz-meta-sha256-cifrado'] !== sha256(corpo) || !/^[a-f0-9]{64}$/.test(meta['x-amz-meta-raw-sha256'] || '') || !(+meta['x-amz-meta-raw-bytes'] > 0 && +meta['x-amz-meta-raw-bytes'] <= 262144))
+              return responder(400, xmlErro('InvalidBlock'));
+          }
+          if (incremental) {
+            let indice; try { indice = indiceIncremental(corpo, objeto); } catch { return responder(400, xmlErro('InvalidIncrementalIndex')); }
+            // Recusa publicação com bloco ausente ou corrompido. Nunca confirma
+            // um novo ponto de recuperação que já nasce sem suas dependências.
+            for (const k of indice.refs) {
+              const m = lerMeta(sha256(k) + '.json');
+              if (!m || m.chave !== k || !existsSync(arq(k)) || sha256(readFileSync(arq(k))) !== m.sha256) return responder(409, xmlErro('MissingOrCorruptBlock'));
+            }
+            if (meta['x-amz-meta-sha256-cifrado'] !== sha256(corpo)) return responder(400, xmlErro('InvalidIncrementalHash'));
+          }
           try {
             writeFileSync(tmp, corpo);
             // Reserva também a escrita dos metadados antes de substituir um
             // objeto existente: ENOSPC nesta etapa preserva a cópia anterior.
-            writeFileSync(`${f}.json.tmp`, JSON.stringify({ chave: objeto, meta, tamanho: corpo.length, em: agora().toISOString(), sha256: sha256(corpo) }));
+            writeFileSync(`${f}.json.tmp`, JSON.stringify({ chave: objeto, meta, tamanho: corpo.length, em: agora().toISOString(), sha256: sha256(corpo), ...(incremental ? { incremental: true } : {}) }));
             renameSync(tmp, f);
             renameSync(`${f}.json.tmp`, `${f}.json`);
           } finally {
@@ -116,6 +155,7 @@ export function criarReceptor({ pasta, bucket = 'greenia-backups', chave, segred
         if (req.method === 'GET' || req.method === 'HEAD') {
           const f = arq(objeto), me = existsSync(`${f}.json`) && lerMeta(`${sha256(objeto)}.json`);
           if (!me || me.chave !== objeto || !existsSync(f)) return responder(404, xmlErro('NoSuchKey'));
+          if (blocoIncremental(objeto) && (me.sha256 !== me.meta['x-amz-meta-sha256-cifrado'] || sha256(readFileSync(f)) !== me.sha256)) return responder(500, xmlErro('CorruptBlock'), { 'x-greenia-erro': 'CorruptBlock' });
           res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-length': statSync(f).size, 'last-modified': new Date(me.em).toUTCString(), ...me.meta });
           return res.end(req.method === 'HEAD' ? undefined : readFileSync(f));
         }

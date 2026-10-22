@@ -28,9 +28,9 @@ export function bancosEsperados(P) {
 export function registrarSucesso(P, id, b) {
   const e = lerEstado(P), agora = P.agora().toISOString();
   const x = e.bancos[id] || {};
-  e.bancos[id] = { ...x, ultimo_local: agora, sha256: b.sha256, tamanho: b.tamanho, ...(b.remoto ? { ultimo_remoto: agora, objeto: b.envio?.objeto || null, sse: b.envio?.sse || null } : {}), falha: null };
+  e.bancos[id] = { ...x, ultimo_local: agora, sha256: b.sha256, tamanho: b.tamanho, ...(b.remoto ? { ultimo_remoto: agora, objeto: b.envio?.objeto || null, sse: b.envio?.sse || null, incremental: b.envio?.incremental || null } : {}), falha: null };
   salvar(P, e);
-  aud(P, 'backup.completed', id, { tamanho: b.tamanho, sha256: b.sha256, remoto: b.envio ? { objeto: b.envio.objeto, tamanho_cifrado: b.envio.tamanhoCifrado, sse: b.envio.sse } : null });
+  aud(P, 'backup.completed', id, { tamanho: b.tamanho, sha256: b.sha256, remoto: b.envio ? { objeto: b.envio.objeto, tamanho_cifrado: b.envio.tamanhoCifrado, sse: b.envio.sse, ...(b.envio.incremental ? { incremental: b.envio.incremental } : {}) } : null });
 }
 
 export function registrarFalha(P, id, erro) {

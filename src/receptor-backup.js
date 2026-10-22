@@ -14,9 +14,10 @@
 // RECEPTOR_DIAS (7), RECEPTOR_PASTA, PORT (10000), RECEPTOR_MAX_MB (512).
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
-import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, existsSync, openSync, closeSync, writeSync, createReadStream } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { assinarS3 } from './backup-s3.js';
+import { assinarS3, ehCifrado } from './backup-s3.js';
+import { blocoIncremental, ehIncremental, indiceIncremental } from './backup-incremental-formato.js';
 
 const sha256 = d => createHash('sha256').update(d).digest('hex');
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -46,31 +47,45 @@ export function criarReceptor({ pasta, bucket = 'greenia-backups', chave, segred
   // Expiração: apaga do disco o que passou do prazo (é a regra que o ?lifecycle declara).
   function expirar() {
     const limite = agora().getTime() - dias * 864e5; let n = 0;
-    for (const m of todos()) if (Date.parse(m.em) < limite) { rmSync(arq(m.chave), { force: true }); rmSync(arq(m.chave) + '.json', { force: true }); n++; }
+    // Primeiro expiram os pontos de recuperação; blocos só saem quando nenhum
+    // ponto válido depende deles. Uma cópia nova não renova o histórico antigo.
+    const metas = todos(), refs = new Set();
+    let seguro = !readdirSync(objs).filter(x => x.endsWith('.json')).some(x => !lerMeta(x));
+    for (const m of metas) {
+      if (blocoIncremental(m.chave)) continue;
+      if (Date.parse(m.em) < limite) { rmSync(arq(m.chave), { force: true }); rmSync(arq(m.chave) + '.json', { force: true }); n++; }
+      else if (m.incremental) {
+        try { for (const k of indiceIncremental(readFileSync(arq(m.chave)), m.chave).refs) refs.add(k); }
+        catch { seguro = false; }
+      }
+    }
+    // Margem para upload em andamento/interrompido; o índice é publicado por último.
+    if (seguro) for (const m of metas) if (blocoIncremental(m.chave) && !refs.has(m.chave) && Date.parse(m.em) < agora().getTime() - 3600e3) {
+      rmSync(arq(m.chave), { force: true }); rmSync(arq(m.chave) + '.json', { force: true }); n++;
+    }
+    if (!seguro) log('receptor: coleta de blocos suspensa por índice/metadados inválidos');
     if (n) log(`receptor: ${n} objeto(s) expirado(s) após ${dias} dias`);
     return n;
   }
   function uso() { const t = todos(); return { objetos: t.length, bytes: t.reduce((s, m) => s + (m.tamanho || 0), 0) }; }
 
-  const servidor = createServer((req, res) => {
+  let uploadAtivo = false;
+  const servidor = createServer(async (req, res) => {
+    let fd = null, estagio = null, donoUpload = false;
     const responder = (status, xml = '', cab = {}) => { if (res.headersSent) return; res.writeHead(status, { 'content-type': 'application/xml', ...cab }); res.end(req.method === 'HEAD' ? undefined : xml); };
     const u = new URL(req.url, 'http://receptor');
     if (req.method === 'GET' && (u.pathname === '/saude' || u.pathname === '/api/saude' || u.pathname === '/')) { res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ ok: true, dias, ...uso() })); }
-    const partes = []; let tamanho = 0, grande = false;
-    req.on('data', d => { tamanho += d.length; if (tamanho > maxBytes) { grande = true; req.destroy(); } else partes.push(d); });
-    req.on('error', () => {});
-    req.on('end', () => {
-      if (grande) return responder(413, xmlErro('EntityTooLarge'));
-      const corpo = Buffer.concat(partes);
+    try {
       const auth = String(req.headers.authorization || '');
       const m = /^AWS4-HMAC-SHA256 Credential=([^/]+)\/(\d{8})\/([^/]+)\/s3\/aws4_request, SignedHeaders=([^,]+), Signature=([0-9a-f]{64})$/.exec(auth);
       if (!m || m[1] !== chave || m[3] !== regiao) return responder(403, xmlErro('InvalidAccessKeyId'));
       const hashCorpo = req.headers['x-amz-content-sha256'];
-      if (hashCorpo !== sha256(corpo)) return responder(400, xmlErro('XAmzContentSHA256Mismatch'));
+      if (!/^[a-f0-9]{64}$/.test(hashCorpo || '')) return responder(400, xmlErro('XAmzContentSHA256Mismatch'));
       const d = String(req.headers['x-amz-date'] || '');
       const quando = new Date(`${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${d.slice(9, 11)}:${d.slice(11, 13)}:${d.slice(13, 15)}Z`);
       if (!(Math.abs(relogio().getTime() - quando.getTime()) <= DESVIO_MAX_MS)) return responder(403, xmlErro('RequestTimeTooSkewed'));
       const assinados = m[4].split(';');
+      if (!['host', 'x-amz-content-sha256', 'x-amz-date'].every(n => assinados.includes(n))) return responder(403, xmlErro('SignatureDoesNotMatch'));
       const cab = Object.fromEntries(assinados.filter(n => !['host', 'x-amz-content-sha256', 'x-amz-date'].includes(n)).map(n => [n, req.headers[n]]));
       const urlAssinada = `http://${req.headers.host}${req.url}`;
       if (assinarS3({ metodo: req.method, url: urlAssinada, cabecalhos: cab, hashCorpo, chave, segredo, regiao, agora: quando }).authorization !== auth) return responder(403, xmlErro('SignatureDoesNotMatch'));
@@ -78,9 +93,39 @@ export function criarReceptor({ pasta, bucket = 'greenia-backups', chave, segred
       const objeto = resto.join('/');
       const q = Object.fromEntries(u.searchParams);
       if (b !== bucket) return responder(404, xmlErro('NoSuchBucket'));
-      try {
+      if (objeto.length > 1024) return responder(400, xmlErro('KeyTooLongError'));
+      // Corpo de upload vai diretamente para estágio, sem Buffer.concat do arquivo.
+      // A assinatura do hash declarado é validada antes de aceitar bytes; o hash
+      // calculado em fluxo precisa conferir antes de publicar.
+      if (req.method === 'PUT' && objeto) {
+        if (uploadAtivo) return responder(503, xmlErro('SlowDown'));
+        if (Number(req.headers['content-length']) > (blocoIncremental(objeto) ? Math.min(maxBytes, 266240) : maxBytes)) return responder(413, xmlErro('EntityTooLarge'));
+        uploadAtivo = true; donoUpload = true;
+        estagio = `${arq(objeto)}.${process.pid}.tmp`;
+        fd = openSync(estagio, 'wx', 0o600);
+      }
+      let tamanho = 0, prefixo = Buffer.alloc(0);
+      const partes = [], hash = createHash('sha256'), md5 = createHash('md5');
+      for await (const parte of req.iterator({ destroyOnReturn: false })) {
+        tamanho += parte.length;
+        if (tamanho > (fd === null ? 4 * 1024 * 1024 : blocoIncremental(objeto) ? Math.min(maxBytes, 266240) : maxBytes)) return responder(413, xmlErro('EntityTooLarge'));
+        hash.update(parte); md5.update(parte);
+        if (prefixo.length < 16) prefixo = Buffer.concat([prefixo, parte.subarray(0, 16 - prefixo.length)]);
+        if (ehIncremental(prefixo) && tamanho > 4 * 1024 * 1024) return responder(400, xmlErro('InvalidIncrementalIndex'));
+        if (fd === null) partes.push(parte);
+        else {
+          for (let i = 0; i < parte.length;) { const n = writeSync(fd, parte, i, parte.length - i); if (!n) throw new Error('Escrita de estágio incompleta'); i += n; }
+        }
+      }
+      if (fd !== null) { closeSync(fd); fd = null; }
+      const hashRecebido = hash.digest('hex'), etag = md5.digest('hex');
+      if (hashCorpo !== hashRecebido) return responder(400, xmlErro('XAmzContentSHA256Mismatch'));
+      const incremental = ehIncremental(prefixo);
+      if (incremental && tamanho > 4 * 1024 * 1024) return responder(400, xmlErro('InvalidIncrementalIndex'));
+      const corpo = estagio ? (incremental || blocoIncremental(objeto) ? readFileSync(estagio) : Buffer.alloc(0)) : Buffer.concat(partes);
         if (!objeto) {
           if (req.method !== 'GET') return responder(405, xmlErro('MethodNotAllowed'));
+          if ('greenia-incremental' in q) return responder(200, JSON.stringify({ v: 1, retencao: 'referencias' }), { 'content-type': 'application/json' });
           if ('lifecycle' in q) return responder(200, lifecycle);
           if ('object-lock' in q) return responder(404, xmlErro('ObjectLockConfigurationNotFoundError'));
           if ('versioning' in q) return responder(200, '<?xml version="1.0" encoding="UTF-8"?><VersioningConfiguration></VersioningConfiguration>');
@@ -100,32 +145,62 @@ export function criarReceptor({ pasta, bucket = 'greenia-backups', chave, segred
           if (req.headers['x-amz-server-side-encryption']) return responder(501, xmlErro('NotImplemented', 'sem SSE: os objetos já chegam cifrados no cliente'));
           const meta = Object.fromEntries(Object.entries(req.headers).filter(([k]) => k.startsWith('x-amz-meta-')));
           const f = arq(objeto), tmp = `${f}.${process.pid}.tmp`;
+          if (blocoIncremental(objeto)) {
+            if (existsSync(f)) {
+              const anterior = lerMeta(sha256(objeto) + '.json');
+              // Bloco íntegro é imutável. Um bloco corrompido pode ser reparado
+              // pelo cliente autenticado, com a mesma publicação atômica.
+              if (anterior?.sha256 === anterior?.meta?.['x-amz-meta-sha256-cifrado'] && sha256(readFileSync(f)) === anterior?.sha256) return responder(409, xmlErro('ImmutableBlock'));
+            }
+            if (!ehCifrado(corpo) || corpo.length > 262144 + 4096 || meta['x-amz-meta-formato'] !== 'greenia-aes256gcm-v1' || meta['x-amz-meta-sha256-cifrado'] !== sha256(corpo) || !/^[a-f0-9]{64}$/.test(meta['x-amz-meta-raw-sha256'] || '') || !(+meta['x-amz-meta-raw-bytes'] > 0 && +meta['x-amz-meta-raw-bytes'] <= 262144))
+              return responder(400, xmlErro('InvalidBlock'));
+          }
+          if (incremental) {
+            let indice; try { indice = indiceIncremental(corpo, objeto); } catch { return responder(400, xmlErro('InvalidIncrementalIndex')); }
+            // Recusa publicação com bloco ausente ou corrompido. Nunca confirma
+            // um novo ponto de recuperação que já nasce sem suas dependências.
+            for (const k of indice.refs) {
+              const m = lerMeta(sha256(k) + '.json');
+              if (!m || m.chave !== k || !existsSync(arq(k)) || sha256(readFileSync(arq(k))) !== m.sha256) return responder(409, xmlErro('MissingOrCorruptBlock'));
+            }
+            if (meta['x-amz-meta-sha256-cifrado'] !== sha256(corpo)) return responder(400, xmlErro('InvalidIncrementalHash'));
+          }
           try {
-            writeFileSync(tmp, corpo);
+            // O corpo já está gravado em estágio e seu SHA-256 foi conferido.
             // Reserva também a escrita dos metadados antes de substituir um
             // objeto existente: ENOSPC nesta etapa preserva a cópia anterior.
-            writeFileSync(`${f}.json.tmp`, JSON.stringify({ chave: objeto, meta, tamanho: corpo.length, em: agora().toISOString(), sha256: sha256(corpo) }));
+            writeFileSync(`${f}.json.tmp`, JSON.stringify({ chave: objeto, meta, tamanho, em: agora().toISOString(), sha256: hashRecebido, ...(incremental ? { incremental: true } : {}) }));
             renameSync(tmp, f);
             renameSync(`${f}.json.tmp`, `${f}.json`);
           } finally {
             rmSync(tmp, { force: true });
             rmSync(`${f}.json.tmp`, { force: true });
           }
-          return responder(200, '', { etag: `"${createHash('md5').update(corpo).digest('hex')}"` });
+          return responder(200, '', { etag: `"${etag}"` });
         }
         if (req.method === 'GET' || req.method === 'HEAD') {
           const f = arq(objeto), me = existsSync(`${f}.json`) && lerMeta(`${sha256(objeto)}.json`);
           if (!me || me.chave !== objeto || !existsSync(f)) return responder(404, xmlErro('NoSuchKey'));
+          if (blocoIncremental(objeto) && (me.sha256 !== me.meta['x-amz-meta-sha256-cifrado'] || sha256(readFileSync(f)) !== me.sha256)) return responder(500, xmlErro('CorruptBlock'), { 'x-greenia-erro': 'CorruptBlock' });
           res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-length': statSync(f).size, 'last-modified': new Date(me.em).toUTCString(), ...me.meta });
-          return res.end(req.method === 'HEAD' ? undefined : readFileSync(f));
+          if (req.method === 'HEAD') return res.end();
+          const fluxo = createReadStream(f);
+          fluxo.on('error', () => res.destroy());
+          res.on('close', () => fluxo.destroy());
+          fluxo.pipe(res);
+          return;
         }
         if (req.method === 'DELETE') return responder(403, xmlErro('AccessDenied', 'o receptor não apaga pela rede; a expiração é automática'));
         return responder(405, xmlErro('MethodNotAllowed'));
-      } catch (e) {
+    } catch (e) {
         log(`receptor: erro ${e.code || 'interno'}`);
         return responder(e.code === 'ENOSPC' ? 507 : 500, xmlErro(e.code === 'ENOSPC' ? 'InsufficientStorage' : 'InternalError'));
-      }
-    });
+    } finally {
+      if (!req.complete && !req.destroyed) req.resume();
+      if (fd !== null) { try { closeSync(fd); } catch {} }
+      if (estagio) rmSync(estagio, { force: true });
+      if (donoUpload) uploadAtivo = false;
+    }
   });
   return { servidor, expirar, uso, raiz };
 }

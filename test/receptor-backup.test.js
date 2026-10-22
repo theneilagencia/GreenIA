@@ -27,7 +27,7 @@ test('endereço interno sem esquema vira http://; com esquema fica como está', 
   assert.equal(endpointS3('https://s3.exemplo.com/'), 'https://s3.exemplo.com');
 });
 
-test('rodada de produção para o receptor: todos os bancos, em disco, após reinício, restauração idêntica e cifrada', async () => {
+for (const incremental of [false, true]) test(`rodada multiempresa ${incremental ? 'incremental' : 'completa'}: disco, reinício, auditoria e restauração cifrada`, async () => {
   const p = mkdtempSync(join(tmpdir(), 'greenia-receptor-'));
   const S = await subirPlataforma({ banco: join(p, 'plataforma.sqlite'), pastaEmpresas: join(p, 'empresas') });
   let R = await subirReceptor(join(p, 'receptor'));
@@ -35,23 +35,32 @@ test('rodada de produção para o receptor: todos os bancos, em disco, após rei
     const ops = await S.navegador().entrarConsole('ops@theneil.com.br');
     const plano = (await ops.get('/api/plataforma/planos')).dados.planos[0];
     for (const slug of ['empresa-um', 'empresa-dois']) assert.equal((await ops.post('/api/plataforma/empresas', { name: `Empresa ${slug}`, slug, plan_id: plano.id })).status, 200);
-    const env = { BACKUP_DESTINO: 's3://greenia-backups/greenia', S3_ENDPOINT: R.hostport, S3_CHAVE: CHAVE, S3_SEGREDO: SEGREDO, BACKUP_CHAVE_CIFRA: randomBytes(32).toString('base64') };
+    const env = { BACKUP_INCREMENTAL: incremental ? '1' : '0', BACKUP_DESTINO: 's3://greenia-backups/greenia', S3_ENDPOINT: R.hostport, S3_CHAVE: CHAVE, S3_SEGREDO: SEGREDO, BACKUP_CHAVE_CIFRA: randomBytes(32).toString('base64') };
     const r = await backupDaPlataforma(S.P, { pasta: join(p, 'backups'), destino: env.BACKUP_DESTINO, env, manter: 7 });
     assert.deepEqual([r.total, r.concluidos, r.falhas, r.s3, r.ciclo.ok, r.ciclo.expiraDias], [3, 3, 0, true, true, 7]);
     // Em disco, cifrado: nenhum arquivo do receptor começa como SQLite/gzip nem contém o nome de uma empresa.
     const arquivos = readdirSync(join(p, 'receptor', 'objetos')).filter(n => !n.endsWith('.json'));
-    assert.equal(arquivos.length, 3);
+    assert.ok(incremental ? arquivos.length > 3 : arquivos.length === 3);
     for (const a of arquivos) { const b = readFileSync(join(p, 'receptor', 'objetos', a)); assert.ok(!b.subarray(0, 16).toString('latin1').startsWith('SQLite format') && !(b[0] === 0x1f && b[1] === 0x8b)); }
     // Reinício do receptor: os objetos continuam lá e voltam idênticos (hash conferido pelo cliente).
     await R.fechar(); R = await subirReceptor(join(p, 'receptor'));
     const env2 = { ...env, S3_ENDPOINT: R.hostport };
     const itens = await listarS3(configS3(env2.BACKUP_DESTINO, env2));
-    assert.equal(itens.length, 3);
-    const plataforma = itens.find(i => /\/plataforma\//.test(i.objeto));
+    assert.equal(itens.filter(i => !i.objeto.includes('/blocos-v1/')).length, 3);
+    const plataforma = itens.find(i => /\/plataforma\/greenia-plataforma-/.test(i.objeto));
     const x = await restaurar(`s3://greenia-backups/${plataforma.objeto}`, join(p, 'restaurado.sqlite'), { env: env2, tipo: 'plataforma' });
     assert.equal(x.tipo, 'plataforma');
+    if (incremental) {
+      const { ensaiar } = await import('../src/ensaio-restauracao.js');
+      const rel = await ensaiar({ fonte: { tipo: 's3', destino: env2.BACKUP_DESTINO, env: env2 }, destino: join(p, 'ensaio'), chave: { mestra: S.P.mestra() } });
+      assert.deepEqual(rel.falhas, []);
+      assert.equal(rel.bancos.filter(b => b.backup).length, 3);
+      assert.equal(rel.verificacoes.filter(v => v.nome.startsWith('integridade ')).length, 3);
+      assert.ok(rel.verificacoes.some(v => v.nome.includes('aplicação no ar')));
+      assert.ok(rel.verificacoes.every(v => v.ok));
+    }
     // Sem a chave de cifra certa, a cópia não abre.
-    await assert.rejects(restaurar(`s3://greenia-backups/${plataforma.objeto}`, join(p, 'r2.sqlite'), { tipo: 'plataforma', env: { ...env2, BACKUP_CHAVE_CIFRA: randomBytes(32).toString('base64') } }), e => e.code === 'BACKUP_DECIFRAR');
+    await assert.rejects(restaurar(`s3://greenia-backups/${plataforma.objeto}`, join(p, 'r2.sqlite'), { tipo: 'plataforma', env: { ...env2, BACKUP_CHAVE_CIFRA: randomBytes(32).toString('base64') } }), e => e.code === (incremental ? 'INCREMENTAL_RESTAURACAO' : 'BACKUP_DECIFRAR'));
   } finally { await R.fechar(); await S.fechar(); rmSync(p, { recursive: true, force: true }); }
 });
 

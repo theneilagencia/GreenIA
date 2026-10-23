@@ -356,10 +356,13 @@ const acoesAba = html => { $('acoes-aba').innerHTML = html; };
 const erroForm = (id, e) => { mostrarErro(id, e); if (!document.activeElement?.classList.contains('invalida')) $(id)?.scrollIntoView({ block: 'center' }); };
 
 // Créditos e preço de um plano, para mostrar o que muda antes de trocar.
-const resumoPlano = id => {
+const resumoPlano = (id, renovacao) => {
   const p = C.planos.find(x => x.id === id);
   if (!p) return 'sem cota de créditos';
-  return `${p.credits ? `${num(p.credits)} créditos + ${num(p.reserve)} de reserva por mês` : 'Créditos ilimitados'} · ${p.price_usd ? `${usd(p.price_usd)} por mês` : 'sem preço'}`;
+  const comercial = p.settings?.comercial;
+  const ciclo = (renovacao || comercial?.renovacao) === 'nenhuma' ? ' · franquia única' : ' por mês';
+  const preco = comercial?.condicao === 'gratuito' ? 'Sem cobrança' : comercial?.moeda === 'brl' ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(comercial.preco) : p.price_usd ? usd(p.price_usd) : 'sem preço';
+  return `${p.credits ? `${num(p.credits)} créditos + ${num(p.reserve)} de reserva${ciclo}` : 'Créditos ilimitados'} · ${preco}`;
 };
 const STATUS_FAIXA = {
   em_implantacao: ['atencao', 'Em implantação: só administradores da empresa entram, e a página de apresentação pública ainda não aparece.'],
@@ -391,8 +394,8 @@ async function abaResumo(d, id) {
     <div id="encerramento-empresa"></div>
     <div class="secao-titulo" style="margin-top:0"><h2 class="h-secao">Plano e consumo</h2></div>
     <p class="dica">${esc(({sem_cobranca:'Sem cobrança',externa:'Cobrança externa',stripe:'Cobrança pelo Stripe'})[e.faturamento?.forma]||'Cobrança externa')} · ${e.faturamento?.fim?`Vigência até ${esc(e.faturamento.fim.split('-').reverse().join('/'))}${e.faturamento.vencido?' · vencida':''}`:'Sem prazo determinado'} · ${e.faturamento?.renovacao==='nenhuma'?'Franquia única':'Renovação mensal'}${e.faturamento?.plano_pendente?` · Troca de plano agendada para ${esc(data(e.faturamento.plano_pendente.em))}`:''}</p>
-    <div class="indicadores"><div class="indicador"><span>Plano</span><b class="valor-texto">${esc(e.plano?.name || 'Sem plano')}</b><small>${esc(resumoPlano(e.plano?.id))}</small></div>
-      ${u.plano ? `<div class="indicador"><span>Créditos usados no mês</span><b>${num(Math.round(u.plano.usados))}</b><small>${u.plano.ilimitado ? 'plano ilimitado' : `${num(u.plano.percentual)}% de ${num(u.plano.creditos)}`}</small></div>
+    <div class="indicadores"><div class="indicador"><span>Plano</span><b class="valor-texto">${esc(e.plano?.name || 'Sem plano')}</b><small>${esc(resumoPlano(e.plano?.id, e.faturamento?.renovacao))}</small></div>
+      ${u.plano ? `<div class="indicador"><span>${e.faturamento?.renovacao === 'nenhuma' ? 'Créditos usados na vigência' : 'Créditos usados no mês'}</span><b>${num(Math.round(u.plano.usados))}</b><small>${u.plano.ilimitado ? 'plano ilimitado' : `${num(u.plano.percentual)}% de ${num(u.plano.creditos)}`}</small></div>
       <div class="indicador" id="ind-pacote"><span>Capacity Pack disponível</span><b>${num(Math.round(u.plano.pacoteDisponivel))}</b><small>usado depois da franquia</small></div>` : ''}
       <div class="indicador"><span>Custo de IA no mês</span><b>${usd(u.custoUsd)}</b>${u.plano ? '' : '<small>sem cota: a empresa vê o custo em dólar</small>'}</div>
       <div class="indicador"><span>Pessoas ativas no mês</span><b>${num(u.pessoasAtivas)}</b><small>${num(u.pessoas)} ${u.pessoas === 1 ? 'cadastrada' : 'cadastradas'}</small></div></div>
@@ -452,7 +455,7 @@ function alterarPlano(e, id) {
     <h2 id="pl-t" tabindex="-1">Alterar o plano da ${esc(e.name)}</h2>
     <form id="f-plano-empresa" novalidate>
       <div class="campo"><label for="s-plano">Plano</label><select class="entrada" id="s-plano" aria-describedby="s-plano-info"><option value="">Sem plano</option>${C.planos.map(p => `<option value="${p.id}" ${p.id === e.plano?.id ? 'selected' : ''} ${p.status !== 'ativo' && p.id !== e.plano?.id ? 'disabled' : ''}>${esc(p.name)}${p.status !== 'ativo' ? ' (inativo)' : ''}</option>`).join('')}</select>
-        <span class="ajuda" id="s-plano-info" aria-live="polite">${esc(resumoPlano(e.plano?.id))}</span></div>
+        <span class="ajuda" id="s-plano-info" aria-live="polite">${esc(resumoPlano(e.plano?.id, e.faturamento?.renovacao))}</span></div>
       <div class="campo"><label for="s-vigencia">Quando aplicar</label><select class="entrada" id="s-vigencia"><option value="agora">Agora, se não houver consumo ou cobrança conflitante</option><option value="proximo_ciclo">No início do próximo mês</option></select><span class="ajuda">Uso registrado não é zerado. Os pacotes adquiridos e o histórico são preservados. A atribuição não emite cobrança.</span></div>
       <p class="msg-erro oculto" id="s-plano-erro" role="alert"></p>
       <div class="linha-botoes" style="margin-top:14px"><button class="btn btn-verde">Continuar</button></div></form>`, fechar => {
@@ -464,7 +467,7 @@ function alterarPlano(e, id) {
       const vigencia=$('s-vigencia').value;
       if (novo === (e.plano?.id || null)) return mostrarErro('s-plano-erro', new Error('Esse já é o plano da empresa.'));
       confirmarStatus({ rotulo: 'Plano', titulo: `Trocar o plano da ${e.name}?`, botao: `Trocar para ${nome(novo)}`,
-        texto: `De ${nome(e.plano?.id)} (${resumoPlano(e.plano?.id)}) para ${nome(novo)} (${resumoPlano(novo)}). ${vigencia==='proximo_ciclo'?'A troca será aplicada no início do próximo mês.':'A troca vale a partir de agora.'} Nenhuma cobrança será emitida.`,
+        texto: `De ${nome(e.plano?.id)} (${resumoPlano(e.plano?.id, e.faturamento?.renovacao)}) para ${nome(novo)} (${resumoPlano(novo)}). ${vigencia==='proximo_ciclo'?'A troca será aplicada no início do próximo mês.':'A troca vale a partir de agora.'} Nenhuma cobrança será emitida.`,
         async aplicar() { await api(`/api/plataforma/empresas/${id}/plano`, { metodo: 'POST', corpo: { plan_id: novo,vigencia } }); toast(vigencia==='proximo_ciclo'?'Troca de plano agendada.':'Plano alterado.'); vistaEmpresa(id, 'resumo'); } });
     };
   });

@@ -9,6 +9,7 @@ import { situacaoPlano } from '../plano.js';
 import { exigirEmpresa, lerPlanoPorId, mudarPlano } from './empresas.js';
 import { exigir, permissoesNaPlataforma } from './rbac.js';
 import { auditar } from './auditoria.js';
+import { lerFaturamento, vigente } from './faturamento.js';
 
 const hash = s => createHash('sha256').update(s).digest('hex');
 const idDe = x => typeof x === 'string' ? x : x?.id;
@@ -65,6 +66,8 @@ export function consultarPedidosStripe(P, empresa) {
 export async function criarCobrancaStripe(P, empresa, dados, ator) {
   if (!P.stripe) throw erro(503,'stripe_desligado','O ambiente de pagamentos de teste não está configurado.');
   const S=P.stripe, c=exigirEmpresa(P,empresa);
+  if (lerFaturamento(P,empresa).forma!=='stripe') throw erro(409,'stripe_nao_habilitado','Habilite explicitamente a cobrança Stripe no contrato da empresa antes de emitir.');
+  if (vigente(P,empresa).vencido) throw erro(409,'vigencia_vencida','Atualize a vigência do contrato antes de emitir uma nova cobrança.');
   const id=String(dados.pedido || '');
   if (!/^[A-Za-z0-9_-]{8,100}$/.test(id)) throw erro(400,'stripe_pedido','Informe uma referência única de pedido com 8 a 100 caracteres.');
   const item=ITENS_STRIPE.find(p=>p.chave===dados.produto), moeda=dados.moeda, canal=dados.canal;

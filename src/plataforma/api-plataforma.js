@@ -1,4 +1,5 @@
 import { financeiroResultados, conciliarResultados, resumoResultados, estornarResultado } from '../resultados.js';
+import { agendarPlano, salvarFaturamento, vigente, obrigacoesStripe } from './faturamento.js';
 // APIs do console do operador da plataforma (/api/plataforma/*). Só admins da plataforma; toda ação relevante é auditada.
 import { erro } from '../http.js';
 import { exec, todos, um } from '../db.js';
@@ -78,10 +79,12 @@ export function rotasPlataforma(P, r) {
 
   // ------------------------------------------------ Empresas
   const resumoEmpresa = c => {
+    P.tenant(c.id).contrato?.();
+    c=E.exigirEmpresa(P,c.id);
     const plano = E.lerPlanoPorId(P, c.plan_id);
     let uso = null;
     try { uso = E.usoDaEmpresa(P, c.id); } catch { /* ambiente ainda abrindo */ }
-    return { ...publicaEmpresa(P, c.id), plano: plano ? { id: plano.id, name: plano.name, credits: plano.credits } : null,
+    return { ...publicaEmpresa(P, c.id), plan_id:c.plan_id, faturamento: vigente(P,c.id), plano: plano ? { id: plano.id, name: plano.name, credits: plano.credits } : null,
       usuarios: um(P.db, "select count(*) as n from company_users where company_id = ? and status != 'inativo'", c.id).n,
       admins: todos(P.db, "select u.email from company_users cu join users u on u.id = cu.user_id join role_permissions rp on rp.role_id = cu.role_id and rp.permission_key = 'company.manage' where cu.company_id = ? and cu.status != 'inativo'", c.id).map(x => x.email),
       creditosUsados: uso?.plano?.usados ?? null, percentual: uso?.plano?.percentual ?? null, custoUsd: uso?.custoUsd ?? null, created_at: c.created_at, updated_at: c.updated_at };
@@ -115,7 +118,10 @@ export function rotasPlataforma(P, r) {
 
   r.put('/api/plataforma/empresas/:id', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.companies.manage'); return resumoEmpresa(E.atualizarEmpresa(P, params.id, corpo, sessao.userId, origem)); });
   r.post('/api/plataforma/empresas/:id/status', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.companies.manage'); return resumoEmpresa(E.mudarStatus(P, params.id, corpo.status, sessao.userId, origem)); });
-  r.post('/api/plataforma/empresas/:id/plano', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.plans.manage'); return resumoEmpresa(E.mudarPlano(P, params.id, corpo.plan_id || null, sessao.userId, origem)); });
+  r.post('/api/plataforma/empresas/:id/plano', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.plans.manage'); if(corpo.vigencia==='proximo_ciclo') {agendarPlano(P,params.id,corpo.plan_id,sessao.userId,origem);return resumoEmpresa(E.exigirEmpresa(P,params.id));} return resumoEmpresa(E.mudarPlano(P, params.id, corpo.plan_id || null, sessao.userId, origem)); });
+  r.get('/api/plataforma/empresas/:id/faturamento',({sessao,params})=>{precisa(sessao,'platform.plans.manage');return {faturamento:vigente(P,params.id),obrigacoes:obrigacoesStripe(P,params.id)};});
+  r.put('/api/plataforma/empresas/:id/faturamento',({sessao,params,corpo,origem})=>{precisa(sessao,'platform.plans.manage');return {faturamento:salvarFaturamento(P,params.id,corpo,sessao.userId,origem)};});
+  r.get('/api/plataforma/empresas/:id/usuarios',({sessao,params})=>{precisa(sessao,'platform.users.manage');E.exigirEmpresa(P,params.id);return {usuarios:E.listarMembros(P,params.id),roles:rolesDaEmpresa(P.db,params.id)};});
   r.put('/api/plataforma/empresas/:id/url', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.companies.manage'); return resumoEmpresa(E.mudarUrl(P, params.id, corpo, sessao.userId, origem)); });
   r.put('/api/plataforma/empresas/:id/marca', ({ sessao, params, corpo, origem }) => { precisa(sessao, 'platform.companies.manage'); return E.salvarMarca(P, params.id, corpo, sessao.userId, origem); }, { limiteMb: 2 });
   r.post('/api/plataforma/empresas/:id/landing/previa', ({ sessao, params, corpo }) => { precisa(sessao, 'platform.companies.manage'); return E.previaLanding(P, params.id, corpo); }, { limiteMb: 3 });
@@ -227,10 +233,20 @@ export function rotasPlataforma(P, r) {
   r.get('/api/plataforma/usuarios', ({ sessao, query }) => {
     precisa(sessao, 'platform.users.manage');
     const q = String(query.busca || '').toLowerCase();
-    const usuarios = todos(P.db, 'select id, email, name, status, created_at from users order by email').filter(u => !q || u.email.includes(q) || u.name.toLowerCase().includes(q)).slice(0, 300)
+    const condicoes=[],valores=[];
+    if(q){condicoes.push('(instr(lower(u.email),?)>0 or instr(lower(u.name),?)>0)');valores.push(q,q);}
+    if(query.conta){condicoes.push('u.status=?');valores.push(query.conta);}
+    const vinculos=[];
+    for(const [chave,coluna] of [['empresa','company_id'],['perfil','role_id'],['situacao','status']]) if(query[chave]){vinculos.push(`cu.${coluna}=?`);valores.push(query[chave]);}
+    if(vinculos.length)condicoes.push(`exists(select 1 from company_users cu where cu.user_id=u.id and ${vinculos.join(' and ')})`);
+    const where=condicoes.length?'where '+condicoes.join(' and '):'';
+    const numero=Number(query.pagina),pagina=Number.isSafeInteger(numero)&&numero>=0?Math.min(numero,1000000):0,porPagina=50;
+    const total=um(P.db,`select count(*) n from users u ${where}`,...valores).n;
+    const usuarios = todos(P.db, `select u.id,u.email,u.name,u.status,u.created_at from users u ${where} order by u.email limit ? offset ?`,...valores,porPagina,pagina*porPagina)
       .map(u => ({ ...u, adminPlataforma: ehAdminPlataforma(P.db, u.id) || !!um(P.db, 'select 1 from platform_members where user_id = ?', u.id),
-        empresas: todos(P.db, 'select c.id, c.name, c.slug, r.name as role, cu.status from company_users cu join companies c on c.id = cu.company_id join roles r on r.id = cu.role_id where cu.user_id = ? order by c.name', u.id) }));
-    return { usuarios };
+        empresas: todos(P.db, 'select c.id, c.name, c.slug, c.plan_id, p.name as plano, r.id as role_id, r.key as role_key, r.name as role, cu.status from company_users cu join companies c on c.id = cu.company_id join roles r on r.id = cu.role_id left join plans p on p.id=c.plan_id where cu.user_id = ? order by c.name', u.id) }));
+    return { usuarios,total,pagina,porPagina,
+      filtros:{empresas:todos(P.db,'select id,name from companies order by name'),roles:todos(P.db,'select id,name,company_id from roles order by name')} };
   });
 
   r.put('/api/plataforma/usuarios/:id', ({ sessao, params, corpo, origem }) => {
@@ -239,11 +255,19 @@ export function rotasPlataforma(P, r) {
     if (!u) throw erro(404, 'usuario', 'Usuário não encontrado.');
     if (params.id === sessao.userId && corpo.status === 'bloqueado') throw erro(409, 'proprio', 'Você não pode bloquear o próprio acesso.');
     const status = corpo.status === 'bloqueado' ? 'bloqueado' : corpo.status === 'ativo' ? 'ativo' : u.status;
+    if (corpo.status!==undefined&&!['ativo','bloqueado'].includes(corpo.status)) throw erro(400,'status','Situação inválida.');
+    if (status==='bloqueado'&&u.status!=='bloqueado') E.protegerBloqueioGlobal(P,u.id);
     const name = corpo.name !== undefined ? texto(corpo.name, 120, 'name', { obrigatorio: true }) : u.name;
-    exec(P.db, 'update users set status = ?, name = ? where id = ?', status, name, u.id);
+    const email=corpo.email===undefined?u.email:validarEmail(corpo.email);
+    if (email!==u.email&&um(P.db,'select 1 from users where email=?',email)) throw erro(409,'email','Este email já possui cadastro. Gerencie os vínculos da conta existente.');
+    if (email!==u.email) for (const c of todos(P.db,'select company_id from company_users where user_id=?',u.id)) {
+      if(um(P.tenant(c.company_id).db,'select 1 from pessoas where email=? and coalesce(user_id,\'\')!=?',email,u.id)) throw erro(409,'email','O novo email possui histórico separado em uma empresa. Concilie as identidades antes de alterar.');
+    }
+    exec(P.db, 'update users set status = ?, name = ?,email=? where id = ?', status, name,email, u.id);
+    if (email!==u.email) {exec(P.db,'delete from sessions where user_id=?',u.id);exec(P.db,'delete from login_codes where email in (?,?)',u.email,email);}
     if (status === 'bloqueado') { encerrarAcessosAbertos(P, { userId: u.id }, 'usuario_bloqueado', origem); exec(P.db, 'delete from sessions where user_id = ?', u.id); }
     for (const c of todos(P.db, 'select company_id from company_users where user_id = ?', u.id)) P.sincronizarPessoa(c.company_id, u.id);
-    auditar(P, { usuario: sessao.userId, acao: status !== u.status ? (status === 'bloqueado' ? 'user.blocked' : 'user.unblocked') : 'user.updated', entidade: 'user', id: u.id, antes: { status: u.status, name: u.name }, depois: { status, name }, origem });
+    auditar(P, { usuario: sessao.userId, acao: status !== u.status ? (status === 'bloqueado' ? 'user.blocked' : 'user.unblocked') : 'user.updated', entidade: 'user', id: u.id, antes: { status: u.status, name: u.name,email:u.email }, depois: { status, name,email }, origem });
     P.aoMudarAdmins();
     return { ok: true };
   });

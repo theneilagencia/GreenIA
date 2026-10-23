@@ -381,7 +381,7 @@ async function abaResumo(d, id) {
     ...(!entrarPrincipal && e.status !== 'cancelada' ? [{ acao: 'entrar', rotulo: 'Entrar no ambiente…' }] : []),
     { acao: 'plano', rotulo: 'Alterar plano…' },
     { acao: 'faturamento', rotulo: 'Forma de cobrança e vigência…' },
-    ...(C.eu?.stripeTeste ? [{ acao: 'cobrancas', rotulo: 'Cobranças Stripe (teste)…' }] : []),
+    ...(C.eu?.stripeModo ? [{ acao: 'cobrancas', rotulo: C.eu.stripeModo === 'producao' ? 'Cobranças Stripe…' : 'Cobranças Stripe (teste)…' }] : []),
     ...(u.plano ? [{ acao: 'pacote', rotulo: 'Liberar Capacity Pack…' }] : []),
     { acao: 'dados', rotulo: 'Editar dados cadastrais…' },
     { acao: 'exportar', rotulo: 'Exportar dados…' },

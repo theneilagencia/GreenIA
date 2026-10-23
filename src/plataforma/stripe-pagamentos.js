@@ -1,8 +1,8 @@
-// Integração inicialmente restrita a sandbox. Nenhuma rota ativa com a configuração ausente.
+// Pagamentos desligados por padrão; conta e ambiente explícitos para produção.
 import { createHmac, timingSafeEqual, createHash } from 'node:crypto';
 import { exec, todos, um, json, transacao } from '../db.js';
 import { erro, lerBruto, enviarJson } from '../http.js';
-import { ITENS_STRIPE, clienteStripeTeste } from './stripe-catalogo.js';
+import { ITENS_STRIPE, clienteStripe, ambienteStripe } from './stripe-catalogo.js';
 import { cotarCobrancaBrl } from './stripe-cambio.js';
 import { concederDireitoStripe } from './stripe-direitos.js';
 import { situacaoPlano } from '../plano.js';
@@ -22,7 +22,7 @@ export function proximoMesStripe(inicio) {
   d.setUTCDate(Math.min(dia,ultimo)); return d.toISOString();
 }
 
-export function verificarAssinaturaStripe(bruto, assinatura, segredo, agora = new Date()) {
+export function verificarAssinaturaStripe(bruto, assinatura, segredo, agora = new Date(), live = false) {
   if (!segredo || typeof assinatura !== 'string' || assinatura.length > 2048) throw erro(400, 'stripe_assinatura', 'Assinatura Stripe inválida.');
   const partes = assinatura.split(',').map(p => p.trim().split('='));
   const ts = partes.filter(([k])=>k==='t');
@@ -30,15 +30,16 @@ export function verificarAssinaturaStripe(bruto, assinatura, segredo, agora = ne
   const esperado = createHmac('sha256', segredo).update(`${ts[0][1]}.${bruto}`).digest();
   if (!partes.some(([k,v])=>k==='v1' && /^[a-f0-9]{64}$/.test(v || '') && timingSafeEqual(Buffer.from(v,'hex'),esperado))) throw erro(400,'stripe_assinatura','Assinatura Stripe inválida.');
   let e; try { e=JSON.parse(bruto); } catch { throw erro(400,'stripe_json','Evento inválido.'); }
-  if (!/^evt_[A-Za-z0-9]+$/.test(e.id || '') || e.livemode !== false || e.account || !e.type || !e.data?.object?.id) throw erro(400,'stripe_evento','Evento incompatível com este ambiente.');
+  if (!/^evt_[A-Za-z0-9]+$/.test(e.id || '') || e.livemode !== live || e.account || !e.type || !e.data?.object?.id) throw erro(400,'stripe_evento','Evento incompatível com este ambiente.');
   return e;
 }
 
 export function configurarStripe(P, op = {}) {
   const env = op.env || {};
-  if (env.STRIPE_HABILITADO !== 'teste' || P.isolado) return;
-  const api = op.api || clienteStripeTeste(env, op.transporte);
-  if (!env.STRIPE_WEBHOOK_SECRET) throw new Error('Configure STRIPE_WEBHOOK_SECRET antes de habilitar o sandbox.');
+  if (!env.STRIPE_HABILITADO || env.STRIPE_HABILITADO === '0' || P.isolado) return;
+  const ambiente = ambienteStripe(env);
+  const api = op.api || clienteStripe(env, op.transporte);
+  if (!env.STRIPE_WEBHOOK_SECRET) throw new Error('Configure STRIPE_WEBHOOK_SECRET antes de habilitar pagamentos.');
   const base = new URL(P.urlBase);
   if (base.protocol !== 'https:' && !op.api) throw new Error('O retorno do Stripe precisa usar PLATAFORMA_URL HTTPS.');
   P.db.exec(`create table if not exists stripe_clientes (empresa text not null, moeda text not null, customer text not null unique, primary key(empresa,moeda));
@@ -53,18 +54,27 @@ export function configurarStripe(P, op = {}) {
     create table if not exists stripe_renovacoes (empresa text primary key, produto text not null, vencimento integer not null,
       proxima_em text not null, ativa integer not null default 1, pedido_pendente text, ultimo_erro text);
     create table if not exists stripe_pendencias (id text primary key, tipo text not null, criado_em text not null);`);
-  P.stripe = { api, env, cambio: op.cambio || {}, processando: new Map(), porEmpresa: new Set() };
+  // Um banco local não pode reutilizar clientes, pedidos ou créditos de outra conta/modo.
+  P.db.exec(`create table if not exists stripe_ambiente (id integer primary key check(id=1), modo text not null, conta text not null);`);
+  const vinculo = um(P.db,'select * from stripe_ambiente where id=1');
+  if (vinculo && (vinculo.modo !== ambiente.modo || vinculo.conta !== ambiente.conta)) throw new Error('Banco de dados vinculado a outra conta ou ambiente Stripe. Use uma base separada e concilie os dados existentes.');
+  if (!vinculo) {
+    const legado = ['stripe_clientes','stripe_pedidos','stripe_eventos','stripe_pagamentos','stripe_renovacoes'].some(tabela => um(P.db,`select 1 from ${tabela} limit 1`));
+    if (legado && (ambiente.live || ambiente.conta)) throw new Error('Histórico Stripe sem vínculo de conta. Concilie os dados existentes antes de vincular outra configuração.');
+    exec(P.db,'insert into stripe_ambiente values (1,?,?)',ambiente.modo,ambiente.conta);
+  }
+  P.stripe = { api, env, ...ambiente, cambio: op.cambio || {}, processando: new Map(), porEmpresa: new Set() };
 }
 
 export function consultarPedidosStripe(P, empresa) {
-  if (!P.stripe) throw erro(503,'stripe_desligado','O ambiente de pagamentos de teste não está configurado.');
+  if (!P.stripe) throw erro(503,'stripe_desligado','O serviço de pagamentos não está configurado.');
   exigirEmpresa(P, empresa);
   return todos(P.db,'select id,produto,moeda,quantidade,canal,estado,url,criado_em,snapshot from stripe_pedidos where empresa=? order by criado_em desc limit 100',empresa)
     .map(p=>({...p,snapshot:json(p.snapshot,{})}));
 }
 
 export async function criarCobrancaStripe(P, empresa, dados, ator) {
-  if (!P.stripe) throw erro(503,'stripe_desligado','O ambiente de pagamentos de teste não está configurado.');
+  if (!P.stripe) throw erro(503,'stripe_desligado','O serviço de pagamentos não está configurado.');
   const S=P.stripe, c=exigirEmpresa(P,empresa);
   if (lerFaturamento(P,empresa).forma!=='stripe') throw erro(409,'stripe_nao_habilitado','Habilite explicitamente a cobrança Stripe no contrato da empresa antes de emitir.');
   if (vigente(P,empresa).vencido) throw erro(409,'vigencia_vencida','Atualize a vigência do contrato antes de emitir uma nova cobrança.');
@@ -144,7 +154,7 @@ export async function criarCobrancaStripe(P, empresa, dados, ator) {
     const host=new URL(url).hostname;
     if (!['checkout.stripe.com','invoice.stripe.com'].includes(host) || new URL(url).protocol!=='https:') throw erro(502,'stripe_url','O Stripe não retornou um link de pagamento válido.');
     exec(P.db,"update stripe_pedidos set remoto=?,url=?,estado='aguardando',ultimo_erro=null where id=?",remoto.id,url,id);
-    auditar(P,{usuario:ator,empresa,acao:'billing.created',entidade:'stripe_order',id,depois:{moeda,total:snapshot.total,canal},origem:{painel:'stripe-teste'}});
+    auditar(P,{usuario:ator,empresa,acao:'billing.created',entidade:'stripe_order',id,depois:{moeda,total:snapshot.total,canal},origem:{painel:'stripe',modo:S.modo}});
     return {pedido:id,url,estado:'aguardando',snapshot};
   } finally { S.porEmpresa.delete(empresa); }
 }
@@ -180,6 +190,7 @@ async function aplicarPagamento(P,p,comprovante,total,moeda,periodo) {
 export async function processarEventoStripe(P,e) {
   const S=P.stripe;
   if (!S) throw erro(503,'stripe_desligado','Pagamentos indisponíveis.');
+  if (e.livemode !== S.live || e.account) throw erro(400,'stripe_evento','Evento incompatível com este ambiente.');
   if (um(P.db,'select 1 from stripe_eventos where id=?',e.id)) return {repetido:true};
   if (S.processando.has(e.id)) return S.processando.get(e.id);
   const trabalho=(async()=>{
@@ -188,21 +199,21 @@ export async function processarEventoStripe(P,e) {
       const s=await S.api('GET',`/v1/checkout/sessions/${caminhoId(e.data.object.id)}`);
       const p=um(P.db,'select * from stripe_pedidos where remoto=?',s.id);
       if (p) {
-        if (s.livemode!==false || idDe(s.customer)!==p.customer || s.metadata?.greenia_order!==p.id || s.client_reference_id!==p.id) throw erro(409,'stripe_vinculo','Vínculo da cobrança divergente.');
+        if (s.livemode!==S.live || idDe(s.customer)!==p.customer || s.metadata?.greenia_order!==p.id || s.client_reference_id!==p.id) throw erro(409,'stripe_vinculo','Vínculo da cobrança divergente.');
         if (s.mode==='subscription' && s.subscription) exec(P.db,'update stripe_pedidos set subscription=? where id=?',idDe(s.subscription),p.id);
         if (s.mode==='payment' && s.payment_status==='paid') efeito=await aplicarPagamento(P,p,s.id,s.amount_total,s.currency);
         else if (s.status==='expired' && p.estado!=='pago') exec(P.db,"update stripe_pedidos set estado='expirado' where id=?",p.id);
       }
     } else if (e.type==='invoice.paid') {
       const inv=await S.api('GET',`/v1/invoices/${caminhoId(e.data.object.id)}`);
-      if (inv.livemode!==false) throw erro(409,'stripe_modo','Invoice de produção recusada.');
+      if (inv.livemode!==S.live) throw erro(409,'stripe_modo','Fatura incompatível com este ambiente.');
       const subId=idDe(inv.parent?.subscription_details?.subscription || inv.subscription);
       let p=um(P.db,'select * from stripe_pedidos where remoto=?',inv.id),periodo;
       if (subId) {
         const sub=await S.api('GET',`/v1/subscriptions/${caminhoId(subId)}`);
         p=um(P.db,'select * from stripe_pedidos where id=?',sub.metadata?.greenia_order || '');
         if (p) {
-          if (p.moeda!=='usd' || p.produto==='capacity_pack' || p.canal!=='checkout' || (p.subscription && p.subscription!==subId)
+          if (sub.livemode!==S.live || p.moeda!=='usd' || p.produto==='capacity_pack' || p.canal!=='checkout' || (p.subscription && p.subscription!==subId)
             || idDe(sub.customer)!==p.customer || sub.metadata?.greenia_company!==p.empresa) throw erro(409,'stripe_assinatura','Assinatura divergente.');
           const linha=inv.lines?.data?.[0];
           if (inv.lines?.has_more || inv.lines?.data?.length!==1 || linha.quantity!==1 || linha.parent?.subscription_item_details?.proration || linha.proration
@@ -220,7 +231,7 @@ export async function processarEventoStripe(P,e) {
     } else if (e.type==='customer.subscription.deleted') {
       const sub=await S.api('GET',`/v1/subscriptions/${caminhoId(e.data.object.id)}`);
       const p=um(P.db,'select * from stripe_pedidos where subscription=?',sub.id);
-      if (p && sub.status==='canceled' && sub.livemode===false && idDe(sub.customer)===p.customer) exec(P.db,"update stripe_pedidos set estado='cancelado' where id=?",p.id);
+      if (p && sub.status==='canceled' && sub.livemode===S.live && idDe(sub.customer)===p.customer) exec(P.db,"update stripe_pedidos set estado='cancelado' where id=?",p.id);
     } else if (['charge.refunded','charge.dispute.created','invoice.payment_failed'].includes(e.type)) {
       // Não apagar dados ou inventar estorno de capacidade já consumida. Operador concilia o caso.
       exec(P.db,'insert or ignore into stripe_pendencias values (?,?,?)',e.id,e.type,P.agora().toISOString());
@@ -236,14 +247,14 @@ export async function processarEventoStripe(P,e) {
 export async function receberWebhookStripe(P,req,res) {
   if (!P.stripe) throw erro(503,'stripe_desligado','Pagamentos indisponíveis.');
   const bruto=await lerBruto(req,1);
-  const evento=verificarAssinaturaStripe(bruto,req.headers['stripe-signature'],P.stripe.env.STRIPE_WEBHOOK_SECRET,P.agora());
+  const evento=verificarAssinaturaStripe(bruto,req.headers['stripe-signature'],P.stripe.env.STRIPE_WEBHOOK_SECRET,P.agora(),P.stripe.live);
   await processarEventoStripe(P,evento);
   enviarJson(res,200,{recebido:true});
 }
 
 export function rotasStripe(P,r) {
   const permitir=s=>exigir(permissoesNaPlataforma(P.db,s.userId),'platform.plans.manage');
-  r.get('/api/plataforma/empresas/:id/cobrancas',({sessao,params})=>{permitir(sessao);const pedidos=consultarPedidosStripe(P,params.id);return {pedidos,geracaoAutomatica:P.stripe.env.STRIPE_RENOVACOES==='1',renovacao:um(P.db,'select * from stripe_renovacoes where empresa=?',params.id)};});
+  r.get('/api/plataforma/empresas/:id/cobrancas',({sessao,params})=>{permitir(sessao);const pedidos=consultarPedidosStripe(P,params.id);return {pedidos,modo:P.stripe.modo,geracaoAutomatica:P.stripe.env.STRIPE_RENOVACOES==='1',renovacao:um(P.db,'select * from stripe_renovacoes where empresa=?',params.id)};});
   r.post('/api/plataforma/empresas/:id/cobrancas',({sessao,params,corpo})=>{permitir(sessao);return criarCobrancaStripe(P,params.id,corpo,sessao.userId);});
   r.post('/api/plataforma/empresas/:id/cobrancas/parar-renovacao',({sessao,params})=>{
     permitir(sessao);if(!P.stripe)throw erro(503,'stripe_desligado','Pagamentos indisponíveis.');exigirEmpresa(P,params.id);

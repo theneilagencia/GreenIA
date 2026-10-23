@@ -76,6 +76,7 @@ export async function criarCobrancaStripe(P, empresa, dados, ator) {
   if (!item.recorrente && (plano.rules?.pack_credits!==item.creditos || Math.round(plano.rules?.pack_price_usd*100)!==item.usd)) throw erro(409,'stripe_pacote','O Capacity Pack do plano diverge do catálogo.');
   if (!item.recorrente && situacaoPlano(P.tenant(empresa))?.cobrancaPendente) throw erro(409,'stripe_periodo','Renove o período pago antes de comprar Capacity Packs.');
   const vencimento=dados.vencimento_dias;
+  if (canal==='fatura' && !c.contact_email) throw erro(400,'stripe_email','Cadastre o email de contato da empresa antes de emitir uma fatura.');
   const renovar=dados.renovar===true;
   if (renovar && (!item.recorrente || moeda!=='brl' || canal!=='fatura')) throw erro(400,'stripe_renovacao','A renovação por emissão aplica-se a planos BRL pelo canal fatura.');
   if (canal==='fatura' && (!Number.isSafeInteger(vencimento) || vencimento<1 || vencimento>90)) throw erro(400,'stripe_vencimento','Informe o vencimento de 1 a 90 dias.');
@@ -108,6 +109,9 @@ export async function criarCobrancaStripe(P, empresa, dados, ator) {
       const x=await S.api('POST','/v1/customers',{name:c.legal_name || c.name,...(c.contact_email?{email:c.contact_email}:{}),metadata:{greenia_company:empresa,greenia_currency:moeda}},`greenia_customer_${hash(empresa+moeda)}`);
       customer=caminhoId(x.id);
       exec(P.db,'insert into stripe_clientes values (?,?,?)',empresa,moeda,customer);
+    } else if (canal==='fatura') {
+      // O cliente pode ter sido criado antes de o contato ser cadastrado ou atualizado.
+      await S.api('POST',`/v1/customers/${customer}`,{email:c.contact_email},`greenia_customer_email_${hash(id+customer+c.contact_email)}`);
     }
     exec(P.db,'update stripe_pedidos set customer=? where id=?',customer,id);
     const metadata={greenia_order:id,greenia_company:empresa};

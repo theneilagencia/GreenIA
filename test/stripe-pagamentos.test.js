@@ -17,6 +17,7 @@ function stripeFalso() {
     if(chaves.has(key))return structuredClone(chaves.get(key));
     let r;
     if(path==='/v1/customers')r={id:`cus_${++n}`,livemode:false};
+    else if(path.startsWith('/v1/customers/'))r={...objetos.get(path.split('/').at(-1)),...dados};
     else if(path==='/v1/checkout/sessions')r={id:`cs_${++n}`,livemode:false,...dados,amount_total:dados.line_items[0].price_data.unit_amount,currency:dados.line_items[0].price_data.currency,status:'open',payment_status:'unpaid',url:`https://checkout.stripe.com/c/pay/test${n}`};
     else if(path==='/v1/invoices')r={id:`in_${++n}`,livemode:false,...dados,status:'draft',lines:{data:[],has_more:false}};
     else if(path==='/v1/invoiceitems') {r={id:`ii_${++n}`,livemode:false};const inv=objetos.get(dados.invoice);inv.total=dados.amount;inv.lines.data.push({amount:dados.amount});}
@@ -34,7 +35,7 @@ async function ambiente(op={}) {
   const planos=(await ops.get('/api/plataforma/planos')).dados.planos;
   const plano=planos.find(p=>p.name==='GreenIA Starter');
   const criar=async(nome='Empresa A',slug='empresa-a')=>{
-    const c=await ops.post('/api/plataforma/empresas',{name:nome,slug,plan_id:plano.id,admin_email:`ana@${slug}.com`});
+    const c=await ops.post('/api/plataforma/empresas',{name:nome,slug,plan_id:plano.id,admin_email:`ana@${slug}.com`,contact_email:`financeiro@${slug}.com`});
     assert.equal(c.status,200,JSON.stringify(c.dados));
     await ops.post(`/api/plataforma/empresas/${c.dados.id}/status`,{status:'ativa'});return c.dados;
   };
@@ -42,6 +43,20 @@ async function ambiente(op={}) {
   return {...S,ops,A,falso,criar,relogio:d=>agora=new Date(d),criarPedido:(d)=>criarCobrancaStripe(S.P,A.id,d,'teste')};
 }
 const compra=(id,extra={})=>({pedido:id,produto:'starter',moeda:'brl',canal:'checkout',...extra});
+
+test('fatura exige contato antes da rede e atualiza email de cliente Stripe existente',async()=>{
+  const s=await ambiente();try{
+    await s.ops.put(`/api/plataforma/empresas/${s.A.id}`,{contact_email:''});
+    await assert.rejects(s.criarPedido(compra('pedido_sememail',{canal:'fatura',vencimento_dias:7})),e=>e.status===400&&e.codigo==='stripe_email');
+    assert.equal(s.falso.chamadas.length,0);
+    await s.criarPedido(compra('pedido_cliente',{produto:'capacity_pack'}));
+    await s.ops.put(`/api/plataforma/empresas/${s.A.id}`,{contact_email:'financeiro@example.com'});
+    await s.criarPedido(compra('pedido_fatura',{canal:'fatura',vencimento_dias:7}));
+    const atualizacao=s.falso.chamadas.find(x=>x.metodo==='POST'&&x.path.startsWith('/v1/customers/'));
+    assert.equal(atualizacao.dados.email,'financeiro@example.com');
+    assert.ok(atualizacao.key);
+  }finally{await s.fechar();}
+});
 function pagarCheckout(s,id) { const r=s.falso.objetos.get(id);r.status='complete';r.payment_status='paid';return r; }
 function registrarUso(t,custo,em=t.agora().toISOString()) {
   // As demais colunas são opcionais na tabela de uso.

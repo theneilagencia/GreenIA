@@ -1,11 +1,11 @@
 // Finanças só no console do operador. Os links abrem a página hospedada pelo Stripe.
 export function abrirCobrancasStripe({ empresa, api, modal, esc }) {
-  let fecharModal;
+  let fecharModal, modo;
   const $=id=>document.getElementById(id), endpoint=`/api/plataforma/empresas/${encodeURIComponent(empresa.id)}/cobrancas`;
   const pedido=crypto.randomUUID();
   const produto=(empresa.plano?.name || '').replace('GreenIA ','').toLowerCase();
   const dinheiro=(n,moeda)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:moeda.toUpperCase()}).format(n/100);
-  modal(`<div class="modal-topo"><span class="rotulo">Ambiente de teste</span><button class="icone-btn" id="stripe-fechar" aria-label="Fechar">×</button></div>
+  modal(`<div class="modal-topo"><span class="rotulo" id="stripe-ambiente">Verificando ambiente…</span><button class="icone-btn" id="stripe-fechar" aria-label="Fechar">×</button></div>
     <h2>Cobranças da ${esc(empresa.name)}</h2><p class="dica">Em reais, cada nova cobrança usa a PTAX de venda disponível na emissão. O reenvio mantém o valor original.</p>
     <form id="stripe-form"><div class="campo"><label for="stripe-produto">Produto</label><select class="entrada" id="stripe-produto">
       ${['starter','team','business','company'].includes(produto)?`<option value="${esc(produto)}">${esc(empresa.plano.name)}</option>`:''}<option value="capacity_pack">Capacity Pack</option></select></div>
@@ -14,7 +14,7 @@ export function abrirCobrancasStripe({ empresa, api, modal, esc }) {
     <div class="grade-2"><div class="campo"><label for="stripe-qtd">Quantidade de pacotes</label><input class="entrada" id="stripe-qtd" type="number" min="1" max="50" value="1"></div>
     <div class="campo"><label for="stripe-prazo">Vencimento da fatura (dias)</label><input class="entrada" id="stripe-prazo" type="number" min="1" max="90" placeholder="Defina o prazo acordado"></div></div>
     <label id="stripe-renovar-label" class="dica"><input id="stripe-renovar" type="checkbox"> Gerar a próxima fatura mensal após este período pago, com nova cotação</label>
-    <p class="dica" id="stripe-regra"></p><p role="alert" class="msg-erro" id="stripe-erro"></p><button class="btn btn-verde" id="stripe-criar">Gerar link de teste</button></form>
+    <p class="dica" id="stripe-regra"></p><p role="alert" class="msg-erro" id="stripe-erro"></p><button class="btn btn-verde" id="stripe-criar" disabled>Gerar link</button></form>
     <div id="stripe-resultado" role="status"></div><h3>Cobranças recentes</h3><div id="stripe-lista" aria-live="polite">Carregando…</div>`, fechar => { fecharModal=fechar; });
   $('stripe-fechar').onclick=()=>fecharModal?.();
   const ajustar=()=>{
@@ -29,13 +29,17 @@ export function abrirCobrancasStripe({ empresa, api, modal, esc }) {
   const link=(url,texto)=>`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(texto)}</a>`;
   const carregar=async()=>{
     try {const d=await api(endpoint);if(!$('stripe-lista'))return;
-      $('stripe-lista').innerHTML=(d.renovacao?`<p class="dica">${d.renovacao.ativa?'Renovação programada para':'Renovação interrompida desde'} ${esc(new Date(d.renovacao.proxima_em).toLocaleDateString('pt-BR'))}${!d.geracaoAutomatica?' · Geração automática pausada na configuração do ambiente.':''}${d.renovacao.ultimo_erro?' · Emissão pendente: confira câmbio e configuração.':''}</p>${d.renovacao.ativa?'<button class="btn btn-pequeno" id="stripe-parar">Parar próximas emissões</button>':'<button class="btn btn-pequeno" id="stripe-retomar">Retomar próximas emissões</button>'}`:'')+(d.pedidos.length?d.pedidos.map(p=>`<p><strong>${esc(p.produto==='capacity_pack'?'Capacity Pack':p.produto)}</strong> · ${esc(dinheiro(p.snapshot.total,p.moeda))} · ${esc(p.estado)}${p.url?` · ${link(p.url,'Abrir pagamento')}`:''}</p>`).join(''):'Ainda não há cobranças de teste.');
+      modo=d.modo;
+      $('stripe-ambiente').textContent=modo==='producao'?'Produção · cobranças reais':'Ambiente de teste';
+      $('stripe-criar').textContent=modo==='producao'?'Gerar cobrança real':'Gerar link de teste';
+      if(!$('stripe-resultado').querySelector('a'))$('stripe-criar').disabled=false;
+      $('stripe-lista').innerHTML=(d.renovacao?`<p class="dica">${d.renovacao.ativa?'Renovação programada para':'Renovação interrompida desde'} ${esc(new Date(d.renovacao.proxima_em).toLocaleDateString('pt-BR'))}${!d.geracaoAutomatica?' · Geração automática pausada na configuração do ambiente.':''}${d.renovacao.ultimo_erro?' · Emissão pendente: confira câmbio e configuração.':''}</p>${d.renovacao.ativa?'<button class="btn btn-pequeno" id="stripe-parar">Parar próximas emissões</button>':'<button class="btn btn-pequeno" id="stripe-retomar">Retomar próximas emissões</button>'}`:'')+(d.pedidos.length?d.pedidos.map(p=>`<p><strong>${esc(p.produto==='capacity_pack'?'Capacity Pack':p.produto)}</strong> · ${esc(dinheiro(p.snapshot.total,p.moeda))} · ${esc(p.estado)}${p.url?` · ${link(p.url,'Abrir pagamento')}`:''}</p>`).join(''):'Ainda não há cobranças.');
       if($('stripe-parar'))$('stripe-parar').onclick=async()=>{try{await api(endpoint+'/parar-renovacao',{metodo:'POST',corpo:{}});await carregar();}catch(e){$('stripe-erro').textContent=e.message;}};
       if($('stripe-retomar'))$('stripe-retomar').onclick=async()=>{try{await api(endpoint+'/retomar-renovacao',{metodo:'POST',corpo:{}});await carregar();}catch(e){$('stripe-erro').textContent=e.message;}};
     }catch(e){if($('stripe-lista'))$('stripe-lista').textContent=e.message;}
   };
   $('stripe-form').onsubmit=async ev=>{
-    ev.preventDefault();const botao=$('stripe-criar');botao.disabled=true;$('stripe-erro').textContent='';
+    ev.preventDefault();if(!modo)return;const botao=$('stripe-criar');botao.disabled=true;$('stripe-erro').textContent='';
     try {
       const d=await api(endpoint,{metodo:'POST',corpo:{pedido,produto:$('stripe-produto').value,moeda:$('stripe-moeda').value,
         canal:$('stripe-canal').value,quantidade:Number($('stripe-qtd').value),renovar:$('stripe-renovar').checked,...($('stripe-canal').value==='fatura'?{vencimento_dias:Number($('stripe-prazo').value)}:{})}});

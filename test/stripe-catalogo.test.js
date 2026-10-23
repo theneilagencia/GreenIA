@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { catalogoStripe, prepararCatalogoStripe, clienteStripeTeste } from '../src/plataforma/stripe-catalogo.js';
+import { catalogoStripe, prepararCatalogoStripe, clienteStripeTeste, clienteStripe } from '../src/plataforma/stripe-catalogo.js';
 
 const env = { STRIPE_SECRET_KEY: 'rk_test_fake', STRIPE_API_VERSION: '2026-09-30.clover' };
 
@@ -81,4 +81,46 @@ test('erros da API não revelam segredos; 403 não é tratado como produto inexi
     n++; return { ok: false, status: 403, json: async () => ({ error: { message: env.STRIPE_SECRET_KEY } }) };
   } }), e => e.message.includes('403') && !e.message.includes(env.STRIPE_SECRET_KEY));
   assert.equal(n, 1);
+});
+
+
+test('produção exige conta explícita e chave live, sem aceitar seleção implícita',()=>{
+  assert.throws(()=>clienteStripe({...env,STRIPE_HABILITADO:'producao'}),/ACCOUNT_ID/);
+  assert.throws(()=>clienteStripe({...env,STRIPE_HABILITADO:'producao',STRIPE_ACCOUNT_ID:'acct_liveGreenia'}),/credencial/);
+  assert.throws(()=>clienteStripe({...env,STRIPE_HABILITADO:'live'}),/teste ou producao/);
+  assert.throws(()=>clienteStripe({...env,STRIPE_SECRET_KEY:'sk_live_fake'}),/credencial/);
+});
+
+test('verifica conta e habilitação antes de qualquer operação real; respostas de teste são recusadas',async()=>{
+  const liveEnv={...env,STRIPE_SECRET_KEY:'rk_live_fake',STRIPE_HABILITADO:'producao',STRIPE_ACCOUNT_ID:'acct_liveGreenia'};
+  for(const conta of [
+    {id:'acct_errada',charges_enabled:true,payouts_enabled:true},
+    {id:'acct_liveGreenia',charges_enabled:false,payouts_enabled:true},
+    {id:'acct_liveGreenia',charges_enabled:true,payouts_enabled:false},
+  ]){
+    const rotas=[];
+    const api=clienteStripe(liveEnv,async url=>{rotas.push(new URL(url).pathname);return {ok:true,json:async()=>conta};});
+    await assert.rejects(api('POST','/v1/customers',{name:'Cliente'},'pedido_live'),/conta Stripe/);
+    assert.deepEqual(rotas,['/v1/account']);
+  }
+  const rotas=[];
+  const api=clienteStripe(liveEnv,async url=>{
+    const path=new URL(url).pathname;rotas.push(path);
+    return {ok:true,json:async()=>path==='/v1/account'?{id:'acct_liveGreenia',charges_enabled:true,payouts_enabled:true}:{id:'cus_fake',livemode:false}};
+  });
+  await assert.rejects(api('POST','/v1/customers',{},'pedido_live'),/divergente/);
+  assert.deepEqual(rotas,['/v1/account','/v1/customers']);
+});
+
+test('catálogo de produção mantém valores USD e valida modo live dos produtos e preços',async()=>{
+  const falso=stripeFalso();
+  const transporte=async(url,op)=>{
+    if(new URL(url).pathname==='/v1/account')return {ok:true,json:async()=>({id:'acct_liveGreenia',charges_enabled:true,payouts_enabled:true})};
+    const r=await falso.transporte(url,op),json=await r.json();
+    if(json.id)json.livemode=true;
+    for(const item of json.data || [])item.livemode=true;
+    return {...r,json:async()=>json};
+  };
+  const r=await prepararCatalogoStripe({...env,STRIPE_SECRET_KEY:'rk_live_fake',STRIPE_HABILITADO:'producao',STRIPE_ACCOUNT_ID:'acct_liveGreenia'}, {aplicar:true,moeda:'usd',transporte});
+  assert.equal(r.modo,'producao');assert.equal(r.itens.length,5);
 });

@@ -33,13 +33,27 @@ const form = dados => {
 };
 
 // Transporte fechado à API Stripe. Erros não repetem headers, corpo, chave ou dados do cliente.
+export function ambienteStripe(env = {}) {
+  const modo = env.STRIPE_HABILITADO || 'teste';
+  if (!['teste', 'producao'].includes(modo)) throw new Error('STRIPE_HABILITADO deve ser teste ou producao.');
+  const conta = env.STRIPE_ACCOUNT_ID || '';
+  if ((modo === 'producao' || conta) && !/^acct_[A-Za-z0-9]+$/.test(conta)) throw new Error('Configure STRIPE_ACCOUNT_ID para identificar a conta Stripe.');
+  return { modo, conta, live: modo === 'producao' };
+}
+
 export function clienteStripeTeste(env, transporte = fetch) {
+  return clienteStripe({ ...env, STRIPE_HABILITADO: 'teste' }, transporte);
+}
+
+export function clienteStripe(env, transporte = fetch) {
+  const ambiente = ambienteStripe(env);
   const chave = env.STRIPE_SECRET_KEY || '';
-  if (!/^(sk|rk)_test_[A-Za-z0-9]+$/.test(chave)) throw new Error('Use uma credencial Stripe de teste; este preparador recusa chaves de produção.');
+  if (!new RegExp(`^(sk|rk)_${ambiente.live ? 'live' : 'test'}_[A-Za-z0-9]+$`).test(chave)) throw new Error('Use uma credencial Stripe correspondente ao ambiente selecionado.');
   const versao = env.STRIPE_API_VERSION || '';
   if (!/^\d{4}-\d{2}-\d{2}(\.[a-z]+)?$/.test(versao)) throw new Error('Defina STRIPE_API_VERSION conforme a versão escolhida no Stripe Workbench.');
-  return async (metodo, caminho, dados = {}, idempotencia) => {
-    if (!['GET','POST'].includes(metodo) || !/^\/v1\/(products|prices|customers|invoiceitems|invoices|subscriptions|checkout\/sessions)(\/[A-Za-z0-9_]+)?(\/finalize)?$/.test(caminho)) throw new Error('Rota não permitida na integração Stripe.');
+  const solicitar = async (metodo, caminho, dados = {}, idempotencia) => {
+    if (caminho === '/v1/account' && metodo !== 'GET') throw new Error('Alteração da conta Stripe não permitida.');
+    if (!['GET','POST'].includes(metodo) || (caminho !== '/v1/account' && !/^\/v1\/(products|prices|customers|invoiceitems|invoices|subscriptions|checkout\/sessions)(\/[A-Za-z0-9_]+)?(\/finalize)?$/.test(caminho))) throw new Error('Rota não permitida na integração Stripe.');
     if (metodo==='POST' && (!idempotencia || idempotencia.length>255)) throw new Error('Operação Stripe exige referência de idempotência.');
     const query = form(dados);
     let resposta;
@@ -57,16 +71,27 @@ export function clienteStripeTeste(env, transporte = fetch) {
       const e = new Error(`Stripe recusou a operação (HTTP ${resposta.status}). Consulte o Workbench.`);
       e.status = resposta.status; throw e;
     }
-    if (corpo.livemode === true) throw new Error('Objeto de produção recusado no preparador de teste.');
+    if (typeof corpo.livemode === 'boolean' && corpo.livemode !== ambiente.live) throw new Error('Objeto Stripe divergente do ambiente selecionado.');
     return corpo;
+  };
+  let verificacao;
+  return async (...args) => {
+    if (ambiente.conta) {
+      verificacao ??= solicitar('GET', '/v1/account').then(conta => {
+        if (conta.id !== ambiente.conta) throw new Error('A credencial pertence a outra conta Stripe. Nenhuma cobrança foi iniciada.');
+        if (ambiente.live && (!conta.charges_enabled || !conta.payouts_enabled)) throw new Error('A conta Stripe ainda não está habilitada para pagamentos e repasses.');
+      });
+      await verificacao;
+    }
+    return solicitar(...args);
   };
 }
 
-function conferirPreco(price, p, produto) {
+function conferirPreco(price, p, produto, live) {
   const recorrencia = p.recorrente
     ? price.recurring?.interval === 'month' && price.recurring.interval_count === 1 && price.recurring.usage_type === 'licensed'
     : price.recurring == null;
-  if (price.livemode !== false || price.active !== true || price.currency !== p.moeda || price.unit_amount !== p.valor_centavos
+  if (price.livemode !== live || price.active !== true || price.currency !== p.moeda || price.unit_amount !== p.valor_centavos
     || price.product !== produto || price.billing_scheme !== 'per_unit' || price.transform_quantity != null
     || price.custom_unit_amount != null || !recorrencia) throw new Error(`Preço Stripe divergente para ${p.chave}/${p.moeda}. Nenhum vínculo foi aceito.`);
 }
@@ -78,7 +103,7 @@ export async function prepararCatalogoStripe(env, { aplicar = false, moeda = 'to
   if (!aplicar) return { modo: 'previa', itens: lista };
   // Valida todo o recorte antes da primeira chamada, evitando provisionamento parcial por falta de preço.
   if (lista.some(p => p.pendente)) throw new Error('BRL é convertido por emissão de fatura; use --moeda=usd para provisionar preços fixos.');
-  const api = clienteStripeTeste(env, transporte);
+  const ambiente = ambienteStripe(env), api = clienteStripe(env, transporte);
   const produtos = new Map(), itens = [];
   for (const p of lista) {
     const produtoId = `greenia_${p.chave}`;
@@ -90,7 +115,7 @@ export async function prepararCatalogoStripe(env, { aplicar = false, moeda = 'to
         produto = await api('POST', '/v1/products', { id: produtoId, name: p.nome,
           metadata: { greenia_product: p.chave } }, `greenia_product_v1_${p.chave}`);
       }
-      if (produto.deleted || produto.active !== true || produto.livemode !== false || produto.metadata?.greenia_product !== p.chave) {
+      if (produto.deleted || produto.active !== true || produto.livemode !== ambiente.live || produto.metadata?.greenia_product !== p.chave) {
         throw new Error(`Produto Stripe incompatível: ${p.chave}.`);
       }
       produtos.set(produtoId, produto);
@@ -102,9 +127,9 @@ export async function prepararCatalogoStripe(env, { aplicar = false, moeda = 'to
       unit_amount: p.valor_centavos, lookup_key: p.lookup_key,
       ...(p.recorrente ? { recurring: { interval: 'month', usage_type: 'licensed' } } : {}),
       metadata: { greenia_product: p.chave } }, p.lookup_key);
-    conferirPreco(price, p, produtoId);
+    conferirPreco(price, p, produtoId, ambiente.live);
     itens.push({ produto: p.chave, moeda: p.moeda, valor_centavos: p.valor_centavos, price_id: price.id,
       product_id: produtoId, creditos: p.creditos, reserva: p.reserva, recorrente: p.recorrente });
   }
-  return { modo: 'teste', itens };
+  return { modo: ambiente.modo, itens };
 }

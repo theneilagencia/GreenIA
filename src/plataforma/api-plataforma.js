@@ -66,7 +66,8 @@ export function rotasPlataforma(P, r) {
   }, { publica: true });
 
   r.get('/api/plataforma/eu', ({ sessao }) => ({
-    stripeTeste: !!P.stripe,
+    stripeTeste: P.stripe?.modo === 'teste',
+    stripeModo: P.stripe?.modo || null,
     usuario: { id: sessao.userId, email: sessao.email, name: sessao.name }, csrf: sessao.csrf, permissoes: [...perms(sessao)],
     // Aviso de vencimento ou rotação da chave do OpenRouter, para o topo do console (sem chamar o OpenRouter).
     alertaChave: perms(sessao).has('platform.settings.manage') || perms(sessao).has('platform.companies.manage') ? alertaDaChave() : null,

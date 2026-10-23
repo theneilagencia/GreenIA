@@ -4,23 +4,23 @@ import { createHmac } from 'node:crypto';
 import { subirPlataforma } from './ajuda-plataforma.js';
 import { exec, um, todos } from '../src/db.js';
 import { situacaoPlano, checarPlano } from '../src/plano.js';
-import { criarCobrancaStripe, processarEventoStripe, verificarAssinaturaStripe, proximoMesStripe, rodadaRenovacoesStripe } from '../src/plataforma/stripe-pagamentos.js';
+import { criarCobrancaStripe, processarEventoStripe, verificarAssinaturaStripe, proximoMesStripe, rodadaRenovacoesStripe, configurarStripe } from '../src/plataforma/stripe-pagamentos.js';
 import { concederDireitoStripe } from '../src/plataforma/stripe-direitos.js';
 
 const segredo='whsec_teste_local';
 const evento=(id,tipo,recurso)=>({id:`evt_${id}`,type:tipo,livemode:false,data:{object:{id:recurso}}});
-function stripeFalso() {
+function stripeFalso(live=false) {
   const objetos=new Map(), chaves=new Map(), chamadas=[]; let n=0;
   const api=async(metodo,path,dados={},key)=>{
     chamadas.push({metodo,path,dados,key});
     if (metodo==='GET') { const r=objetos.get(path.split('/').at(-1)); if(!r)throw new Error('objeto não existe: '+path);return structuredClone(r); }
     if(chaves.has(key))return structuredClone(chaves.get(key));
     let r;
-    if(path==='/v1/customers')r={id:`cus_${++n}`,livemode:false};
+    if(path==='/v1/customers')r={id:`cus_${++n}`,livemode:live};
     else if(path.startsWith('/v1/customers/'))r={...objetos.get(path.split('/').at(-1)),...dados};
-    else if(path==='/v1/checkout/sessions')r={id:`cs_${++n}`,livemode:false,...dados,amount_total:dados.line_items[0].price_data.unit_amount,currency:dados.line_items[0].price_data.currency,status:'open',payment_status:'unpaid',url:`https://checkout.stripe.com/c/pay/test${n}`};
-    else if(path==='/v1/invoices')r={id:`in_${++n}`,livemode:false,...dados,status:'draft',lines:{data:[],has_more:false}};
-    else if(path==='/v1/invoiceitems') {r={id:`ii_${++n}`,livemode:false};const inv=objetos.get(dados.invoice);inv.total=dados.amount;inv.lines.data.push({amount:dados.amount});}
+    else if(path==='/v1/checkout/sessions')r={id:`cs_${++n}`,livemode:live,...dados,amount_total:dados.line_items[0].price_data.unit_amount,currency:dados.line_items[0].price_data.currency,status:'open',payment_status:'unpaid',url:`https://checkout.stripe.com/c/pay/test${n}`};
+    else if(path==='/v1/invoices')r={id:`in_${++n}`,livemode:live,...dados,status:'draft',lines:{data:[],has_more:false}};
+    else if(path==='/v1/invoiceitems') {r={id:`ii_${++n}`,livemode:live};const inv=objetos.get(dados.invoice);inv.total=dados.amount;inv.lines.data.push({amount:dados.amount});}
     else if(path.endsWith('/finalize')) {r={...objetos.get(path.split('/')[3]),status:'open',hosted_invoice_url:`https://invoice.stripe.com/i/test${n}`};}
     else throw new Error('rota inesperada: '+path);
     objetos.set(r.id,r);chaves.set(key,r);return structuredClone(r);
@@ -28,8 +28,8 @@ function stripeFalso() {
   return {api,objetos,chamadas};
 }
 async function ambiente(op={}) {
-  const falso=stripeFalso();let agora=new Date('2026-10-22T18:00:00Z');
-  const S=await subirPlataforma({agora:()=>agora,stripe:{env:{STRIPE_HABILITADO:'teste',STRIPE_WEBHOOK_SECRET:segredo},api:falso.api,
+  const falso=stripeFalso(op.modo==='producao');let agora=new Date('2026-10-22T18:00:00Z');
+  const S=await subirPlataforma({agora:()=>agora,stripe:{env:{STRIPE_HABILITADO:op.modo || 'teste',STRIPE_WEBHOOK_SECRET:segredo,...(op.modo==='producao'?{STRIPE_ACCOUNT_ID:'acct_liveGreenia'}:{})},api:falso.api,
     cambio:{transporte:async()=>({ok:true,json:async()=>({value:[{cotacaoVenda:5,dataHoraCotacao:'2026-10-22 13:08:00.000'}]})})}},...op});
   const ops=await S.navegador().entrarConsole('ops@theneil.com.br');
   const planos=(await ops.get('/api/plataforma/planos')).dados.planos;
@@ -295,5 +295,61 @@ test('falha de câmbio na geração mensal preserva próxima data e tenta novame
     assert.equal(um(s.P.db,'select count(*) n from stripe_pedidos').n,1);
     assert.equal(um(s.P.db,'select ultimo_erro from stripe_renovacoes').ultimo_erro,'emissao_pendente');
     assert.equal(um(s.P.db,'select proxima_em from stripe_renovacoes').proxima_em,'2026-11-22T18:00:00.000Z');
+  }finally{await s.fechar();}
+});
+
+
+test('produção emite checkout e fatura BRL, aceita apenas eventos live e não duplica créditos',async()=>{
+  const s=await ambiente({modo:'producao'});try{
+    assert.equal((await s.ops.get('/api/plataforma/eu')).dados.stripeModo,'producao');
+    assert.equal((await s.ops.get('/api/plataforma/eu')).dados.stripeTeste,false);
+    await s.criarPedido(compra('pedido_live_pack',{produto:'capacity_pack'}));
+    const p=um(s.P.db,'select * from stripe_pedidos where id=?','pedido_live_pack');
+    pagarCheckout(s,p.remoto);
+    const e={...evento('livepack','checkout.session.completed',p.remoto),livemode:true};
+    await assert.rejects(processarEventoStripe(s.P,{...e,livemode:false}),/incompatível/);
+    assert.equal(todos(s.P.db,'select * from stripe_pagamentos').length,0);
+    await processarEventoStripe(s.P,e);await processarEventoStripe(s.P,e);
+    assert.equal(todos(s.P.db,'select * from stripe_pagamentos').length,1);
+    await s.criarPedido(compra('pedido_live_fatura',{canal:'fatura',vencimento_dias:7}));
+    const f=um(s.P.db,'select * from stripe_pedidos where id=?','pedido_live_fatura');
+    const inv=s.falso.objetos.get(f.remoto);
+    Object.assign(inv,{status:'paid',amount_remaining:0,amount_paid:inv.total});
+    await processarEventoStripe(s.P,{...evento('liveinvoice','invoice.paid',inv.id),livemode:true});
+    assert.equal(todos(s.P.db,'select * from stripe_pagamentos').length,2);
+    assert.equal((await s.ops.get(`/api/plataforma/empresas/${s.A.id}/cobrancas`)).dados.modo,'producao');
+  }finally{await s.fechar();}
+});
+
+test('não permite reutilizar o banco Stripe entre contas ou ambientes',async()=>{
+  const s=await ambiente();try{
+    for(const env of [
+      {STRIPE_HABILITADO:'producao',STRIPE_ACCOUNT_ID:'acct_liveGreenia'},
+      {STRIPE_HABILITADO:'teste',STRIPE_ACCOUNT_ID:'acct_outro'},
+    ])assert.throws(()=>configurarStripe(s.P,{env:{...env,STRIPE_WEBHOOK_SECRET:segredo},api:s.falso.api}),/outra conta ou ambiente/);
+    assert.equal(um(s.P.db,'select modo from stripe_ambiente').modo,'teste');
+  }finally{await s.fechar();}
+});
+
+test('webhook live exige assinatura íntegra e recusa eventos de teste e Connect',()=>{
+  const agora=new Date(),ts=Math.floor(agora.getTime()/1000);
+  for(const extra of [{livemode:true},{livemode:false},{livemode:true,account:'acct_connect'}]){
+    const b=JSON.stringify({...evento('webhooklive','invoice.paid','in_live'),...extra});
+    const ass=`t=${ts},v1=${createHmac('sha256',segredo).update(`${ts}.${b}`).digest('hex')}`;
+    if(extra.livemode && !extra.account)assert.equal(verificarAssinaturaStripe(b,ass,segredo,agora,true).livemode,true);
+    else assert.throws(()=>verificarAssinaturaStripe(b,ass,segredo,agora,true),/incompatível/);
+  }
+});
+
+
+test('endpoint HTTP de produção processa evento live assinado e rejeita evento de teste',async()=>{
+  const s=await ambiente({modo:'producao'});try{
+    for(const live of [false,true]){
+      const e={...evento(live?'liveHttp':'testHttp','invoice.payment_failed','in_failed'),livemode:live};
+      const b=JSON.stringify(e),ts=Math.floor(s.P.agora().getTime()/1000);
+      const assinatura=`t=${ts},v1=${createHmac('sha256',segredo).update(`${ts}.${b}`).digest('hex')}`;
+      assert.equal((await s.navegador().post('/api/stripe/webhook',e,{'stripe-signature':assinatura})).status,live?200:400);
+    }
+    assert.equal(um(s.P.db,'select count(*) n from stripe_pendencias').n,1);
   }finally{await s.fechar();}
 });

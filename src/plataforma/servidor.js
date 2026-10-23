@@ -46,6 +46,7 @@ import { randomUUID } from 'node:crypto';
 import { validarPublicacao, empresaNaPublicacao } from '../publicacao-controlada.js';
 import { configurarStripe, rotasStripe, receberWebhookStripe } from './stripe-pagamentos.js';
 import { situacaoDireitosStripe } from './stripe-direitos.js';
+import { vigente, aplicarPlanoAgendado } from './faturamento.js';
 
 const RAIZ = fileURLToPath(new URL('../..', import.meta.url));
 const PUBLICO = join(RAIZ, 'public');
@@ -219,7 +220,12 @@ function abrirTenant(P, id) {
   });
   t.checarRecurso = (metodo, caminho) => checarRecurso(P, id, t, metodo, caminho);
   P.tenants.set(id, t);
-  t.cobranca = () => situacaoDireitosStripe(t);
+  t.contrato = () => {aplicarPlanoAgendado(P,id,E.mudarPlano);return vigente(P,id);};
+  t.cobranca = () => {
+    const pago=situacaoDireitosStripe(t);
+    if (pago) return pago;
+    return null; // Empresas manuais só migram o controle de créditos no primeiro pagamento.
+  };
   aplicarAoTenant(P, id);
   return t;
 }

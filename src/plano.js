@@ -26,24 +26,50 @@ export const ehOperador = (app, pessoa) => !!pessoa && (app.operadores || []).in
 // Sem plano, a empresa usa a própria chave e vê o custo real. Com plano, só o operador vê dólar.
 export const veDolar = () => false; // Dinheiro somente nas rotas da Administração Geral, nunca no ambiente do cliente.
 
+function franquiaUnica(app,p,contrato) {
+  const agora=app.agora().toISOString(),hoje=agora.slice(0,10),fila=[];
+  const eventos=[...todos(app.db,'select id,em,creditos,validade from pacotes where em<=?',agora).map(x=>({...x,tipo:0})),
+    ...todos(app.db,'select id,em,custo from uso where em<=?',agora).map(x=>({...x,tipo:1}))]
+    .sort((a,b)=>a.em.localeCompare(b.em)||a.tipo-b.tipo||a.id-b.id);
+  let usados=0,naReserva=0;
+  for(const e of eventos) {
+    if(e.tipo===0){fila.push({restante:e.creditos,validade:e.validade});continue;}
+    const n=creditosDe(e.custo),antes=usados;usados+=n;
+    let falta=Math.max(0,n-Math.max(0,p.creditos-antes));
+    for(const pack of fila){if(pack.validade&&pack.validade<e.em.slice(0,10))continue;const d=Math.min(falta,pack.restante);pack.restante-=d;falta-=d;if(!falta)break;}
+    naReserva+=falta;
+  }
+  const arred=n=>Math.round(n*10000)/10000;
+  usados=arred(usados);naReserva=arred(naReserva);
+  const pacoteDisponivel=arred(fila.filter(x=>!x.validade||x.validade>=hoje).reduce((s,x)=>s+x.restante,0));
+  return {creditos:p.creditos,reserva:p.reserva,usados,pacoteDisponivel,naReserva,
+    fase:usados<p.creditos?(usados>=p.creditos*.8?'aviso':'normal'):pacoteDisponivel>0?'pacote':naReserva>=p.reserva?'esgotado':'reserva',
+    renova:contrato.fim||null,percentual:Math.min(100,Math.round(usados/p.creditos*100)),percentualReserva:p.reserva?Math.min(100,Math.round(naReserva/p.reserva*100)):100};
+}
+
 const mesDe = d => d.toISOString().slice(0, 7);
 const proximoMes = d => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
 
 // Situação do mês. Ordem de consumo: créditos do plano, depois pacotes (todos os
 // modelos; o que sobra passa para o mês seguinte), por último a reserva (só rápido).
 export function situacaoPlano(app) {
+  const contrato=app.contrato?.();
+  if (contrato?.vencido) return {fase:'esgotado',vigenciaVencida:true,creditos:app.plano?.creditos||0,reserva:0,usados:0,pacoteDisponivel:0,naReserva:0,percentual:0,percentualReserva:0,renova:contrato.fim};
   const pago = app.cobranca?.();
   if (pago) return pago;
   const p = app.plano;
   if (!p) return null;
   const agora = app.agora(), mesAtual = mesDe(agora), hoje = agora.toISOString().slice(0, 10);
+  const unico=contrato?.renovacao==='nenhuma';
   if (p.ilimitado) {
     const usados = creditosDe(um(app.db, "select coalesce(sum(custo), 0) as c from uso where substr(em, 1, 7) = ?", mesAtual).c);
     return { ilimitado: true, creditos: null, reserva: 0, usados, pacoteDisponivel: 0, naReserva: 0, fase: 'normal', renova: proximoMes(agora), percentual: 0, percentualReserva: 0 };
   }
-  const usos = new Map(todos(app.db, 'select substr(em, 1, 7) as mes, coalesce(sum(custo), 0) as c from uso group by 1').map(x => [x.mes, creditosDe(x.c)]));
-  const lista = todos(app.db, 'select id, substr(em, 1, 7) as mes, creditos, validade from pacotes order by id');
+  if (unico) return franquiaUnica(app,p,contrato);
+  const usos = new Map(todos(app.db,'select substr(em,1,7) as mes,coalesce(sum(custo),0) as c from uso group by 1').map(x=>[x.mes,creditosDe(x.c)]));
+  const lista = todos(app.db, 'select id, substr(em,1,7) as mes, creditos, validade from pacotes order by id');
   const meses = [...new Set([...usos.keys(), ...lista.map(x => x.mes), mesAtual])].filter(m => m <= mesAtual).sort();
+  const historico=um(app.db,"select 1 from sqlite_master where name='plano_franquias'")?new Map(todos(app.db,'select * from plano_franquias').map(x=>[x.mes,x.creditos])):new Map();
   // Pacotes: consumidos do mais antigo para o mais novo; o que passa da validade deixa de valer.
   const fila = [];
   let atual = null;
@@ -51,7 +77,8 @@ export function situacaoPlano(app) {
     for (const x of lista.filter(x => x.mes === m)) fila.push({ restante: x.creditos, validade: x.validade });
     const valem = () => fila.filter(x => x.restante > 0 && (!x.validade || x.validade >= `${m}-01`));
     const usados = usos.get(m) || 0;
-    let falta = Math.max(0, usados - p.creditos);
+    const franquia=m===mesAtual?p.creditos:historico.get(m)??p.creditos;
+    let falta = Math.max(0, usados - (franquia===0?Infinity:franquia));
     for (const x of valem()) { const d = Math.min(falta, x.restante); x.restante -= d; falta -= d; if (!falta) break; }
     if (m === mesAtual) atual = { usados, naReserva: Math.round(falta * 10) / 10 };
   }
@@ -69,7 +96,7 @@ export function situacaoPlano(app) {
   };
 }
 
-const dataBr = iso => iso.split('-').reverse().join('/');
+const dataBr = iso => iso?iso.split('-').reverse().join('/'):'a ampliação da capacidade';
 export const MSG = {
   reserva: s => `Os créditos deste ciclo foram usados. Até ${dataBr(s.renova)}, a GreenIA segue disponível com a classe Rápido.`,
   esgotado: s => `A capacidade deste ciclo foi usada. Novas mensagens voltam em ${dataBr(s.renova)}, ou antes com um Capacity Pack. O histórico continua disponível.`,
@@ -100,6 +127,7 @@ export const COMO_FUNCIONAM_OS_CREDITOS = [
 // Antes de cada envio: bloqueia no fim da reserva (contando as execuções que já estão em andamento).
 export function checarPlano(app) {
   const s = situacaoPlano(app);
+  if (s?.vigenciaVencida) throw erro(402,'vigencia_vencida','A vigência do plano terminou. Novas execuções estão pausadas; os dados e o histórico continuam disponíveis.');
   if (s?.cobrancaPendente) throw erro(402, 'pagamento_pendente', 'A empresa não tem um período de uso pago vigente. O histórico continua disponível; fale com o responsável financeiro.');
   if (s?.fase === 'esgotado') throw erro(429, 'plano_esgotado', MSG.esgotado(s));
   if (s?.fase === 'reserva') {

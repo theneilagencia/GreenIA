@@ -37,7 +37,9 @@ async function ambiente(op={}) {
   const criar=async(nome='Empresa A',slug='empresa-a')=>{
     const c=await ops.post('/api/plataforma/empresas',{name:nome,slug,plan_id:plano.id,admin_email:`ana@${slug}.com`,contact_email:`financeiro@${slug}.com`});
     assert.equal(c.status,200,JSON.stringify(c.dados));
-    await ops.post(`/api/plataforma/empresas/${c.dados.id}/status`,{status:'ativa'});return c.dados;
+    await ops.post(`/api/plataforma/empresas/${c.dados.id}/status`,{status:'ativa'});
+    assert.equal((await ops.put(`/api/plataforma/empresas/${c.dados.id}/faturamento`,{forma:'stripe',confirmar_stripe:true})).status,200);
+    return c.dados;
   };
   const A=await criar();
   return {...S,ops,A,falso,criar,relogio:d=>agora=new Date(d),criarPedido:(d)=>criarCobrancaStripe(S.P,A.id,d,'teste')};

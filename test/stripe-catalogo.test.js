@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { catalogoStripe, prepararCatalogoStripe, clienteStripeTeste, clienteStripe } from '../src/plataforma/stripe-catalogo.js';
 
-const env = { STRIPE_SECRET_KEY: 'rk_test_fake', STRIPE_API_VERSION: '2026-09-30.clover' };
+const env = { STRIPE_SECRET_KEY: 'rk_test_fake', STRIPE_API_VERSION: '2026-09-30.endive' };
 
 function stripeFalso() {
   const produtos = new Map(), precos = new Map(), chamadas = [];

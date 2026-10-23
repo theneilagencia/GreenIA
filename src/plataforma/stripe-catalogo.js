@@ -53,7 +53,7 @@ export function clienteStripe(env, transporte = fetch) {
   if (!/^\d{4}-\d{2}-\d{2}(\.[a-z]+)?$/.test(versao)) throw new Error('Defina STRIPE_API_VERSION conforme a versão escolhida no Stripe Workbench.');
   const solicitar = async (metodo, caminho, dados = {}, idempotencia) => {
     if (caminho === '/v1/account' && metodo !== 'GET') throw new Error('Alteração da conta Stripe não permitida.');
-    if (!['GET','POST'].includes(metodo) || (caminho !== '/v1/account' && !/^\/v1\/(products|prices|customers|invoiceitems|invoices|subscriptions|checkout\/sessions)(\/[A-Za-z0-9_]+)?(\/finalize)?$/.test(caminho))) throw new Error('Rota não permitida na integração Stripe.');
+    if (!['GET','POST'].includes(metodo) || (caminho !== '/v1/account' && !/^\/v1\/(products|prices|customers|invoiceitems|invoices|subscriptions|checkout\/sessions)(\/[A-Za-z0-9_]+)?(\/finalize|\/send)?$/.test(caminho))) throw new Error('Rota não permitida na integração Stripe.');
     if (metodo==='POST' && (!idempotencia || idempotencia.length>255)) throw new Error('Operação Stripe exige referência de idempotência.');
     const query = form(dados);
     let resposta;

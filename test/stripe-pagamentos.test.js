@@ -4,7 +4,7 @@ import { createHmac } from 'node:crypto';
 import { subirPlataforma } from './ajuda-plataforma.js';
 import { exec, um, todos } from '../src/db.js';
 import { situacaoPlano, checarPlano } from '../src/plano.js';
-import { criarCobrancaStripe, processarEventoStripe, verificarAssinaturaStripe, proximoMesStripe, rodadaRenovacoesStripe, configurarStripe } from '../src/plataforma/stripe-pagamentos.js';
+import { criarCobrancaStripe, processarEventoStripe, verificarAssinaturaStripe, proximoMesStripe, rodadaRenovacoesStripe, configurarStripe, enviarFaturaStripe } from '../src/plataforma/stripe-pagamentos.js';
 import { concederDireitoStripe } from '../src/plataforma/stripe-direitos.js';
 
 const segredo='whsec_teste_local';
@@ -16,11 +16,12 @@ function stripeFalso(live=false) {
     if (metodo==='GET') { const r=objetos.get(path.split('/').at(-1)); if(!r)throw new Error('objeto não existe: '+path);return structuredClone(r); }
     if(chaves.has(key))return structuredClone(chaves.get(key));
     let r;
-    if(path==='/v1/customers')r={id:`cus_${++n}`,livemode:live};
+    if(path==='/v1/customers')r={id:`cus_${++n}`,livemode:live,...dados};
     else if(path.startsWith('/v1/customers/'))r={...objetos.get(path.split('/').at(-1)),...dados};
     else if(path==='/v1/checkout/sessions')r={id:`cs_${++n}`,livemode:live,...dados,amount_total:dados.line_items[0].price_data.unit_amount,currency:dados.line_items[0].price_data.currency,status:'open',payment_status:'unpaid',url:`https://checkout.stripe.com/c/pay/test${n}`};
-    else if(path==='/v1/invoices')r={id:`in_${++n}`,livemode:live,...dados,status:'draft',lines:{data:[],has_more:false}};
+    else if(path==='/v1/invoices')r={id:`in_${++n}`,livemode:live,...dados,customer_email:objetos.get(dados.customer)?.email,status:'draft',lines:{data:[],has_more:false}};
     else if(path==='/v1/invoiceitems') {r={id:`ii_${++n}`,livemode:live};const inv=objetos.get(dados.invoice);inv.total=dados.amount;inv.lines.data.push({amount:dados.amount});}
+    else if(path.endsWith('/send')) {r={...objetos.get(path.split('/')[3])};}
     else if(path.endsWith('/finalize')) {r={...objetos.get(path.split('/')[3]),status:'open',hosted_invoice_url:`https://invoice.stripe.com/i/test${n}`};}
     else throw new Error('rota inesperada: '+path);
     objetos.set(r.id,r);chaves.set(key,r);return structuredClone(r);
@@ -46,6 +47,53 @@ async function ambiente(op={}) {
 }
 const compra=(id,extra={})=>({pedido:id,produto:'starter',moeda:'brl',canal:'checkout',...extra});
 
+test('envio explícito de fatura é auditado, não duplica email nem concede créditos',async()=>{
+  const s=await ambiente();try{
+    await s.criarPedido(compra('pedido_envio01',{canal:'fatura',vencimento_dias:7}));
+    assert.equal(s.falso.chamadas.filter(x=>x.path.endsWith('/send')).length,0);
+    const endpoint=`/api/plataforma/empresas/${s.A.id}/cobrancas/pedido_envio01/enviar-email`;
+    assert.equal((await s.ops.post(endpoint,{}, {'x-csrf':'errado'})).status,403);
+    const r=await s.ops.post(endpoint,{});
+    assert.equal(r.status,200,JSON.stringify(r.dados));assert.equal(r.dados.simulado,true);
+    assert.equal((await s.ops.post(endpoint,{})).dados.repetido,true);
+    assert.equal(s.falso.chamadas.filter(x=>x.path.endsWith('/send')).length,1);
+    assert.equal(todos(s.P.db,'select * from stripe_pagamentos').length,0);
+    assert.equal((await s.ops.get(`/api/plataforma/empresas/${s.A.id}/cobrancas`)).dados.pedidos[0].email_enviado_em,s.P.agora().toISOString());
+    assert.ok(um(s.P.db,"select 1 from audit_log where action='billing.invoice_sent'"));
+  }finally{await s.fechar();}
+});
+
+test('envio recusa outra empresa, conta/modo, destinatário ou valor divergentes antes de enviar',async()=>{
+  const s=await ambiente();try{
+    const r=await s.criarPedido(compra('pedido_envio02',{canal:'fatura',vencimento_dias:7}));
+    const p=um(s.P.db,'select * from stripe_pedidos where id=?',r.pedido),inv=s.falso.objetos.get(p.remoto),original=structuredClone(inv);
+    const b=await s.criar('Empresa B','empresa-b');
+    await assert.rejects(enviarFaturaStripe(s.P,b.id,p.id,'teste'),e=>e.status===404);
+    for(const mudanca of [{livemode:true},{customer:'cus_outro'},{metadata:{}},{total:1},{customer_email:'outro@example.com'},{status:'paid'}]){
+      s.falso.objetos.set(p.remoto,{...structuredClone(original),...mudanca});
+      await assert.rejects(enviarFaturaStripe(s.P,s.A.id,p.id,'teste'),e=>e.status===409);
+    }
+    assert.equal(s.falso.chamadas.filter(x=>x.path.endsWith('/send')).length,0);
+  }finally{await s.fechar();}
+});
+
+test('timeout no envio mantém referência idempotente e exige conciliação após 23 horas',async()=>{
+  const s=await ambiente();try{
+    await s.criarPedido(compra('pedido_envio03',{canal:'fatura',vencimento_dias:7}));
+    const api=s.P.stripe.api;let key;
+    s.P.stripe.api=async(m,path,d,k)=>{if(path.endsWith('/send')){key=k;throw new Error('timeout');}return api(m,path,d,k);};
+    await assert.rejects(enviarFaturaStripe(s.P,s.A.id,'pedido_envio03','teste'),/timeout/);
+    s.P.stripe.api=api;
+    await enviarFaturaStripe(s.P,s.A.id,'pedido_envio03','teste');
+    assert.equal(s.falso.chamadas.find(x=>x.path.endsWith('/send')).key,key);
+    await s.criarPedido(compra('pedido_envio04',{produto:'capacity_pack',canal:'fatura',vencimento_dias:7}));
+    s.P.stripe.api=async(m,path,d,k)=>{if(path.endsWith('/send'))throw new Error('timeout');return api(m,path,d,k);};
+    await assert.rejects(enviarFaturaStripe(s.P,s.A.id,'pedido_envio04','teste'),/timeout/);
+    s.relogio('2026-10-24T18:00:00Z');
+    await assert.rejects(enviarFaturaStripe(s.P,s.A.id,'pedido_envio04','teste'),e=>e.codigo==='stripe_conciliar');
+  }finally{await s.fechar();}
+});
+
 test('fatura exige contato antes da rede e atualiza email de cliente Stripe existente',async()=>{
   const s=await ambiente();try{
     await s.ops.put(`/api/plataforma/empresas/${s.A.id}`,{contact_email:''});
@@ -60,6 +108,20 @@ test('fatura exige contato antes da rede e atualiza email de cliente Stripe exis
   }finally{await s.fechar();}
 });
 function pagarCheckout(s,id) { const r=s.falso.objetos.get(id);r.status='complete';r.payment_status='paid';return r; }
+test('falha assíncrona de Checkout não concede créditos e evento atrasado não desfaz pagamento confirmado',async()=>{
+  const s=await ambiente();try{
+    const r=await s.criarPedido(compra('pedido_async_fail'));
+    const p=um(s.P.db,'select * from stripe_pedidos where id=?',r.pedido);
+    await processarEventoStripe(s.P,evento('falhaasync','checkout.session.async_payment_failed',p.remoto));
+    assert.equal(um(s.P.db,'select estado from stripe_pedidos where id=?',p.id).estado,'falhou');
+    assert.equal(todos(s.P.db,'select * from stripe_pagamentos').length,0);
+    pagarCheckout(s,p.remoto);
+    await processarEventoStripe(s.P,evento('sucessoasync','checkout.session.async_payment_succeeded',p.remoto));
+    await processarEventoStripe(s.P,evento('falhaatrasada','checkout.session.async_payment_failed',p.remoto));
+    assert.equal(um(s.P.db,'select estado from stripe_pedidos where id=?',p.id).estado,'pago');
+    assert.equal(todos(s.P.db,'select * from stripe_pagamentos').length,1);
+  }finally{await s.fechar();}
+});
 function registrarUso(t,custo,em=t.agora().toISOString()) {
   // As demais colunas são opcionais na tabela de uso.
   exec(t.db,'insert into uso (em,custo) values (?,?)',em,custo);

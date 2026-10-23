@@ -1,5 +1,6 @@
 // Conversão de referência: PTAX venda, último fechamento disponível na consulta.
 // A referência do BCB não é a taxa de liquidação da Stripe nem uma cotação intradiária.
+import { erro } from '../http.js';
 const diaSP = d => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
 const milisegundosDia = 86_400_000;
 const dataAPI = iso => `${iso.slice(5,7)}-${iso.slice(8,10)}-${iso.slice(0,4)}`;
@@ -13,12 +14,13 @@ export async function consultarPtax({ agora = new Date(), transporte = fetch } =
     '@dataFinalCotacao': `'${dataAPI(hoje)}'`, '$format': 'json', '$orderby': 'dataHoraCotacao desc', '$top': '1' });
   let resposta, dados;
   try {
-    resposta = await transporte(url.toString(), { redirect: 'error', signal: AbortSignal.timeout(15_000), headers: { Accept: 'application/json' } });
+    // O OData do BCB não interpreta o '+' de application/x-www-form-urlencoded como espaço.
+    resposta = await transporte(url.toString().replace(/\+/g, '%20'), { redirect: 'error', signal: AbortSignal.timeout(15_000), headers: { Accept: 'application/json' } });
     if (!resposta.ok) throw new Error();
     dados = await resposta.json();
-  } catch { throw new Error('Cotação BCB indisponível. A emissão em reais deve aguardar nova tentativa.'); }
+  } catch { throw erro(503, 'stripe_cotacao', 'Cotação BCB indisponível. A emissão em reais deve aguardar nova tentativa.'); }
   const r = dados.value?.[0];
-  if (!r || typeof r.dataHoraCotacao !== 'string' || !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{1,3})?$/.test(r.dataHoraCotacao)) throw new Error('BCB não retornou um fechamento válido.');
+  if (!r || typeof r.dataHoraCotacao !== 'string' || !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{1,6})?$/.test(r.dataHoraCotacao)) throw new Error('BCB não retornou um fechamento válido.');
   const publicada = new Date(r.dataHoraCotacao.replace(' ', 'T') + '-03:00');
   const data = r.dataHoraCotacao.slice(0,10);
   const idade = (Date.parse(`${hoje}T00:00:00Z`) - Date.parse(`${data}T00:00:00Z`)) / milisegundosDia;

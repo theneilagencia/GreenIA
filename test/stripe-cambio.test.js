@@ -18,6 +18,8 @@ test('consulta BCB por fechamento de venda e registra origem, publicação e con
     assert.ok(u.pathname.includes('CotacaoDolarPeriodo'));
     assert.equal(u.searchParams.get('@dataFinalCotacao'), "'10-22-2026'");
     assert.equal(u.searchParams.get('$orderby'), 'dataHoraCotacao desc');
+    assert.ok(url.includes('dataHoraCotacao%20desc'), 'BCB exige espaço como %20, não +');
+    assert.ok(!url.includes('+'));
     assert.equal(op.redirect, 'error');
     return { ok: true, json: async () => ({ value: [boletim] }) };
   } });
@@ -32,6 +34,12 @@ test('consulta usa data de São Paulo, inclusive perto da meia-noite UTC', async
     assert.equal(new URL(url).searchParams.get('@dataFinalCotacao'), "'10-22-2026'");
     return { ok: true, json: async () => ({ value: [boletim] }) };
   } });
+});
+
+test('aceita precisão de microssegundos publicada pelo BCB', async () => {
+  const r = await consultarPtax({ agora, transporte: resposta({ ...boletim, dataHoraCotacao: '2026-10-22 13:12:09.300403' }) });
+  assert.equal(r.publicada_em, '2026-10-22T16:12:09.300Z');
+  assert.equal(r.data_referencia, '2026-10-22');
 });
 
 test('antes do fechamento e em fim de semana conserva data real da última cotação', async () => {

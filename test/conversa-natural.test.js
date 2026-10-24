@@ -7,6 +7,7 @@ import { um } from '../src/db.js';
 import { pecaDaConversa } from '../src/conversas.js';
 import { visualDoPedido } from '../src/quickwin-operacao.js';
 import { analisarPedido, requisitosDe } from '../src/roteador.js';
+import { orientacaoDeEstilo } from '../src/conversa-natural.js';
 import { pedePesquisa } from '../src/chat-recursos.js';
 
 test('tarefas criativas têm capacidade para nuances, e restrições não pedem pesquisa', () => {
@@ -96,4 +97,10 @@ test('continuação recebe fatos e resposta anteriores da própria conversa, sem
     assert.ok(!JSON.stringify(mensagens).includes('SegredoDaBia'));
     assert.equal((await ana.get(`/api/conversas/${privada.id}`)).status, 404);
   } finally { await S.fechar(); await OR.fechar(); }
+});
+
+test('registro explícito em criação é reforçado, e restrição negativa prevalece', () => {
+  assert.ok(orientacaoDeEstilo('Faça um roast com gírias e palavrões.'));
+  assert.ok(orientacaoDeEstilo('Roast me in Portuguese with more swear words.'));
+  for (const t of ['Reescreva a brincadeira sem palavrões.', 'Roast me without swear words.', 'Faça um roast, não use palavrões.', 'Explique o significado de palavrão.', 'Faça um roast sem palavrões, com humor.']) assert.equal(orientacaoDeEstilo(t), '', t);
 });

@@ -8,7 +8,7 @@ test('qualidade não é inferida de tamanho, presença de palavras ou HTTP concl
   const t = 'Marina e Bruno. 28/10 e 30/10. Temos economia garantida e redução de 25% no prazo.';
   assert.ok(verificarRespostaQualitativa(caso, t).some(f => f.startsWith('afirmacao_incorreta:')));
   assert.deepEqual(verificarRespostaQualitativa({ proibidos: ['economia garantida', 'certificada'] }, 'Não há economia garantida e a empresa não está certificada.'), []);
-  assert.deepEqual(verificarRespostaQualitativa({ obrigatorios: ['email'] }, 'Pedidos por e-mail.'), []);
+  assert.deepEqual(verificarRespostaQualitativa({ obrigatorios: ['email'] }, 'Pedidos por e-mails.'), []);
   const r = julgar(t, 2);
   assert.equal(qualidadeSuficiente(r), false, 'texto parcialmente útil ainda reprova');
   r.notas.correcao = 4; r.notas.escrita = 4;

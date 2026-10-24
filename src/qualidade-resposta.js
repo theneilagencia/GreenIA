@@ -15,7 +15,7 @@ export const CASOS_QUALIDADE = [
 ];
 
 export function verificarRespostaQualitativa(caso, texto) {
-  const normal = v => String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\be-mail\b/g, 'email');
+  const normal = v => String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\be-mails?\b/g, 'email');
   const t = normal(texto);
   const afirma = v => {
     let i = t.indexOf(normal(v));
@@ -82,7 +82,7 @@ export async function avaliarQualidadeNoServidor({ app, api, ia, modelos, ultima
     let candidato = ''; for (const e of eventos) { if (e.t === 'texto') candidato += e.v; if (e.t === 'substituir') candidato = e.v; }
     const entrada = ultimaEntrada(), modeloCandidato = recibos.at(-1)?.modelo;
     if (!eventos.some(e => e.t === 'fim') || eventos.some(e => e.t === 'erro') || !entrada || !modeloCandidato) throw new Error('Qualidade: execução não confirmada');
-    const juiz = escolher(['openai/gpt-5.4-mini', 'google/gemini-3.8-flash', 'anthropic/claude-haiku-4.5'], [modeloCandidato]);
+    const juiz = escolher(caso.controleRuim ? ['anthropic/claude-haiku-4.5', 'openai/gpt-5.4-mini', 'google/gemini-3.8-flash'] : ['openai/gpt-5.4-mini', 'google/gemini-3.8-flash', 'anthropic/claude-haiku-4.5'], [modeloCandidato]);
     const referencia = escolher([...ordem].reverse(), [modeloCandidato, juiz]);
     if (!referencia || !juiz) throw new Error('Qualidade: faltam modelos independentes elegíveis');
     const comparador = await gerar(entrada.mensagens, referencia);

@@ -6,7 +6,10 @@ test('esgotamento abre planos uma vez por ciclo, preserva pedido e isola sua rec
   const mapa=new Map(), destinos=[];
   let c={empresa:{id:'a'},usuario:'u',plano:{percentual:100,fase:'reserva',renova:'2026-11-01'}};
   try{
-    Object.assign(globalThis,{location:{pathname:'/app',hash:'#/c/123',assign:u=>destinos.push(u)},document:{querySelector:()=>({value:''})},sessionStorage:{getItem:k=>mapa.get(k)||null,setItem:(k,v)=>mapa.set(k,v),removeItem:k=>mapa.delete(k)},fetch:async()=>({ok:true,json:async()=>c})});
+    Object.assign(globalThis,{location:{pathname:'/app',hash:'#/c/123',assign:u=>destinos.push(u)},document:{querySelector:seletor=>seletor==='textarea'?{value:''}:null},sessionStorage:{getItem:k=>mapa.get(k)||null,setItem:(k,v)=>mapa.set(k,v),removeItem:k=>mapa.delete(k)},fetch:async()=>({ok:true,json:async()=>c})});
+    globalThis.document.querySelector=seletor=>seletor==='#enviar.interromper'?{}:null;
+    await conferirCapacidade();assert.equal(destinos.length,0);
+    globalThis.document.querySelector=seletor=>seletor==='textarea'?{value:''}:null;
     await conferirCapacidade({rascunho:{texto:'Pedido não enviado',anexos:[{id:'arquivo'}]}});
     assert.deepEqual(destinos,['/planos.html?motivo=creditos']);
     await conferirCapacidade();assert.equal(destinos.length,1);

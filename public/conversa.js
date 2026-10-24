@@ -849,6 +849,7 @@ function acompanharExecucao(estado, restantes = 60) {
   setTimeout(async () => {
     if (C !== estado || estado.recebendo) return;
     try { await recarregarConversa(true); } catch { return; }
+    if(C===estado && !estado.conv?.em_execucao) await conferirCapacidade();
     acompanharExecucao(estado, restantes - 1);
   }, 2000);
 }

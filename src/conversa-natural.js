@@ -19,8 +19,9 @@ export const REGRAS_CONVERSA = [
 // Não altera a resposta nem aciona revisão; uma restrição negativa prevalece.
 export function orientacaoDeEstilo(texto) {
   const t = String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const entrega = /\b(?:escreva|reescreva|redija|redigir|write|rewrite)\b/.test(t) ? 'Entregue a peça destinada ao leitor: as condições do briefing são restrições de escrita, não frases a inserir. Omitir afirmações sem evidência é suficiente; não acrescente comentários como não temos medição, não prometemos economia ou não afirmamos certificação, salvo se o pedido exigir comunicar essa limitação ao leitor. Preserve fatos e incertezas relevantes ao propósito do texto. Não identifique uma empresa como fictícia dentro de um exemplo de apresentação pronto para uso.' : '';
   if (!/\b(?:roast|humor|satira|brincadeira)\b/.test(t)
     || !/\b(?:palavroes|palavrao|swear words?|profanity)\b/.test(t)
-    || /\b(?:sem|evite|without|no|nao (?:use|usar|inclua|incluir))[^.;\n]{0,35}\b(?:palavroes|palavrao|swear words?|profanity)\b/.test(t)) return '';
-  return 'Registro solicitado nesta criação: a pessoa pediu expressamente gírias e palavrões. Use-os de fato no texto (por exemplo, porra, merda ou caralho), como linguagem coloquial consentida. Não basta mencionar que poderia usá-los nem oferecer outra versão. Faça humor com o pedido ou fatos fornecidos, sem inventar biografia, diagnosticar a pessoa, explorar dados sensíveis ou atacar terceiros. Preserve os limites de segurança.';
+    || /\b(?:sem|evite|without|no|nao (?:use|usar|inclua|incluir))[^.;\n]{0,35}\b(?:palavroes|palavrao|swear words?|profanity)\b/.test(t)) return entrega;
+  return entrega + '\n' + 'Registro solicitado nesta criação: a pessoa pediu expressamente gírias e palavrões. Use-os de fato no texto (por exemplo, porra, merda ou caralho), como linguagem coloquial consentida. Não basta mencionar que poderia usá-los nem oferecer outra versão. Faça humor com o pedido ou fatos fornecidos, sem inventar biografia, diagnosticar a pessoa, explorar dados sensíveis ou atacar terceiros. Preserve os limites de segurança.';
 }

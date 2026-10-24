@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DIMENSOES_RESPOSTA, CASOS_QUALIDADE, verificarRespostaQualitativa, lerJulgamentoQualidade, qualidadeSuficiente, avaliarQualidadeNoServidor } from '../src/qualidade-resposta.js';
+import { DIMENSOES_RESPOSTA, CASOS_QUALIDADE, trechosDaAvaliacao, verificarRespostaQualitativa, lerJulgamentoQualidade, qualidadeSuficiente, avaliarQualidadeNoServidor } from '../src/qualidade-resposta.js';
 
 const julgar = (t, n = 4) => ({ notas: Object.fromEntries(DIMENSOES_RESPOSTA.map(d => [d, n])), justificativa: 'A resposta atende aos fatos e ao formato pedidos.', evidencias: [t.slice(0, 20)] });
 test('qualidade não é inferida de tamanho, presença de palavras ou HTTP concluído', () => {
@@ -48,7 +48,9 @@ test('coletor compara com mesmo contexto, oculta identidades e exige controle ne
     if (mensagens[0].content.startsWith('Você avalia')) {
       const d = JSON.parse(mensagens[1].content);
       assert.ok(!JSON.stringify(d).includes('anthropic/'));
-      yield { tipo: 'texto', texto: JSON.stringify({ A: julgar(d.respostas.A, d.respostas.A.startsWith('A empresa está perdendo milhões') ? 1 : 4), B: julgar(d.respostas.B) }) };
+      const A = julgar(d.respostas.A, d.respostas.A.startsWith('A empresa está perdendo milhões') ? 1 : 4), B = julgar(d.respostas.B);
+      A.evidencias = [d.trechos.A[0].id]; B.evidencias = [d.trechos.B[0].id];
+      yield { tipo: 'texto', texto: JSON.stringify({ A, B }) };
     } else {
       assert.deepEqual(mensagens, entrada.mensagens);
       yield { tipo: 'texto', texto: respostas[indice] };
@@ -59,4 +61,12 @@ test('coletor compara com mesmo contexto, oculta identidades e exige controle ne
   const casos = logs.filter(l => l[0] === 'GREENIA_QUALIDADE_RESPOSTA_CASO').map(l => JSON.parse(l[1]));
   assert.equal(casos[0].controleNegativo, true);
   assert.deepEqual(casos.map(c => c.chaveCandidato), ['A', 'B', 'A', 'B', 'A', 'B']);
+});
+
+test('IDs resolvem somente citações reais da resposta correspondente, sem tolerar evidência inventada', () => {
+  const respostas = { A: 'A afirmação precisa vem desta fonte.', B: 'Outro texto com dados verificáveis.' }, trechos = trechosDaAvaliacao(respostas);
+  const j = { A: { ...julgar(respostas.A), evidencias: ['A1'] }, B: { ...julgar(respostas.B), evidencias: ['B1'] } };
+  assert.equal(lerJulgamentoQualidade(JSON.stringify(j), respostas, trechos).A.evidencias[0], respostas.A);
+  j.A.evidencias = ['B1']; assert.equal(lerJulgamentoQualidade(JSON.stringify(j), respostas, trechos), null);
+  j.A.evidencias = ['A999']; assert.equal(lerJulgamentoQualidade(JSON.stringify(j), respostas, trechos), null);
 });

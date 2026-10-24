@@ -3,6 +3,7 @@ import { esc } from '/comum.js';
 import { abrirAdesao } from '/adesao.js';
 const host=document.getElementById('contratacao');
 let contexto, proposta, ocupado=false;
+let modoNovoCliente=new URLSearchParams(location.search).get('novo')==='1';
 const moeda=(n,m)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:m.toUpperCase()}).format(n/100);
 async function chamar(path,corpo) {
   const r=await fetch('/api/contratacao'+path,{method:corpo?'POST':'GET',credentials:'same-origin',headers:corpo?{'content-type':'application/json','x-csrf':contexto.csrf}:{},body:corpo?JSON.stringify(corpo):undefined});
@@ -10,7 +11,7 @@ async function chamar(path,corpo) {
 }
 const aviso=t=>{host.querySelector('[role="status"]').textContent=t;};
 function mostrar() {
-  host.innerHTML=`<h2>Contratação para ${esc(contexto.empresa.nome)}</h2><p>A capacidade é compartilhada pela empresa. ${contexto.permitido?'Revise o valor antes de seguir para o pagamento.':'Peça ao administrador da empresa para contratar capacidade.'}</p><p><a href="/app">Voltar ao GreenIA</a></p><label>Moeda do pagamento <select id="compra-moeda"><option value="brl">Reais (conversão na emissão)</option><option value="usd">Dólares</option></select></label><div role="status" aria-live="polite"></div><div id="compra-revisao" tabindex="-1"></div><div id="compra-pendentes"></div>`;
+  host.innerHTML=`<h2>Contratação para ${esc(contexto.empresa.nome)}</h2><p>A capacidade é compartilhada pela empresa. ${contexto.permitido?'Revise o valor antes de seguir para o pagamento.':'Peça ao administrador da empresa para contratar capacidade.'}</p><p><a href="/app">Voltar ao GreenIA</a></p><p><a class="l-link" href="/planos.html?novo=1#comparar-planos">Contratar como novo cliente — cadastrar uma empresa</a></p><label>Moeda do pagamento <select id="compra-moeda"><option value="brl">Reais (conversão na emissão)</option><option value="usd">Dólares</option></select></label><div role="status" aria-live="polite"></div><div id="compra-revisao" tabindex="-1"></div><div id="compra-pendentes"></div>`;
   const voltar=sessionStorage.getItem('greenia:voltar-capacidade');
   if(voltar?.startsWith('#/'))host.querySelector('a[href="/app"]').href='/app'+voltar;
   host.querySelector('#compra-moeda').onchange=()=>{proposta=null;host.querySelector('#compra-revisao').replaceChildren();aviso('Escolha o plano para consultar o valor na moeda selecionada.');};
@@ -23,7 +24,7 @@ function mostrar() {
 }
 async function escolher(produto) {
   host.scrollIntoView({behavior:'smooth',block:'start'});
-  if(!contexto) return abrirAdesao(host,produto,async escolhido=>{await iniciar();if(!new URLSearchParams(location.search).has('pedido'))await escolher(escolhido);});
+  if(modoNovoCliente || !contexto) return abrirAdesao(host,produto,async escolhido=>{modoNovoCliente=false;await iniciar();if(!new URLSearchParams(location.search).has('pedido'))await escolher(escolhido);},{novo:modoNovoCliente});
   if(!contexto?.permitido || !contexto.disponivel) return;
   if(ocupado)return;ocupado=true;proposta=null;host.querySelector('#compra-revisao').replaceChildren();aviso('Consultando valor…');
   try {
@@ -38,8 +39,13 @@ async function pagar() {
   try {const p=await chamar('/checkout',{pedido:proposta.pedido,confirmar:true});const u=new URL(p.url);if(u.protocol!=='https:'||u.hostname!=='checkout.stripe.com')throw new Error('Endereço de pagamento inválido.');location.assign(u.href);}
   catch(e){aviso(e.message);b.disabled=false;ocupado=false;}
 }
+function mostrarEntradaPublica() {
+    host.innerHTML='<h2>Ainda não é cliente? Contrate para sua empresa</h2><p>Escolha um plano abaixo e crie o cadastro da sua empresa. Depois, confirme seu email, revise o valor e conclua o pagamento no Stripe.</p><p><a class="btn btn-verde" href="#comparar-planos" id="novo-cliente-escolher">Sou novo cliente — escolher meu plano</a> <a class="btn btn-linha" href="/encontrar" id="cliente-existente-entrar">Já sou cliente — acessar minha empresa</a></p><p role="status" aria-live="polite"></p>';
+    host.querySelector('#novo-cliente-escolher').onclick=()=>document.getElementById('comparar-planos').focus({preventScroll:true});
+    host.querySelector('#cliente-existente-entrar').onclick=()=>sessionStorage.setItem('greenia:contratar','1');
+}
 async function iniciar() {
-  try {contexto=await chamar('');mostrar();
+  try {if(modoNovoCliente){contexto=null;mostrarEntradaPublica();}else{contexto=await chamar('');mostrar();}
     const q=new URLSearchParams(location.search),pedido=q.get('pedido');
     if(q.get('motivo')==='creditos')aviso('A franquia da empresa terminou. Confira a reserva e a capacidade adicional com seu administrador. O histórico continua disponível.');
     if(q.get('pagamento')==='cancelado')aviso('Você voltou do pagamento. Nenhuma capacidade foi liberada por este retorno.');
@@ -51,12 +57,12 @@ async function iniciar() {
   } catch(e) {
     contexto=null;
     if(![401,404].includes(e.status)) {host.innerHTML='<h2>Contratação indisponível neste momento</h2><p role="status"></p>';aviso(e.message);return;}
-    host.innerHTML='<h2>Escolha o plano e contrate online</h2><p>Selecione um plano abaixo para verificar seu email, cadastrar sua empresa e seguir para o pagamento seguro no Stripe. Se você já é cliente, usaremos seu cadastro existente.</p><p role="status" aria-live="polite"></p>';
+    mostrarEntradaPublica();
   }
   for(const a of document.querySelectorAll('[data-compra]')) {
     a.textContent=contexto && !contexto.permitido?'Ver como contratar':a.dataset.compra==='capacity_pack'?'Contratar Capacity Pack':'Escolher este plano';
     a.setAttribute('aria-label',a.textContent+' · '+a.dataset.compra);
   }
 }
-for(const a of document.querySelectorAll('[data-compra]'))a.addEventListener('click',e=>{e.preventDefault();escolher(a.dataset.compra).catch(e=>{const s=host.querySelector('[role="status"]');if(s)s.textContent=e.message;});});
-iniciar();
+const inicio=iniciar();
+for(const a of document.querySelectorAll('[data-compra]'))a.addEventListener('click',e=>{e.preventDefault();inicio.then(()=>escolher(a.dataset.compra)).catch(e=>{const s=host.querySelector('[role="status"]');if(s)s.textContent=e.message;});});

@@ -46,3 +46,11 @@ A API `/api/adesao` existe apenas no host da plataforma e usa cookie HttpOnly/Sa
 O cadastro de uma empresa nova ativa o controle de direitos sem período pago: não existe franquia inicial utilizável, nem reserva liberada antes do webhook. Falha no provisionamento mantém o ambiente em implantação. O webhook continua sendo a única origem dos direitos pagos.
 
 Teste no navegador: servidor GreenIA real com bancos em memória e caixa postal local de QA; após o cadastro e a confirmação do valor, o servidor criou um cliente e uma sessão reais no sandbox Stripe, pela API oficial, e abriu o formulário hospedado em `checkout.stripe.com`. Valor BRL e metadados corresponderam à cotação. Nenhum pagamento foi concluído e nenhum dado de cartão real foi informado. O fixture de QA não faz parte do código publicado.
+
+## Jornada explícita para novos clientes
+
+A entrada da contratação distingue “Sou novo cliente — escolher meu plano” de “Já sou cliente — acessar minha empresa”. Para um visitante sem sessão, escolher um plano abre diretamente os campos de nome, empresa, email, documento opcional e autorização de cadastro, identificando o plano escolhido.
+
+Os dados ficam apenas na memória da página enquanto o email é verificado. Após o código correto, a API existente cria a empresa sem créditos disponíveis e segue para revisão do valor e Checkout. Se o email já possui vínculo, a página utiliza o cadastro existente e mantém as permissões financeiras. O caminho dos clientes atuais continua disponível sem exigir novo cadastro.
+
+As etapas ficam identificadas na tela: cadastro da empresa, confirmação do email, revisão do valor e pagamento no Stripe. Nenhuma nova chamada ao Stripe foi acrescentada antes da confirmação de pagamento.

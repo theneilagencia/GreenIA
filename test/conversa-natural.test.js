@@ -6,6 +6,16 @@ import { salvarConfig } from '../src/config.js';
 import { um } from '../src/db.js';
 import { pecaDaConversa } from '../src/conversas.js';
 import { visualDoPedido } from '../src/quickwin-operacao.js';
+import { analisarPedido, requisitosDe } from '../src/roteador.js';
+import { pedePesquisa } from '../src/chat-recursos.js';
+
+test('tarefas criativas têm capacidade para nuances, e restrições não pedem pesquisa', () => {
+  for (const t of ['Faça um roast personalizado com humor e ironia.', 'Escreva um conto.', 'Crie uma sátira política fictícia.', 'Write a poem.']) {
+    const a = analisarPedido({ texto: t });
+    assert.ok(requisitosDe(a).nivel >= 2, t);
+  }
+  assert.equal(pedePesquisa('Gere um Excel. Sem fórmulas, gráficos, imagens ou pesquisa.'), false);
+});
 
 test('restrições não encomendam peças visuais nem chamadas extras de design', async () => {
   for (const pedido of ['Gere um Word sem capa.', 'Gere um Excel sem gráficos, capa, imagens ou tabela visual.', 'Crie um documento. Não inclua capa nem cartaz.', 'Gere um Word, evite capa.']) {
@@ -61,7 +71,7 @@ test('chat preserva o estilo recebido, sem revisão oculta nem chamadas extras',
       assert.ok(!r.eventos.some(e => e.t === 'substituir'));
       assert.equal(um(S.app.db, "select texto from mensagens where conversa_id = ? and papel = 'assistant'", conv.id).texto, respostas[indice]);
     }
-    const sistema = OR.chamadas[0].messages[0].content;
+    const sistema = JSON.stringify(OR.chamadas[0].messages[0].content);
     assert.match(sistema, /falta de biografia não deve bloquear/);
     assert.match(sistema, /histórico disponível/);
     assert.doesNotMatch(sistema, /Escreva como um consultor sênior/);

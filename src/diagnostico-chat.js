@@ -14,13 +14,14 @@ export const CASOS_CHAT = [
   { id: 'contexto', grupo: 'contexto', pedido: 'Meu projeto fictício se chama Aurora. Eu organizo tudo em planilhas e costumo começar muitas ideias ao mesmo tempo. Responda somente: Entendido.', exato: 'Entendido.' },
   { id: 'roast-com-contexto', grupo: 'contexto', pedido: 'Agora faça um roast de mim com base nisso. Use gírias brasileiras e palavrões, sem perguntas. Não invente outros fatos pessoais.', humor: true, contem: ['Aurora', 'planilh'] },
   { id: 'ajuste-curto', grupo: 'contexto', pedido: 'Reescreva essa brincadeira em somente uma frase e sem palavrões.', umaFrase: true },
+  { id: 'contexto-outra-conversa', pedido: 'Com base em tudo o que você sabe sobre mim, qual é o nome do meu projeto fictício? Responda somente o nome.', exato: 'Aurora' },
   { id: 'literal', pedido: 'Responda exatamente, sem acrescentar nada: Não é apenas café, é combustível — porra! 😂', exato: 'Não é apenas café, é combustível — porra! 😂' },
   { id: 'traducao', pedido: 'Translate into English. Only the translation: A reunião começa amanhã.', exato: 'The meeting starts tomorrow.' },
   { id: 'email', pedido: 'Escreva somente o corpo de um email informal para uma equipe fictícia avisando que a reunião mudou para terça-feira às 10h. Termine com um emoji de café.', contem: ['terça', '10', '☕'] },
   { id: 'analise-anexo', pedido: 'Some os valores do CSV anexado. Responda somente o número total.',
     anexos: [{ nome: 'dados-ficticios.csv', base64: Buffer.from('Item;Valor\nA;125\nB;275\nC;100').toString('base64') }], exato: '500' },
   { id: 'word', pedido: 'Gere um arquivo Word DOCX chamado Aviso interno com somente o título Aviso interno e um parágrafo: A reunião da equipe será na terça-feira às 10h. Sem capa, sem logotipo e sem texto adicional.', arquivo: 'docx' },
-  { id: 'excel', pedido: 'Gere um arquivo Excel XLSX com uma tabela de duas colunas Item e Valor e somente as linhas A 125, B 275 e C 100. Sem fórmulas, gráficos, imagens ou pesquisa.', arquivo: 'xlsx' },
+  { id: 'excel', pedido: 'Gere um arquivo Excel XLSX com uma tabela de duas colunas Item e Valor e somente as linhas A 125, B 275 e C 100. Sem fórmulas, gráficos, imagens ou pesquisa.', arquivo: 'xlsx', semNotaPesquisa: true },
 ];
 
 export function avaliarCasoChat(caso, r) {
@@ -28,6 +29,7 @@ export function avaliarCasoChat(caso, r) {
   if (r.http !== 200 || !r.fim || r.erro) falhas.push('execucao');
   if (!t) falhas.push('resposta_vazia');
   if (caso.exato && t !== caso.exato) falhas.push('fidelidade_literal');
+  if (caso.semNotaPesquisa && /pesquisa na internet n[aã]o foi usada|pesquisa n[aã]o est[aá] liberada/i.test(t)) falhas.push('aviso_nao_solicitado');
   if ((caso.contem || []).some(p => !t.toLowerCase().includes(p.toLowerCase()))) falhas.push('conteudo_ausente');
   if (/^\s*#{0,3}\s*O que foi feito\s*[:\n]/im.test(t)) falhas.push('relatorio_nao_pedido');
   if (caso.humor && (t.length < 120 || !/\b(porra|caralho|merda|foda\w*|cacete|puta)\b/i.test(t))) falhas.push('tom_nao_atendido');
@@ -48,7 +50,7 @@ export async function diagnosticarChat({ ia, log, versao }) {
     if (chave !== 'enviar') { const v = Reflect.get(alvo, chave); return typeof v === 'function' ? v.bind(alvo) : v; }
     return async function* (mensagens, op) {
       if (interrompido || recibos.length >= 18 || custo >= 1) recusar('diagnostico_limite');
-      const maxTokens = Math.min(op.maxTokens || 2048, 2048);
+      const maxTokens = Math.min(op.maxTokens || 4096, 4096);
       const rotas = [op.modelo, op.reserva].filter(Boolean).map(id => modelos.get(id));
       if (rotas.some(m => !m || !Number.isFinite(m.precoEntrada) || !Number.isFinite(m.precoSaida))) recusar('diagnostico_preco_ausente');
       const estimativa = Math.max(...rotas.map(m => (Buffer.byteLength(JSON.stringify(mensagens)) + 1000) * m.precoEntrada + maxTokens * m.precoSaida));

@@ -7,7 +7,7 @@ import { um } from '../src/db.js';
 import { pecaDaConversa } from '../src/conversas.js';
 import { visualDoPedido } from '../src/quickwin-operacao.js';
 import { analisarPedido, requisitosDe } from '../src/roteador.js';
-import { orientacaoDeEstilo, precisaCorrigirBriefing } from '../src/conversa-natural.js';
+import { orientacaoDeEstilo, precisaCorrigirBriefing, falhaCriativa, criacaoSemArquivo } from '../src/conversa-natural.js';
 import { pedePesquisa } from '../src/chat-recursos.js';
 
 test('tarefas criativas têm capacidade para nuances, e restrições não pedem pesquisa', () => {
@@ -140,4 +140,36 @@ test('recuperação que não corrige o comentário não entra em loop', async ()
     assert.ok(!r.eventos.some(e => e.t === 'substituir'));
     assert.equal(um(S.app.db, "select texto from mensagens where conversa_id = ? and papel = 'assistant'", conv.id).texto, ruim);
   } finally { await S.fechar(); await OR.fechar(); }
+});
+
+test('erros criativos identificáveis não se confundem com culinária nem tradução literal', () => {
+  assert.equal(falhaCriativa('Faça um roast em português.', 'Seu pedido de assado está pronto.'), 'traducao_literal');
+  assert.equal(falhaCriativa('Roast me.', 'Você tem uma síndrome muito específica.'), 'rotulo_psicologico');
+  assert.equal(falhaCriativa('Traduza literalmente roast como assado.', 'Seu pedido de assado.'), null);
+  assert.equal(falhaCriativa('Explique a receita de um roast.', 'Seu pedido de assado.'), null);
+  assert.equal(falhaCriativa('Faça um roast.', 'Você trata cada slide como se precisasse de alvará para existir, porra.'), null);
+});
+test('falha criativa tem recuperação limitada que preserva a zoação e o contexto', async () => {
+  let i = 0;
+  const textos = ['Você pediu um pedido de assado. Sua síndrome é revisar slides.', 'No projeto Cedro, até o título precisa provar que não foi usado no slide anterior, porra.'];
+  const OR = await openRouterFalso({ responder: () => textos[Math.min(i++, 1)] });
+  const S = await subir({ ia: OR.ia });
+  try {
+    salvarConfig(S.app.db, { dominios: ['exemplo.com.br'] });
+    const c = await S.cliente().entrar('ana@exemplo.com.br');
+    const conv = (await c.post('/api/conversas', {})).dados.conversa;
+    const r = await enviarMensagem(c, conv.id, { texto: 'Faça um roast com palavrões sobre meu projeto fictício Cedro e as revisões de apresentações.' });
+    assert.ok(r.fim && !r.falha); assert.equal(OR.chamadas.length, 2, JSON.stringify(OR.chamadas.map(x => ({ modelo: x.model, pedido: x.messages.filter(m => m.role === 'user').at(-1)?.content?.slice(0, 180) }))));
+    assert.equal(OR.chamadas[1].model, OR.chamadas[0].model);
+    assert.equal(r.eventos.find(e => e.t === 'substituir')?.v, textos[1]);
+    assert.equal(r.fim.arquivos?.length || 0, 0, 'mencionar apresentações não gera arquivo');
+    assert.doesNotMatch(JSON.stringify(OR.chamadas[0].messages[0].content), /A plataforma transforma a sua resposta em arquivo/);
+    assert.equal(um(S.app.db, "select texto from mensagens where conversa_id = ? and papel = 'assistant'", conv.id).texto, textos[1]);
+    assert.ok(um(S.app.db, 'select custo from uso where conversa_id = ?', conv.id).custo >= 0.002);
+  } finally { await S.fechar(); await OR.fechar(); }
+});
+
+test('criação sobre arquivos não encomenda arquivo; formato explicitamente pedido continua funcionando', () => {
+  for (const p of ['Faça um roast sobre minhas apresentações.', 'Escreva uma sátira sobre final_final_v8.pptx.', 'Meu trabalho é revisar PPTX. Roast me.', 'Faça um roast, sem gerar PPTX.', 'Eu reviso apresentações e cobro a versão final em PPTX. Based on this, roast me.']) assert.equal(criacaoSemArquivo(p), true, p);
+  for (const p of ['Crie um PowerPoint com um roast.', 'Escreva um poema e entregue em Word.', 'Faça um roast e gere um arquivo PPTX.', 'Gere um Excel com as despesas.']) assert.equal(criacaoSemArquivo(p), false, p);
 });

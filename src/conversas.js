@@ -20,7 +20,7 @@ import { abrirPullRequest, execucoesPendentes, lerRepositorio, marcarExecucoesUs
 import { resolverIdentidade } from './visual/marca.js';
 import { estiloComoTexto } from './estilo-arquivo.js';
 import { REGRAS_DE_ESCRITA, revisarEscrita } from './escrita.js';
-import { REGRAS_CONVERSA, orientacaoDeEstilo, precisaCorrigirBriefing } from './conversa-natural.js';
+import { REGRAS_CONVERSA, orientacaoDeEstilo, precisaCorrigirBriefing, falhaCriativa, criacaoSemArquivo } from './conversa-natural.js';
 import { pedidoAfirmativo } from './pedido-afirmativo.js';
 import { contextoPessoal } from './contexto-pessoal.js';
 import { adaptarModelo, lerModeloPdf, paginasDoPlano, planejarReestilo } from './modelo-pdf.js';
@@ -964,7 +964,7 @@ export function rotasConversas(app, r) {
     // nenhum PDF): nada de apresentação genérica no lugar; a resposta pede o arquivo.
     // Material em PPTX/DOCX (com estilo lido do tema) segue pela peça visual nas cores e fontes dele.
     const modeloAusente = !alternativaOriginal && !qw && !modeloApr && PEDE_MODELO(texto) && !estiloDaConversa(app, conv.id, anexos);
-    const pecaChat = !alternativaOriginal && !qw && !modeloApr && !modeloAusente && !edicao ? pecaDaConversa(texto) : null;
+    const pecaChat = !criacaoSemArquivo(texto) && !alternativaOriginal && !qw && !modeloApr && !modeloAusente && !edicao ? pecaDaConversa(texto) : null;
     // Código e sites: operação protegida só com a permissão do perfil (verificada aqui, no servidor, a cada mensagem).
     const codigo = qw || alternativaOriginal ? null : decisaoDeCodigo(texto, pessoa, cfg, { anexos, conversaTemProjeto: temProjeto() });
     // Agente reutilizável / automação recorrente: vira Quick Win (não código). Pesquisa atual: a ferramenta da empresa.
@@ -987,7 +987,7 @@ export function rotasConversas(app, r) {
       }
       if (estilo) pecaChat.operacao.entregaveis[0].visual.estilo = estiloComoTexto(estilo);
     }
-    const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, execucaoQw, pesquisa, false, !execucaoQw && !edicao && PEDE_ARQUIVO.test(texto))
+    const sistema = persona(cfg, responsaveis(app, pessoa, qw), qw, !!app.tenant, execucaoQw, pesquisa, false, !execucaoQw && !edicao && !criacaoSemArquivo(texto) && PEDE_ARQUIVO.test(texto))
       + NOTA_FIDELIDADE
       + (redesignLivre ? '\nREFATORAÇÃO VISUAL: recomponha a apresentação completa usando a apresentação fonte como conteúdo. Reúna continuações artificiais e assuntos repetidos quando isso melhorar a leitura, preservando todo o conteúdo útil. Não crie páginas só para um subtítulo ou uma observação. Evite títulos repetidos, rodapés extensos, texto miúdo e grandes vazios sem função. Use hierarquia, composição e recursos visuais adequados ao conteúdo, mantendo datas, números, nomes e compromissos exatamente como nas fontes. A resposta deve conter o conteúdo final de cada slide, não uma lista de ajustes propostos.' : '')
       + (exigeAltaQualidade(texto) ? NOTA_ALTA_QUALIDADE : '')
@@ -1504,13 +1504,14 @@ export function rotasConversas(app, r) {
       // livre, o registro é preservado; só um comentário de briefing detectado
       // em peça comercial tem uma recuperação limitada, sem mudar a rota.
       if (!qw) {
-        if (reservaDoPlano || modeloApr || edicao || !precisaCorrigirBriefing(texto, resposta)) return;
-        linha({ t: 'etapa', v: 'Conferindo a adequação do texto ao destinatário…' });
+        const falhaDeCriacao = falhaCriativa(texto, resposta);
+        if (reservaDoPlano || modeloApr || edicao || (!falhaDeCriacao && !precisaCorrigirBriefing(texto, resposta))) return;
+        linha({ t: 'etapa', v: falhaDeCriacao ? 'Conferindo o português e a coerência do texto…' : 'Conferindo a adequação do texto ao destinatário…' });
         try {
-          const r = await chamar([...mensagens, { role: 'assistant', content: resposta }, { role: 'user', content: 'Entregue a mesma peça comercial corrigida, somente o texto final. Retire comentários sobre as instruções do briefing, inclusive frases começadas por sem prometer, sem afirmar, não prometemos e a identificação empresa fictícia. Isso não é uma autorização para inventar certificações ou resultados: simplesmente não os afirme. Preserve os fatos, as funções de cada produto, a estrutura e o destinatário do pedido original. Não acrescente explicações sobre a correção.' }]);
+          const r = await chamar([...mensagens, { role: 'assistant', content: resposta }, { role: 'user', content: falhaDeCriacao ? 'Reescreva a criação solicitada em português brasileiro natural, mantendo o humor, as gírias e os palavrões quando pedidos. Corrija a tradução literal de roast por assado: o pedido é uma zoação. Remova rótulos psicológicos ou diagnósticos não solicitados. Use somente os fatos recebidos e citações literalmente presentes nas fontes. Elimine metáforas sem sentido, repetição e elogio motivacional no encerramento. Entregue somente o texto final, sem explicar a correção.' : 'Entregue a mesma peça comercial corrigida, somente o texto final. Retire comentários sobre as instruções do briefing, inclusive frases começadas por sem prometer, sem afirmar, não prometemos e a identificação empresa fictícia. Isso não é uma autorização para inventar certificações ou resultados: simplesmente não os afirme. Preserve os fatos, as funções de cada produto, a estrutura e o destinatário do pedido original. Não acrescente explicações sobre a correção.' }]);
           custoEscrita += r.custo; economiaEscrita += r.economia;
-          const aceita = !!r.texto.trim() && !precisaCorrigirBriefing(texto, r.texto);
-          registrar(app, 'ai.briefing_checked', pessoa.id, { conversa: conv.id, roteamento: rotaId, corrigido: aceita });
+          const aceita = !!r.texto.trim() && !(falhaDeCriacao ? falhaCriativa(texto, r.texto) : precisaCorrigirBriefing(texto, r.texto));
+          registrar(app, falhaDeCriacao ? 'ai.creative_checked' : 'ai.briefing_checked', pessoa.id, { conversa: conv.id, roteamento: rotaId, ...(falhaDeCriacao ? { motivo: falhaDeCriacao } : {}), corrigido: aceita });
           if (aceita) { resposta = r.texto; return true; }
         } catch (e) { app.log?.('conferencia de briefing', erroParaLog(e)); }
         return;
@@ -1778,7 +1779,7 @@ export function rotasConversas(app, r) {
       const normalizada = normalizarTabelas(resposta);
       if (normalizada !== resposta) { resposta = normalizada; linha({ t: 'substituir', v: resposta }); }
     }
-    const formatosPedidos = qw || naoGuardar || alternativaOriginal ? [] : Object.entries({ docx: /\b(word|docx|\.doc\b)/i, pptx: /\b(power ?point|pptx|ppt|slides?|apresenta[cç](ão|ao|ões|oes))\b/i, xlsx: /\b(excel|xlsx|xls|planilhas?)\b/i })
+    const formatosPedidos = qw || naoGuardar || alternativaOriginal || criacaoSemArquivo(texto) ? [] : Object.entries({ docx: /\b(word|docx|\.doc\b)/i, pptx: /\b(power ?point|pptx|ppt|slides?|apresenta[cç](ão|ao|ões|oes))\b/i, xlsx: /\b(excel|xlsx|xls|planilhas?)\b/i })
       .filter(([, re]) => re.test(texto)).map(([f]) => f);
     if (!naoGuardar && (edicao || modeloApr) && !editado && !gerado) {
       resposta = `${semPromessaDeArquivo(resposta).trim()}\n\n**O arquivo ${edicao ? 'ajustado' : 'no layout pedido'} não foi gerado nesta resposta.** ${avisosDepois.at(-1) || 'Não foi possível montar o arquivo agora.'}`;

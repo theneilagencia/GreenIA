@@ -1,3 +1,4 @@
+import { pedidoAfirmativo } from './pedido-afirmativo.js';
 // A conversa livre acompanha o pedido; o estilo editorial dos documentos não é
 // uma persona obrigatória nem uma segunda edição silenciosa de toda resposta.
 export const REGRAS_CONVERSA = [
@@ -20,10 +21,11 @@ export const REGRAS_CONVERSA = [
 export function orientacaoDeEstilo(texto) {
   const t = String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const entrega = /\b(?:escreva|reescreva|redija|redigir|write|rewrite)\b/.test(t) ? 'Entregue a peça destinada ao leitor: as condições do briefing são restrições de escrita, não frases a inserir. Omitir afirmações sem evidência é suficiente; não acrescente comentários como não temos medição, não prometemos economia ou não afirmamos certificação, salvo se o pedido exigir comunicar essa limitação ao leitor. Preserve fatos e incertezas relevantes ao propósito do texto. Não identifique uma empresa como fictícia dentro de um exemplo de apresentação pronto para uso.' : '';
+  const criativa = /\b(?:roast|satira|brincadeira)\b/.test(t) && !/^(?:o que|explique o que|traduza literalmente|repita|copie)/.test(t.trim()) ? 'Na criação humorística, use português brasileiro idiomático: roast significa zoação, não um pedido de assado. Construa observações diferentes com os fatos recebidos; não repita a mesma acusação em vários parágrafos. Cada metáfora precisa ser compreensível e sustentar uma piada, sem misturar imagens apenas para soar criativo. Não atribua síndromes ou diagnósticos à pessoa, não invente citações e não encerre um roast solicitado com bajulação ou elogio motivacional. Termine com uma piada ou observação concreta, sem resumo obrigatório.' : '';
   if (!/\b(?:roast|humor|satira|brincadeira)\b/.test(t)
     || !/\b(?:palavroes|palavrao|swear words?|profanity)\b/.test(t)
-    || /\b(?:sem|evite|without|no|nao (?:use|usar|inclua|incluir))[^.;\n]{0,35}\b(?:palavroes|palavrao|swear words?|profanity)\b/.test(t)) return entrega;
-  return entrega + '\n' + 'Registro solicitado nesta criação: a pessoa pediu expressamente gírias e palavrões. Use-os de fato no texto (por exemplo, porra, merda ou caralho), como linguagem coloquial consentida. Não basta mencionar que poderia usá-los nem oferecer outra versão. Faça humor com o pedido ou fatos fornecidos, sem inventar biografia, diagnosticar a pessoa, explorar dados sensíveis ou atacar terceiros. Preserve os limites de segurança.';
+    || /\b(?:sem|evite|without|no|nao (?:use|usar|inclua|incluir))[^.;\n]{0,35}\b(?:palavroes|palavrao|swear words?|profanity)\b/.test(t)) return [entrega, criativa].filter(Boolean).join('\n');
+  return [entrega, criativa].filter(Boolean).join('\n') + '\n' + 'Registro solicitado nesta criação: a pessoa pediu expressamente gírias e palavrões. Use-os de fato no texto (por exemplo, porra, merda ou caralho), como linguagem coloquial consentida. Não basta mencionar que poderia usá-los nem oferecer outra versão. Faça humor com o pedido ou fatos fornecidos, sem inventar biografia, diagnosticar a pessoa, explorar dados sensíveis ou atacar terceiros. Preserve os limites de segurança.';
 }
 
 // Escopo conservador: peça comercial pronta, sem pedido de transparência sobre
@@ -35,4 +37,29 @@ export function precisaCorrigirBriefing(pedido, resposta) {
     && /\b(possivel cliente|apresentacao comercial|texto comercial|anuncio|landing page|apresentar a empresa)\b/.test(p)
     && !/\b(literal|exatamente|copie|transparencia|limitacoes|ressalvas|advertencia)\b/.test(p)
     && /\b(sem prometer|sem afirmar|sem alegar|nao prometemos|nao afirmamos|empresa ficticia)\b/.test(r);
+}
+
+// Recuperação somente de falhas textuais identificáveis, nunca revisão geral do
+// humor. Traduções literais e reprodução de citações permanecem intactas.
+export function falhaCriativa(pedido, resposta) {
+  const n = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const p = n(pedido), r = n(resposta);
+  if (!/\broast\b/.test(p) || /\b(literal|literalmente|exatamente|copie|receita)\b/.test(p)) return null;
+  if (/\b(pedido de assado|pediu um assado|seu assado)\b/.test(r)) return 'traducao_literal';
+  if (/\b(sindrome|transtorno|tdah|bipolaridade)\b/.test(r) && !/\b(sindrome|transtorno|tdah|bipolaridade)\b/.test(p)) return 'rotulo_psicologico';
+  return null;
+}
+
+// Um arquivo citado como assunto de uma criação não é automaticamente a entrega.
+// Pedidos explícitos do arquivo continuam disponíveis, inclusive em criações.
+export function criacaoSemArquivo(texto) {
+  const afirmativo = pedidoAfirmativo(texto);
+  const i = afirmativo.search(/\b(roast|satira|piada|brincadeira|conto|poema|cronica)\b/);
+  if (i < 0) return false;
+  // Preferências/biografia em frases anteriores não são o comando de entrega.
+  const antes = afirmativo.slice(0, i);
+  const p = afirmativo.slice(Math.max(antes.lastIndexOf('.'), antes.lastIndexOf('\n'), antes.lastIndexOf(';')) + 1);
+  const formato = '(?:word|docx|power ?point|pptx|ppt|slides?|excel|xlsx|planilhas?|apresentacoes|apresentacao)\\b';
+  return !new RegExp('\\b(?:gere|gerar|crie|criar|monte|montar|faca|fazer|produza|produzir|entregue|exporte|salve)\\s+(?:(?:um|uma|o|a|arquivo|documento|de|do|da)\\s+){0,4}' + formato).test(p)
+    && !new RegExp('\\b(?:em|no|num|como|formato)\\s+(?:(?:um|uma|arquivo|formato|de|do|da)\\s+){0,4}' + formato).test(p);
 }

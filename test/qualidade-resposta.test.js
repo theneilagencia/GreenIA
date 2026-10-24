@@ -32,6 +32,8 @@ test('coletor compara com mesmo contexto, oculta identidades e exige controle ne
     'Identificamos 22 pedidos, dos quais três estão sem responsável. Se os dados tivessem sido confirmados ontem, teríamos conseguido concluir hoje. O prazo de entrega não foi confirmado. Os responsáveis devem ser definidos até 26/10/2026.',
     'Unificar os pedidos de email e WhatsApp significa colocá-los na mesma fila. Cada área continua decidindo o que lhe cabe; não é preciso concentrar todas as aprovações em uma pessoa.',
     'A Horizonte organiza a passagem dos pedidos entre áreas, com responsáveis e evidências. O Boreal confere as informações.\n\nO Farol registra aprovações e ajuda a acompanhar os encaminhamentos.',
+    'No projeto Cedro, até o título precisa apresentar certidão de que não apareceu no slide anterior. Você cobra o PPTX como quem exige a chave de um carro que só recebeu em fotografia, porra.',
+    'A equipe passou a manhã renomeando o arquivo final_final_v8.pptx. Quando terminou, faltava ensaiar a apresentação. Resolveram o problema mudando o nome para ensaio_concluido.pptx.',
   ];
   const modelos = new Map(['anthropic/claude-haiku-4.5', 'openai/gpt-5.4-mini', 'google/gemini-3.8-flash'].map(id => [id, {}]));
   const recibos = [], logs = []; let indice = -1, entrada;
@@ -48,7 +50,7 @@ test('coletor compara com mesmo contexto, oculta identidades e exige controle ne
     if (mensagens[0].content.startsWith('Você avalia')) {
       const d = JSON.parse(mensagens[1].content);
       assert.ok(!JSON.stringify(d).includes('anthropic/'));
-      const A = julgar(d.respostas.A, d.respostas.A.startsWith('A empresa está perdendo milhões') ? 1 : 4), B = julgar(d.respostas.B);
+      const A = julgar(d.respostas.A, (d.respostas.A.startsWith('A empresa está perdendo milhões') || CASOS_QUALIDADE.some(c => c.controleRuim === d.respostas.A)) ? 1 : 4), B = julgar(d.respostas.B);
       A.evidencias = [d.trechos.A[0].id]; B.evidencias = [d.trechos.B[0].id];
       yield { tipo: 'texto', texto: JSON.stringify({ A, B }) };
     } else {
@@ -57,10 +59,11 @@ test('coletor compara com mesmo contexto, oculta identidades e exige controle ne
     }
   } };
   const r = await avaliarQualidadeNoServidor({ app, api, ia, modelos, ultimaEntrada: () => entrada, recibos, log: (...v) => logs.push(v) });
-  assert.equal(r.casos, 6); assert.equal(r.aprovados, 6); assert.deepEqual(r.falhas, []);
+  assert.equal(r.casos, 8); assert.equal(r.aprovados, 8); assert.deepEqual(r.falhas, []);
   const casos = logs.filter(l => l[0] === 'GREENIA_QUALIDADE_RESPOSTA_CASO').map(l => JSON.parse(l[1]));
   assert.equal(casos[0].controleNegativo, true);
-  assert.deepEqual(casos.map(c => c.chaveCandidato), ['A', 'B', 'A', 'B', 'A', 'B']);
+  assert.deepEqual(casos.map(c => c.chaveCandidato), ['A', 'B', 'A', 'B', 'A', 'B', 'A', 'B']);
+  assert.equal(casos[6].controleNegativo, true); assert.equal(casos[7].controleNegativo, true);
 });
 
 test('IDs resolvem somente citações reais da resposta correspondente, sem tolerar evidência inventada', () => {

@@ -20,7 +20,7 @@ import { abrirPullRequest, execucoesPendentes, lerRepositorio, marcarExecucoesUs
 import { resolverIdentidade } from './visual/marca.js';
 import { estiloComoTexto } from './estilo-arquivo.js';
 import { REGRAS_DE_ESCRITA, revisarEscrita } from './escrita.js';
-import { REGRAS_CONVERSA } from './conversa-natural.js';
+import { REGRAS_CONVERSA, orientacaoDeEstilo } from './conversa-natural.js';
 import { pedidoAfirmativo } from './pedido-afirmativo.js';
 import { contextoPessoal } from './contexto-pessoal.js';
 import { adaptarModelo, lerModeloPdf, paginasDoPlano, planejarReestilo } from './modelo-pdf.js';
@@ -1264,7 +1264,7 @@ export function rotasConversas(app, r) {
     const montarSistema = (base, extra = '') => ctx.partes.length && cache
       ? [{ type: 'text', text: base }, ...ctx.partes.map((p, i) => ({ type: 'text', text: p, ...(i === 0 && ctx.cacheavel ? { cache_control: { type: 'ephemeral' } } : {}) })), ...(extra ? [{ type: 'text', text: extra }] : [])]
       : [base, ...ctx.partes, ...(extra ? [extra] : [])].join('\n\n');
-    const conteudoSistema = montarSistema(integ?.instrucao ? `${sistema}\n\n${integ.instrucao}` : sistema);
+    const conteudoSistema = montarSistema(integ?.instrucao ? `${sistema}\n\n${integ.instrucao}` : sistema, !qw ? orientacaoDeEstilo(texto) : '');
     const mensagens = [{ role: 'system', content: conteudoSistema }, ...h.mensagens];
     // Para limpar um erro do provedor que repita o pedido antes de ele ir para o registro (registro-seguro.js).
     const conteudoDoPedido = mensagens.map(x => typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')).join('\n');

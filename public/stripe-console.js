@@ -1,6 +1,6 @@
 // Finanças só no console do operador. Os links abrem a página hospedada pelo Stripe.
 export function abrirCobrancasStripe({ empresa, api, modal, esc }) {
-  let fecharModal, modo;
+  let fecharModal, modo, emissaoPermitida=false;
   const $=id=>document.getElementById(id), endpoint=`/api/plataforma/empresas/${encodeURIComponent(empresa.id)}/cobrancas`;
   const pedido=crypto.randomUUID();
   const produto=(empresa.plano?.name || '').replace('GreenIA ','').toLowerCase();
@@ -30,9 +30,11 @@ export function abrirCobrancasStripe({ empresa, api, modal, esc }) {
   const carregar=async()=>{
     try {const d=await api(endpoint);if(!$('stripe-lista'))return;
       modo=d.modo;
+      emissaoPermitida=d.emissaoPermitida!==false;
       $('stripe-ambiente').textContent=modo==='producao'?'Produção · cobranças reais':'Ambiente de teste';
       $('stripe-criar').textContent=modo==='producao'?'Gerar cobrança real':'Gerar link de teste';
-      if(!$('stripe-resultado').querySelector('a'))$('stripe-criar').disabled=false;
+      if(!$('stripe-resultado').querySelector('a'))$('stripe-criar').disabled=!emissaoPermitida;
+      if(!emissaoPermitida)$('stripe-regra').textContent='A emissão de novas cobranças está temporariamente pausada. Pagamentos existentes continuam sendo acompanhados.';
       $('stripe-lista').innerHTML=(d.renovacao?`<p class="dica">${d.renovacao.ativa?'Renovação programada para':'Renovação interrompida desde'} ${esc(new Date(d.renovacao.proxima_em).toLocaleDateString('pt-BR'))}${!d.geracaoAutomatica?' · Geração automática pausada na configuração do ambiente.':''}${d.renovacao.ultimo_erro?' · Emissão pendente: confira câmbio e configuração.':''}</p>${d.renovacao.ativa?'<button class="btn btn-pequeno" id="stripe-parar">Parar próximas emissões</button>':'<button class="btn btn-pequeno" id="stripe-retomar">Retomar próximas emissões</button>'}`:'')+(d.pedidos.length?d.pedidos.map(p=>`<p><strong>${esc(p.produto==='capacity_pack'?'Capacity Pack':p.produto)}</strong> · ${esc(dinheiro(p.snapshot.total,p.moeda))} · ${esc(p.estado)}${p.url?` · ${link(p.url,'Abrir pagamento')}`:''}${p.email_enviado_em?` · ${modo==='producao'?'Envio solicitado ao Stripe':'Envio simulado'}`:p.canal==='fatura'&&p.estado==='aguardando'?` · <button class="btn btn-pequeno" data-stripe-enviar="${esc(p.id)}">${modo==='producao'?'Enviar fatura por email':'Simular envio de email'}</button>`:''}</p>`).join(''):'Ainda não há cobranças.');
       for(const botao of $('stripe-lista').querySelectorAll('[data-stripe-enviar]'))botao.onclick=async()=>{
         if(!confirm(modo==='producao'?`Enviar esta fatura ao email de contato da empresa (${empresa.contact_email || 'consulte o cadastro'})?`:'Simular envio no Stripe? O ambiente de teste não entrega emails.'))return;
@@ -45,7 +47,7 @@ export function abrirCobrancasStripe({ empresa, api, modal, esc }) {
     }catch(e){if($('stripe-lista'))$('stripe-lista').textContent=e.message;}
   };
   $('stripe-form').onsubmit=async ev=>{
-    ev.preventDefault();if(!modo)return;const botao=$('stripe-criar');botao.disabled=true;$('stripe-erro').textContent='';
+    ev.preventDefault();if(!modo||!emissaoPermitida)return;const botao=$('stripe-criar');botao.disabled=true;$('stripe-erro').textContent='';
     try {
       const d=await api(endpoint,{metodo:'POST',corpo:{pedido,produto:$('stripe-produto').value,moeda:$('stripe-moeda').value,
         canal:$('stripe-canal').value,quantidade:Number($('stripe-qtd').value),renovar:$('stripe-renovar').checked,...($('stripe-canal').value==='fatura'?{vencimento_dias:Number($('stripe-prazo').value)}:{})}});
@@ -53,7 +55,7 @@ export function abrirCobrancasStripe({ empresa, api, modal, esc }) {
       $('stripe-resultado').innerHTML=`<p>${link(d.url,'Abrir pagamento no Stripe')}</p>${d.snapshot?.cotacao?`<p class="dica">USD/BRL ${esc(d.snapshot.cotacao.taxa)} · Banco Central · referência ${esc(d.snapshot.cotacao.data_referencia)}. ${d.snapshot.cotacao.fechamento_anterior?'Último fechamento anterior disponível.':''}</p>`:''}`;
       for(const campo of $('stripe-form').elements)campo.disabled=true;
       await carregar();
-    }catch(e){if($('stripe-erro'))$('stripe-erro').textContent=e.message;botao.disabled=false;}
+    }catch(e){if($('stripe-erro'))$('stripe-erro').textContent=e.message;botao.disabled=!emissaoPermitida;}
   };
   ajustar();carregar();
 }

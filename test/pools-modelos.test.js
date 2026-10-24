@@ -28,16 +28,16 @@ test('preços diferentes não anulam adequação da tarefa; Economia continua es
  const a=app();try{
   ampliarPoolsRecomendados(a);
   exec(a.db,"update modelos set preco_entrada=0.0000005,preco_saida=0.0000025 where id='google/gemini-3.8-flash'");
-  exec(a.db,"update modelos set preco_entrada=0.0000006,preco_saida=0.0000028 where id='anthropic/claude-haiku-4.5'");
-  const analise=analisarPedido({texto:'Escreva um conto com humor e ironia.'});
+  exec(a.db,"update modelos set preco_entrada=0.0000006,preco_saida=0.0000028 where id='openai/gpt-5.4-mini'");
+  const analise=analisarPedido({texto:'Escreva uma mensagem clara para apresentar o novo serviço à equipe.'});
   const normal=escolher(a,'classe:equilibrado',{analise});
-  assert.equal(normal.modelo.id,'anthropic/claude-haiku-4.5');
+  assert.equal(normal.modelo.id,'openai/gpt-5.4-mini');
   const usado=normal.candidatos.find(c=>c.id===normal.modelo.id),barato=normal.candidatos.find(c=>c.id==='google/gemini-3.8-flash');
   assert.ok(usado.custo>barato.custo);assert.ok(usado.utilidade>barato.utilidade);
   salvarConfig(a.db,{roteamento:{ativo:true,preferencia:'economia'}});
   assert.equal(escolher(a,'classe:equilibrado',{analise}).modelo.id,'google/gemini-3.8-flash');
-  exec(a.db,"update modelos set no_catalogo=0 where id='anthropic/claude-haiku-4.5'");
+  exec(a.db,"update modelos set no_catalogo=0 where id='openai/gpt-5.4-mini'");
   salvarConfig(a.db,{roteamento:{ativo:true,preferencia:'qualidade'}});
-  assert.notEqual(escolher(a,'classe:equilibrado',{analise}).modelo.id,'anthropic/claude-haiku-4.5');
+  assert.notEqual(escolher(a,'classe:equilibrado',{analise}).modelo.id,'openai/gpt-5.4-mini');
  }finally{a.db.close();}
 });

@@ -47,6 +47,28 @@ async function ambiente(op={}) {
 }
 const compra=(id,extra={})=>({pedido:id,produto:'starter',moeda:'brl',canal:'checkout',...extra});
 
+test('pausar emissões bloqueia novas cobranças sem impedir webhook assinado de pagamento existente',async()=>{
+  const s=await ambiente();try{
+    await s.criarPedido(compra('pedido_antes_pausa'));
+    const p=um(s.P.db,'select * from stripe_pedidos');pagarCheckout(s,p.remoto);
+    s.P.stripe.env.STRIPE_EMISSOES='0';
+    const chamadas=s.falso.chamadas.length;
+    const endpoint=`/api/plataforma/empresas/${s.A.id}/cobrancas`;
+    assert.equal((await s.ops.get(endpoint)).dados.emissaoPermitida,false);
+    for(const canal of ['checkout','fatura']){
+      const r=await s.ops.post(endpoint,compra('pedido_bloqueado_'+canal,{canal,vencimento_dias:7}));
+      assert.equal(r.status,503);assert.equal(r.dados.erro,'stripe_emissoes_pausadas');
+    }
+    assert.equal(s.falso.chamadas.length,chamadas);
+    assert.equal(um(s.P.db,'select count(*) n from stripe_pedidos').n,1);
+    const e=evento('pagoDurantePausa','checkout.session.completed',p.remoto),b=JSON.stringify(e),ts=Math.floor(s.P.agora().getTime()/1000);
+    const assinatura=`t=${ts},v1=${createHmac('sha256',segredo).update(`${ts}.${b}`).digest('hex')}`;
+    const visitante=s.navegador();
+    for(let i=0;i<2;i++)assert.equal((await visitante.post('/api/stripe/webhook',e,{'stripe-signature':assinatura})).status,200);
+    assert.equal(um(s.P.db,'select count(*) n from stripe_pagamentos').n,1);
+  }finally{await s.fechar();}
+});
+
 test('Checkout tolera latência entre o pedido e a criação da sessão no Stripe',async()=>{
   const s=await ambiente();try{
     const api=s.P.stripe.api;

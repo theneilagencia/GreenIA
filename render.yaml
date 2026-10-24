@@ -1,0 +1,118 @@
+# Blueprint do Render: um serviço web (Docker) com disco para o SQLite.
+# No Render: New > Blueprint > escolha este repositório. Os segredos são pedidos na criação.
+services:
+  - type: web
+    name: greenia
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: virginia        # não há região no Brasil; Virgínia é a mais próxima
+    plan: standard          # 2 GB: leitura de modelos (navegador) e OCR com folga; disco persistente exige plano pago
+    healthCheckPath: /api/saude
+    autoDeploy: true
+    domains:
+      - www.greenia.com.br      # endereço principal
+      - greenia.com.br          # o Render redireciona para o www
+    disk:
+      name: dados
+      mountPath: /app/dados
+      sizeGB: 5
+    envVars:
+      - key: ADMIN_EMAIL
+        sync: false         # um ou mais emails de admin (vírgula); entram de qualquer domínio
+      - key: OPENROUTER_API_KEY
+        sync: false         # pedido na criação; nunca no repositório
+      # Plano contratado (definido pela TheNeil; o admin da empresa não altera).
+      # Catálogo (out/2026): Starter 2000 + 400 por US$ 199; Team 5000 + 1000 por US$ 399; Business 10000 + 2000 por
+      # US$ 749; Company 25000 + 5000 por US$ 1799 (src/plataforma/catalogo.js). No modo multiempresa os planos ficam no
+      # console da plataforma; estes valores só escolhem o plano da instalação única importada na primeira subida.
+      - key: PLANO_CREDITOS
+        value: "25000"
+      - key: PLANO_RESERVA
+        value: "5000"
+      - key: PLANO_PRECO_USD
+        value: "1799"
+      - key: OPERADOR_EMAIL
+        sync: false         # email de quem opera a plataforma: vê custos reais e libera pacotes
+      # Multiempresa: uma instalação para todas as empresas. Console da plataforma em /plataforma.
+      # Na primeira subida, a instalação que já existia (dados/greenia.sqlite) vira a primeira empresa.
+      - key: MULTIEMPRESA
+        value: "1"
+      - key: PLATAFORMA_HOST
+        value: www.greenia.com.br
+      - key: PLATAFORMA_ADMINS
+        sync: false         # emails dos administradores da plataforma, separados por vírgula
+      - key: CONTATO_VENDAS_EMAIL
+        sync: false         # destinatários adicionais do aviso comercial; não concede acesso ao console
+      - key: PLATAFORMA_FUSO
+        value: America/Sao_Paulo   # só para exibir datas no console e nos emails; os prazos são calculados em UTC
+      - key: SMTP_URL
+        sync: false         # smtps://usuario:senha@servidor:465 — envia os códigos do console enquanto o SMTP não é configurado nele
+      - key: SMTP_REMETENTE
+        sync: false         # ex.: GreenIA <nao-responda@seudominio.com.br>
+      # Em vez de SMTP_URL, pode usar variáveis separadas (a senha entra como está, sem codificar):
+      # SMTP_SERVIDOR (ex.: smtp.kinghost.net), SMTP_PORTA (465), SMTP_USUARIO (email completo), SMTP_SENHA
+      # O plano gratuito do Render bloqueia SMTP de saída (portas 25, 465 e 587). Nele, use envio por API:
+      # EMAIL_API=resend ou brevo e EMAIL_API_CHAVE=<chave do provedor>. Tem prioridade sobre o SMTP.
+      # Domínio próprio das empresas cadastrado sozinho no Render (opcional):
+      # - key: RENDER_API_KEY      # chave da API do Render (Account Settings > API Keys); nunca no repositório
+      #   sync: false
+      # - key: RENDER_SERVICE_ID   # id deste serviço (srv-...)
+      #   sync: false
+      # - key: RENDER_ALVO         # endereço onrender.com do serviço, alvo do CNAME das empresas
+      #   sync: false
+      # - key: PLATAFORMA_SUBDOMINIO   # com DNS curinga *.base, cada empresa ganha empresa.base
+      #   value: ia.theneil.com.br
+      # Esta é a instalação do operador: a raiz abre a página de vendas e /operador junta os clientes.
+      # Ela mesma aparece no console (tem plano); não precisa de OPERADOR_TOKEN.
+      - key: PAGINA_INICIAL
+        value: vendas
+      - key: CUSTO_INFRA_USD
+        value: "7"
+      # Clientes no console: crie INSTANCIAS no painel do Render (Environment), separadas por ponto e vírgula:
+      #   Cliente A|https://ia.clientea.com.br|token-a;Cliente B|https://ia.clienteb.com.br|token-b
+      # Instalação de cliente: use deploy/render-cliente.yaml.
+      - key: BACKUP_HORA
+        value: "06:00"
+      # Cópia de cada backup fora do disco de produção: serviço privado greenia-backup (abaixo), na rede privada do
+      # Render. Cifrada aqui (AES-256-GCM) antes de sair; o receptor expira em 7 dias.
+      - key: BACKUP_DESTINO
+        value: s3://greenia-backups/greenia
+      - key: S3_ENDPOINT
+        fromService:
+          type: pserv
+          name: greenia-backup
+          property: hostport
+      - key: S3_CHAVE
+        value: greenia-backup
+      - key: S3_SEGREDO
+        fromService:
+          type: pserv
+          name: greenia-backup
+          envVarKey: S3_SEGREDO
+      - key: BACKUP_CHAVE_CIFRA
+        generateValue: true   # 256 bits em base64; copie para o cofre de senhas (sem ela a cópia não abre)
+      - key: BACKUP_MANTER
+        value: "7"
+
+  # Receptor de backup: guarda a cópia cifrada dos backups num disco separado do de produção (src/receptor-backup.js).
+  # Plano Starter e disco de 3 GB para sete rodadas atuais e margem de escrita. Sem endereço público.
+  - type: pserv
+    name: greenia-backup
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: node --disable-warning=ExperimentalWarning src/receptor-backup.js
+    region: virginia
+    plan: starter
+    autoDeploy: true
+    disk:
+      name: backups
+      mountPath: /app/dados
+      sizeGB: 3
+    envVars:
+      - key: S3_CHAVE
+        value: greenia-backup
+      - key: S3_SEGREDO
+        generateValue: true
+      - key: RECEPTOR_DIAS
+        value: "7"
+

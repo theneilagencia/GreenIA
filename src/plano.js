@@ -1,0 +1,274 @@
+// Plano contratado, definido pelo operador da plataforma em variáveis do servidor
+// (o admin da empresa não altera): créditos do mês, reserva só no modelo rápido e
+// pacotes extras liberados pelo operador. 1 crédito = US$ 0,01 de custo de IA.
+// Com plano, quem não é operador nunca recebe valores em dólar: o servidor converte
+// custos em créditos e tira os preços dos modelos de toda resposta.
+import { erro } from './http.js';
+import { exec, todos, um } from './db.js';
+import { registrar } from './eventos.js';
+import { aoFecharUso } from './custo-ia.js';
+import { lerConfig, salvarConfig } from './config.js';
+import { acharModelo, homologadoPadrao, lerModelos, AUTO } from './modelos.js';
+
+export const CREDITO_USD = 0.01;
+export const TAXA_INTERMEDIARIO = 1.055;   // o OpenRouter cobra 5,5% sobre a compra de créditos
+export const creditosDe = usd => Math.round((Number(usd) || 0) / CREDITO_USD * 10000) / 10000;
+
+export function lerPlano(env = {}) {
+  const creditos = Math.floor(Number(env.PLANO_CREDITOS) || 0);
+  if (creditos <= 0) return null;
+  const reserva = env.PLANO_RESERVA !== undefined && env.PLANO_RESERVA !== '' ? Math.max(0, Math.floor(Number(env.PLANO_RESERVA) || 0)) : Math.round(creditos * 0.2);
+  return { creditos, reserva, precoUsd: Number(env.PLANO_PRECO_USD) || null };
+}
+
+export const lerOperadores = (env = {}) => String(env.OPERADOR_EMAIL || '').split(/[\s,;]+/).map(e => e.trim().toLowerCase()).filter(Boolean);
+export const ehOperador = (app, pessoa) => !!pessoa && (app.operadores || []).includes(String(pessoa.email).toLowerCase());
+// Sem plano, a empresa usa a própria chave e vê o custo real. Com plano, só o operador vê dólar.
+export const veDolar = () => false; // Dinheiro somente nas rotas da Administração Geral, nunca no ambiente do cliente.
+
+function franquiaUnica(app,p,contrato) {
+  const agora=app.agora().toISOString(),hoje=agora.slice(0,10),fila=[];
+  const eventos=[...todos(app.db,'select id,em,creditos,validade from pacotes where em<=?',agora).map(x=>({...x,tipo:0})),
+    ...todos(app.db,'select id,em,custo from uso where em<=?',agora).map(x=>({...x,tipo:1}))]
+    .sort((a,b)=>a.em.localeCompare(b.em)||a.tipo-b.tipo||a.id-b.id);
+  let usados=0,naReserva=0;
+  for(const e of eventos) {
+    if(e.tipo===0){fila.push({restante:e.creditos,validade:e.validade});continue;}
+    const n=creditosDe(e.custo),antes=usados;usados+=n;
+    let falta=Math.max(0,n-Math.max(0,p.creditos-antes));
+    for(const pack of fila){if(pack.validade&&pack.validade<e.em.slice(0,10))continue;const d=Math.min(falta,pack.restante);pack.restante-=d;falta-=d;if(!falta)break;}
+    naReserva+=falta;
+  }
+  const arred=n=>Math.round(n*10000)/10000;
+  usados=arred(usados);naReserva=arred(naReserva);
+  const pacoteDisponivel=arred(fila.filter(x=>!x.validade||x.validade>=hoje).reduce((s,x)=>s+x.restante,0));
+  return {creditos:p.creditos,reserva:p.reserva,usados,pacoteDisponivel,naReserva,
+    fase:usados<p.creditos?(usados>=p.creditos*.8?'aviso':'normal'):pacoteDisponivel>0?'pacote':naReserva>=p.reserva?'esgotado':'reserva',
+    renova:contrato.fim||null,percentual:Math.min(100,Math.round(usados/p.creditos*100)),percentualReserva:p.reserva?Math.min(100,Math.round(naReserva/p.reserva*100)):100};
+}
+
+const mesDe = d => d.toISOString().slice(0, 7);
+const proximoMes = d => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
+
+// Situação do mês. Ordem de consumo: créditos do plano, depois pacotes (todos os
+// modelos; o que sobra passa para o mês seguinte), por último a reserva (só rápido).
+export function situacaoPlano(app) {
+  const contrato=app.contrato?.();
+  if (contrato?.vencido) return {fase:'esgotado',vigenciaVencida:true,creditos:app.plano?.creditos||0,reserva:0,usados:0,pacoteDisponivel:0,naReserva:0,percentual:0,percentualReserva:0,renova:contrato.fim};
+  const pago = app.cobranca?.();
+  if (pago) return pago;
+  const p = app.plano;
+  if (!p) return null;
+  const agora = app.agora(), mesAtual = mesDe(agora), hoje = agora.toISOString().slice(0, 10);
+  const unico=contrato?.renovacao==='nenhuma';
+  if (p.ilimitado) {
+    const usados = creditosDe(um(app.db, "select coalesce(sum(custo), 0) as c from uso where substr(em, 1, 7) = ?", mesAtual).c);
+    return { ilimitado: true, creditos: null, reserva: 0, usados, pacoteDisponivel: 0, naReserva: 0, fase: 'normal', renova: proximoMes(agora), percentual: 0, percentualReserva: 0 };
+  }
+  if (unico) return franquiaUnica(app,p,contrato);
+  const usos = new Map(todos(app.db,'select substr(em,1,7) as mes,coalesce(sum(custo),0) as c from uso group by 1').map(x=>[x.mes,creditosDe(x.c)]));
+  const lista = todos(app.db, 'select id, substr(em,1,7) as mes, creditos, validade from pacotes order by id');
+  const meses = [...new Set([...usos.keys(), ...lista.map(x => x.mes), mesAtual])].filter(m => m <= mesAtual).sort();
+  const historico=um(app.db,"select 1 from sqlite_master where name='plano_franquias'")?new Map(todos(app.db,'select * from plano_franquias').map(x=>[x.mes,x.creditos])):new Map();
+  // Pacotes: consumidos do mais antigo para o mais novo; o que passa da validade deixa de valer.
+  const fila = [];
+  let atual = null;
+  for (const m of meses) {
+    for (const x of lista.filter(x => x.mes === m)) fila.push({ restante: x.creditos, validade: x.validade });
+    const valem = () => fila.filter(x => x.restante > 0 && (!x.validade || x.validade >= `${m}-01`));
+    const usados = usos.get(m) || 0;
+    const franquia=m===mesAtual?p.creditos:historico.get(m)??p.creditos;
+    let falta = Math.max(0, usados - (franquia===0?Infinity:franquia));
+    for (const x of valem()) { const d = Math.min(falta, x.restante); x.restante -= d; falta -= d; if (!falta) break; }
+    if (m === mesAtual) atual = { usados, naReserva: Math.round(falta * 10) / 10 };
+  }
+  const { usados, naReserva } = atual;
+  const pacoteDisponivel = Math.round(fila.filter(x => x.restante > 0 && (!x.validade || x.validade >= hoje)).reduce((t, x) => t + x.restante, 0) * 10) / 10;
+  let fase;
+  if (usados < p.creditos) fase = usados >= p.creditos * 0.8 ? 'aviso' : 'normal';
+  else if (pacoteDisponivel > 0) fase = 'pacote';
+  else if (naReserva >= p.reserva) fase = 'esgotado';
+  else fase = 'reserva';
+  return {
+    creditos: p.creditos, reserva: p.reserva, usados, pacoteDisponivel, naReserva, fase, renova: proximoMes(agora),
+    percentual: Math.min(100, Math.round(Math.min(usados, p.creditos) / p.creditos * 100)),
+    percentualReserva: p.reserva ? Math.min(100, Math.round(naReserva / p.reserva * 100)) : 100,
+  };
+}
+
+const dataBr = iso => iso?iso.split('-').reverse().join('/'):'a ampliação da capacidade';
+export const MSG = {
+  reserva: s => `Os créditos deste ciclo foram usados. Até ${dataBr(s.renova)}, a GreenIA segue disponível com a classe Rápido.`,
+  esgotado: s => `A capacidade deste ciclo foi usada. Novas mensagens voltam em ${dataBr(s.renova)}, ou antes com um Capacity Pack. O histórico continua disponível.`,
+};
+
+// Execuções simultâneas na reserva: cada uma ocupa uma vaga de RESERVA_POR_EXECUCAO créditos até terminar. Assim
+// várias requisições ao mesmo tempo não passam do teto (franquia + Capacity Packs + reserva): a nova só começa se a
+// reserva que sobra cobre as que já estão em andamento. Na reserva só a classe Rápido responde e as etapas caras ficam
+// desligadas, então uma execução cabe com folga nessa vaga.
+export const RESERVA_POR_EXECUCAO = 2;
+
+// Pedidos de mais créditos (pessoa ao administrador; administrador à equipe da plataforma), contados desde a última
+// liberação de créditos adicionais.
+export const PEDIDO_CREDITOS = 'plano.creditos_pedidos';
+export function pedidosDeCreditos(app, { soAdmin = false } = {}) {
+  const ultimo = um(app.db, 'select max(em) as em from pacotes')?.em || '';
+  return todos(app.db, `select e.em, e.pessoa_id, e.detalhes from eventos e where e.tipo = ? and e.em > ? order by e.em desc`, PEDIDO_CREDITOS, ultimo)
+    .map(x => ({ em: x.em, pessoa: x.pessoa_id, ...(JSON.parse(x.detalhes || '{}')) })).filter(x => !soAdmin || x.admin);
+}
+// Explicação dos créditos, a mesma na tela, na Ajuda e no chat (sem valores em dinheiro).
+export const COMO_FUNCIONAM_OS_CREDITOS = [
+  'Os créditos são da empresa, não de cada pessoa: o plano tem uma quantidade por mês, usada por toda a equipe. Cada resposta consome créditos conforme o tamanho do pedido e o nível de IA usado.',
+  'Quando o plano chega a 80%, aparece um aviso. Se os créditos do plano acabarem, entram os créditos adicionais (Capacity Pack), se a empresa tiver; eles não vencem e o que sobra fica para os meses seguintes.',
+  'Sem créditos adicionais, a plataforma continua respondendo no nível Rápido, dentro de uma reserva, até a renovação. Só quando a reserva acaba novas mensagens pausam até a renovação do mês; o histórico continua disponível.',
+  'Para ter mais créditos, não é preciso comprar nada individualmente: peça ao administrador da empresa, que solicita um Capacity Pack à equipe da plataforma. Os créditos liberados valem para todos na hora.',
+];
+
+// Antes de cada envio: bloqueia no fim da reserva (contando as execuções que já estão em andamento).
+export function checarPlano(app) {
+  const s = situacaoPlano(app);
+  if (s?.vigenciaVencida) throw erro(402,'vigencia_vencida','A vigência do plano terminou. Novas execuções estão pausadas; os dados e o histórico continuam disponíveis.');
+  if (s?.cobrancaPendente) throw erro(402, 'pagamento_pendente', 'A empresa não tem um período de uso pago vigente. O histórico continua disponível; fale com o responsável financeiro.');
+  if (s?.fase === 'esgotado') throw erro(429, 'plano_esgotado', MSG.esgotado(s));
+  if (s?.fase === 'reserva') {
+    const emAndamento = app.execucoesNaReserva || 0;
+    if (s.naReserva + (emAndamento + 1) * RESERVA_POR_EXECUCAO > s.reserva) throw erro(429, 'plano_esgotado', MSG.esgotado(s));
+    // A vaga só existe dentro de um pedido que gasta IA (contexto de uso); fora dele não há execução a reservar.
+    if (aoFecharUso(() => { app.execucoesNaReserva = Math.max(0, (app.execucoesNaReserva || 1) - 1); })) app.execucoesNaReserva = emAndamento + 1;
+  }
+  return s;
+}
+
+// Na reserva, só modelo do perfil rápido (o automático também fica de fora: ele pode escolher um modelo caro).
+export function modeloNaReserva(app, cfg, m, sigilosa) {
+  if (m.perfil === 'rapido' && m.id !== AUTO) return m;
+  const rapidos = lerModelos(app.db).filter(x => x.liberado && x.perfil === 'rapido');
+  if (sigilosa) {
+    const h = homologadoPadrao(app.db, cfg);
+    const escolhido = h?.perfil === 'rapido' ? h : rapidos.find(x => x.homologado);
+    if (!escolhido) throw erro(429, 'plano_reserva', 'Os créditos deste mês acabaram e não há recurso econômico autorizado para informação sigilosa.');
+    return escolhido;
+  }
+  const padrao = acharModelo(app.db, cfg, cfg.padroes.rapido);
+  const escolhido = padrao?.liberado && padrao.perfil === 'rapido' ? padrao : rapidos[0];
+  if (!escolhido) throw erro(429, 'plano_reserva', 'Os créditos deste mês acabaram e não há recurso econômico disponível.');
+  return escolhido;
+}
+
+// Converte custos em créditos e tira preços de qualquer resposta JSON.
+const CHAVES_CUSTO = new Set(['custo', 'custoMedio', 'custoConversa', 'custoPorExecucao', 'custoReferencia', 'previsao', 'tetoMensal', 'economia', 'economiaCache', 'custoIa', 'custoComTaxa', 'tetoPessoaMensal', 'custo_real', 'custo_estimado', 'custo_referencia']);
+const CHAVES_PRECO = new Set(['precoEntrada', 'precoSaida', 'preco_entrada', 'preco_saida']);
+export function emCreditos(v, chave) {
+  if (Array.isArray(v)) return v.map(x => emCreditos(x));
+  if (v && typeof v === 'object') {
+    const out = {};
+    for (const [k, x] of Object.entries(v)) {
+      if(k==='financeiro')continue;
+      if(k==='detalhes'&&v.tipo==='model.price_changed'){out[k]='Revisão do catálogo registrada. Informações financeiras restritas à Administração Geral.';continue;}
+      // Faixa descritiva da sugestão não é um valor monetário.
+      if (k==='custo' && ['econômico','médio','alto'].includes(x)) {out[k]=x;continue;}
+      if (CHAVES_PRECO.has(k) || /^(preco|price|pricing|margem|receita|lucro|conversao|ai_credit_base_cost|precosAlternativos)/i.test(k)) continue;
+      if (/_usd$/i.test(k) || /Usd$/.test(k)) { out[k.replace(/_usd$/i,'_creditos').replace(/Usd$/,'Creditos')]=typeof x==='number'?x/CREDITO_USD:x; continue; }
+      if ((['porChamada','estimativa','saldoDisponivel','reservado'].includes(k)||k==='limite'&&'validadeDias' in v) && typeof x==='number') { out[k]=x/CREDITO_USD; continue; }
+      if (k==='catalogo' && x && typeof x==='object' && !Array.isArray(x)) {const c={...x};delete c.entrada;delete c.saida;delete c.precosAlternativos;if(c.rotas)c.rotas=c.rotas.map(({entrada,saida,...rota})=>rota);out[k]=emCreditos(c);continue;}
+      if (CHAVES_CUSTO.has(k)||/^custo[_A-Z]/.test(k)&&typeof x==='number') out[k] = x === null || x === undefined ? x : creditosDe(x);
+      else if (k === 'aviso' && typeof x === 'string' && x.startsWith('Preço mudou')) out[k] = null;   // variação de preço: só o operador decide se avisa
+      else if (k === 'detalhes' && typeof x === 'string') { try {const d=emCreditos(JSON.parse(x));if(d&&typeof d==='object'&&'custo' in d){d.creditos=d.custo;delete d.custo;}out[k]=JSON.stringify(d); } catch { out[k]=x; } }
+      else out[k] = emCreditos(x, k);
+    }
+    return out;
+  }
+  return v;
+}
+export function detalhesEmCreditos(texto) {
+  return emCreditos({detalhes:texto}).detalhes;
+}
+
+// Pacote liberado pelo operador: Capacity Pack (com o valor de tabela) ou cortesia (sem receita).
+export function liberarPacote(app, pessoa, creditos, { observacao = '', validade = null, origem = 'painel', operador = pessoa?.email, produto = 'cortesia', precoUsd = 0 } = {}) {
+  const n = origem==='estorno'?Number(creditos):Math.floor(Number(creditos)||0);
+  if (!Number.isFinite(n) || n <= 0 || n > 1_000_000) throw erro(400, 'creditos', 'Informe a quantidade de créditos do pacote.');
+  if (validade && (!/^\d{4}-\d{2}-\d{2}$/.test(validade) || validade < app.agora().toISOString().slice(0, 10))) throw erro(400, 'validade', 'A validade precisa ser uma data futura.');
+  const obs = String(observacao || '').slice(0, 300);
+  const quem = String(operador || '').slice(0, 200) || null;
+  const preco = Math.max(0, Number(precoUsd) || 0);
+  exec(app.db, 'insert into pacotes (em, creditos, pessoa_id, observacao, validade, origem, operador, produto, preco_usd) values (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    app.agora().toISOString(), n, pessoa?.id ?? null, obs, validade || null, origem, quem, String(produto || 'cortesia').slice(0, 40), preco);
+  registrar(app, 'creditpack.added', pessoa?.id ?? null, { creditos: n, produto, validade: validade || null, origem, operador: quem });
+  return situacaoPlano(app);
+}
+
+// Avisos por email ao admin da empresa e ao operador, uma vez por etapa no mês.
+const ETAPAS = [
+  { id: 'aviso80', quando: s => s.usados >= s.creditos * 0.8, assunto: 'sua organização usou 80% dos créditos deste ciclo',
+    texto: s => `Sua organização usou ${s.percentual}% dos créditos deste ciclo.\n\nAo chegar a 100%, a GreenIA continua disponível temporariamente com a classe Rápido. Os créditos renovam em ${dataBr(s.renova)}.` },
+  { id: 'plano100', quando: s => s.usados >= s.creditos && s.pacoteDisponivel <= 0, assunto: 'créditos do ciclo usados: a GreenIA segue com a classe Rápido',
+    texto: s => `Os créditos deste ciclo foram usados. Até ${dataBr(s.renova)}, a GreenIA segue disponível com a classe Rápido, dentro de uma reserva de continuidade.\n\nPara voltar a usar as classes Equilibrado e Avançado antes da renovação, fale com a equipe que opera a GreenIA sobre um Capacity Pack.` },
+  { id: 'reserva90', quando: s => s.fase !== 'pacote' && s.naReserva >= s.reserva * 0.9, assunto: 'a reserva de continuidade está perto do fim',
+    texto: s => `A reserva de continuidade deste ciclo está em ${s.percentualReserva}%.\n\nQuando ela terminar, novas mensagens ficam pausadas até ${dataBr(s.renova)}. O histórico continua disponível. Um Capacity Pack evita a pausa.` },
+  { id: 'esgotado', quando: s => s.fase === 'esgotado', assunto: 'capacidade do ciclo usada: novas mensagens pausadas até a renovação',
+    texto: s => `A capacidade deste ciclo foi usada. Novas mensagens voltam em ${dataBr(s.renova)}, ou antes com um Capacity Pack.\n\nConversas, quick wins e conhecimento continuam disponíveis para consulta.` },
+];
+
+const EVENTOS_ETAPA = { aviso80: ['credits.threshold_80'], plano100: ['credits.exhausted', 'reserve.started'], reserva90: ['reserve.threshold_90'], esgotado: ['reserve.exhausted'], renovado: ['credits.renewed'] };
+
+export async function enviarParaTodos(app, assunto, texto, { soOperador = false } = {}) {
+  const admins = soOperador ? [] : todos(app.db, "select email from pessoas where papel = 'admin' and ativo = 1").map(a => a.email).filter(e => !(app.operadores || []).includes(e));
+  const empresa = lerConfig(app.db).empresa;
+  for (const para of [...new Set([...admins, ...(app.operadores || [])])]) {
+    const prefixo = (app.operadores || []).includes(para) ? `[${empresa}] ` : '';
+    await app.email.enviar(para, `GreenIA: ${prefixo}${assunto}`, texto).catch(e => app.log('email do plano', e.message));
+  }
+}
+
+export async function verificarAvisos(app) {
+  const s = situacaoPlano(app);
+  if (!s || s.ilimitado || s.cobrancaPendente) return [];
+  const mes = s.ciclo || app.agora().toISOString().slice(0, 7);
+  const reg = lerConfig(app.db).avisosPlano || {};
+  const enviados = reg.mes === mes ? [...(reg.enviados || [])] : [];
+  const novos = [];
+  // Virada do mês depois de um mês que chegou a 100%: avisa que tudo voltou ao normal.
+  if (reg.mes && reg.mes !== mes && (reg.enviados || []).includes('plano100')) novos.push({ id: 'renovado', assunto: 'os créditos foram renovados', texto: `Um novo ciclo começou e os créditos foram renovados. As classes Rápido, Equilibrado e Avançado estão disponíveis de novo.` });
+  for (const e of ETAPAS) if (!enviados.includes(e.id) && e.quando(s)) novos.push({ id: e.id, assunto: e.assunto, texto: e.texto(s) });
+  if (!novos.length && reg.mes === mes) return [];
+  salvarConfig(app.db, { avisosPlano: { mes, enviados: [...enviados, ...novos.filter(n => n.id !== 'renovado').map(n => n.id)] } });
+  for (const n of novos) {
+    for (const tipo of EVENTOS_ETAPA[n.id]) registrar(app, tipo, null, { percentual: s.percentual, reserva: s.percentualReserva });
+    await enviarParaTodos(app, n.assunto, n.texto);
+  }
+  return novos.map(n => n.id);
+}
+
+// Pacote liberado: as etapas de fim de cota voltam a valer, e o admin é avisado.
+export async function avisarPacote(app, creditos) {
+  const reg = lerConfig(app.db).avisosPlano || {};
+  salvarConfig(app.db, { avisosPlano: { ...reg, enviados: (reg.enviados || []).filter(e => e === 'aviso80') } });
+  await enviarParaTodos(app, 'créditos adicionais liberados', `Foram liberados ${creditos.toLocaleString('pt-BR')} créditos adicionais. As classes Rápido, Equilibrado e Avançado estão disponíveis de novo. Créditos de pacote permanecem até serem usados.`);
+}
+
+// Resumo para o operador: custo real do mês e, se o preço estiver configurado, o lucro.
+export function resumoOperador(app) {
+  const s = situacaoPlano(app);
+  if (!s) return null;
+  const mes = app.agora().toISOString().slice(0, 7);
+  const custoIa = um(app.db, 'select coalesce(sum(custo), 0) as c from uso where substr(em, 1, 7) = ?', mes).c;
+  const custoComTaxa = custoIa * TAXA_INTERMEDIARIO;
+  const pacotes = todos(app.db, 'select p.em, p.creditos, p.validade, p.origem, p.observacao, coalesce(p.operador, pe.email) as por from pacotes p left join pessoas pe on pe.id = p.pessoa_id order by p.id desc limit 20');
+  return { ...s, custoIa, custoComTaxa, precoUsd: app.plano.precoUsd, lucroSemServidor: app.plano.precoUsd ? app.plano.precoUsd - custoComTaxa : null, pacotes };
+}
+
+export const enviarAvisoOperador = (app, assunto, texto) => enviarParaTodos(app, assunto, texto, { soOperador: true });
+
+// Rotas do operador: resumo com custo real e liberação de pacotes.
+export function rotasPlano(app, r) {
+  const soOperador = pessoa => { if (!ehOperador(app, pessoa)) throw erro(403, 'so_operador', 'Só o operador da plataforma pode fazer isso.'); };
+  r.get('/api/operador/plano', ({ pessoa }) => { soOperador(pessoa); return { resumo: resumoOperador(app) }; });
+  r.post('/api/operador/pacotes', async ({ pessoa, corpo }) => {
+    soOperador(pessoa);
+    if (!app.plano) throw erro(400, 'sem_plano', 'Esta instalação não tem plano configurado (PLANO_CREDITOS).');
+    liberarPacote(app, pessoa, corpo.creditos, { observacao: corpo.observacao, validade: corpo.validade, origem: 'painel' });
+    await avisarPacote(app, Math.floor(Number(corpo.creditos)));
+    return { resumo: resumoOperador(app) };
+  });
+}

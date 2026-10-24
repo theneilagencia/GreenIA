@@ -1,0 +1,44 @@
+{
+  "version": "d795447b0d04ca8a82100ea9dd6dbeda8d414507",
+  "services_node24": {
+    "pass": 840,
+    "fail": 0,
+    "skipped": 0,
+    "duration_ms": 125081.467988
+  },
+  "services_node22": {
+    "pass": 840,
+    "fail": 0,
+    "skipped": 0,
+    "duration_ms": 233197.175766
+  },
+  "browser": {
+    "pass": 129,
+    "fail": 0,
+    "skipped": 0,
+    "duration_ms": 261543.445832
+  },
+  "syntax_files": 213,
+  "missing_frontend_imports": 0,
+  "coverage_server": {
+    "line": 95.72,
+    "branch": 84.22,
+    "functions": 91.18
+  },
+  "services_deep_node24": {
+    "pass": 849,
+    "fail": 0,
+    "skipped": 0,
+    "duration_ms": 129841.171607
+  },
+  "browser_deep_node22": {
+    "pass": 132,
+    "fail": 0,
+    "skipped": 0,
+    "duration_ms": 283500.32671
+  },
+  "rerun_node22_deep_incomplete": {
+    "completed": false,
+    "reason": "Registro terminou sem rodapé de contagem; não contabilizado como bateria aprovada."
+  }
+}

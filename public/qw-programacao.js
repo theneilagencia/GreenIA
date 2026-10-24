@@ -1,0 +1,128 @@
+import { orientacaoAgendamento } from '/jornadas.js';
+import { api, esc, toast, ocupado } from '/comum.js';
+import { E, cabecalho, ligarCabecalho, pode } from '/app.js';
+import { aviso, cabecalhoPg, estadoQw } from '/qw-ui.js';
+const $=id=>document.getElementById(id);
+let atualizacaoProgramadas=null;
+let versaoLista=0;
+async function atualizarLista(qid,rota){
+  try{await listaProgramadas(qid);}
+  catch(e){
+    if(location.hash!==rota)return;
+    const aviso=$('rotina-status-atualizacao');
+    if(aviso){aviso.hidden=false;aviso.textContent='Não foi possível atualizar o andamento agora. A tela mostra o último status recebido. Tentaremos novamente; você também pode usar “Atualizar status”.';}
+    clearTimeout(atualizacaoProgramadas);
+    atualizacaoProgramadas=setTimeout(()=>{if(location.hash===rota&&$('rotina-atualizar'))atualizarLista(qid,rota);},15000);
+  }
+}
+const STATUS={na_fila:'Na fila',executando:'Em execução',concluida:'Concluída',revisar:'Resultado para revisar',aguardando_material:'Precisa de informações',aguardando_aprovacao:'Aguardando aprovação',falhou:'Não concluída',bloqueada:'Bloqueada',interrompida:'Interrompida',cancelada:'Cancelada'};
+const MOTIVOS={responsavel_inativo:'Responsável sem acesso ativo',quick_win_indisponivel:'Quick Win indisponível',versao_alterada:'Revise a nova versão publicada',politica_alterada:'Responsável precisa ler a política atual',limite_programacao:'Limite mensal atingido',entrada_bloqueada:'Entrada bloqueada pela política',retencao:'Entrada incompatível com a retenção',evento_indisponivel:'Evento indisponível',execucao_bloqueada:'Revise acesso, créditos e regras',reinicio_durante_execucao:'O servidor reiniciou. Confira antes de executar novamente',recuperada_apos_reinicio:'Resultado recuperado após reinício',execucao_falhou:'Confira a conversa antes de tentar novamente',retomada_bloqueada:'As condições de execução mudaram',aprovacao_negada:'Alteração não aprovada',aprovacao_expirada_ou_invalidada:'A aprovação expirou ou foi invalidada',programacao_pausada:'Agendamento pausado',programacao_alterada:'Agendamento revisado'};
+const nomeFuso=f=>({'America/Sao_Paulo':'Brasília','America/Manaus':'Manaus','America/Rio_Branco':'Rio Branco','Europe/Lisbon':'Lisboa','UTC':'UTC'}[f]||f);
+const DIAS=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+function quando(s){const a=s.agenda;return s.tipo==='evento'?'Quando o evento autorizado chegar':`${a.frequencia==='diaria'?'Todos os dias':a.frequencia==='semanal'?DIAS[a.dia]:`Todo dia ${a.dia}`} às ${a.hora} · ${nomeFuso(a.fuso)}`;}
+function data(v,fuso='America/Sao_Paulo'){return v?new Date(v).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short',timeZone:fuso}):'—';}
+const emAndamento=e=>!!e&&['na_fila','executando'].includes(e.status);
+function card(s,qid){const ultima=s.execucoes[0],andamento=emAndamento(ultima);return `<article class="qw-rotina-card cartao sem-seta" data-programacao="${esc(s.id)}"><div class="qw-rotina-topo"><div><h3>${esc(s.nome)}</h3><p class="dica">${esc(quando(s))}</p></div><span class="selo">${s.ativa?'Ativa':'Pausada'}</span></div>
+  <p class="dica">Responsável: ${esc(s.responsavel)} · ${s.creditos_usados.toLocaleString('pt-BR')} de ${s.limite_creditos.toLocaleString('pt-BR')} créditos no mês · até ${s.max_dia} ${s.max_dia===1?'execução':'execuções'} por dia</p>
+  <p>Próxima execução: ${s.ativa?(s.tipo==='evento'?'aguardando evento':data(s.proxima_em,s.agenda?.fuso)):'pausada; ative para iniciar'}</p>
+  ${ultima?`<p role="status"><b>${esc(STATUS[ultima.status]||'Confira o status')}</b>${ultima.motivo?` · ${esc(MOTIVOS[ultima.motivo]||'Confira as condições da rotina')}`:''}${ultima.conversa_id&&!andamento?` · <a class="link-sutil" href="#/c/${ultima.conversa_id}">Ver último resultado</a>`:''}</p>`:''}
+  ${andamento?'<p class="dica">A IA está preparando e conferindo o resultado. Esta página atualiza o andamento automaticamente; você pode sair e voltar depois.</p>':''}
+  ${ultima && ['bloqueada','falhou','interrompida','aguardando_material','aguardando_aprovacao','revisar'].includes(ultima.status)?`<div class="faixa-aviso"><p>${esc(ultima.motivo?orientacaoAgendamento(ultima.motivo):ultima.status==='revisar'?'A execução terminou, mas o resultado precisa de revisão. Confira antes de usar.':ultima.status==='aguardando_aprovacao'?'Uma ação aguarda aprovação. Nenhuma nova ação será feita antes da decisão.':'Confira o resultado para saber o que precisa ser completado.')}</p>${ultima.motivo==='politica_alterada'&&s.minha?'<button class="btn btn-linha" data-ler-politica>Ler política atual</button>':ultima.status==='aguardando_aprovacao'?`<a class="btn btn-linha" href="#/pendencias">Ver pendências</a>`:ultima.motivo==='evento_indisponivel'&&pode('integrations.manage')?'<a class="btn btn-linha" href="#/integracoes">Conferir integrações</a>':['plano','sem_creditos'].includes(ultima.motivo)&&pode('usage.read')?'<a class="btn btn-linha" href="#/uso">Conferir uso e créditos</a>':''}${!s.minha&&!pode('settings.manage')?'<p>Peça ao responsável ou ao administrador para avaliar o ajuste. Use “Reportar problema” se precisar registrar o caso.</p>':''}</div>`:''}
+  ${s.podeEditar&&(s.ativa||s.minha)?`<div class="linha-botoes cartao-acoes"><button class="btn btn-linha btn-pequeno" data-estado="${s.id}" data-qw="${qid}" data-ativa="${s.ativa?'0':'1'}">${s.ativa?'Pausar':'Ativar agendamento'}</button>${s.ativa&&s.minha?`<button class="btn btn-linha btn-pequeno" data-executar="${s.id}" data-qw="${qid}"${andamento?' disabled':''}>${andamento?'Execução em andamento':'Executar agora'}</button>`:''}${s.minha?`<a class="btn btn-texto btn-pequeno" href="#/qw/${qid}/programar/${s.id}">Revisar agendamento</a>`:''}</div>`:''}
+  ${s.execucoes.length?`<details class="qw-rotina-historico" data-historico="${esc(s.id)}"><summary>Últimas execuções (${s.execucoes.length})</summary><ul>${s.execucoes.map(e=>`<li><div><b>${esc(STATUS[e.status]||'Confira o status')}</b><span class="dica">${data(e.criada_em)}${e.motivo?` · ${esc(MOTIVOS[e.motivo]||'Confira as condições da rotina')}`:''}</span></div>${emAndamento(e)?'<span class="dica">Resultado em preparação</span>':e.conversa_id?`<a class="link-sutil" href="#/c/${e.conversa_id}">Abrir resultado</a>`:'<span class="dica">Conteúdo reservado ao responsável</span>'}</li>`).join('')}</ul></details>`:'<p class="dica">Nenhuma execução ainda.</p>'}</article>`;}
+function ligar(recarregar){document.querySelectorAll('[data-estado],[data-executar]').forEach(b=>{b.onclick=()=>ocupado(b,async()=>{try{const base=`/api/quick-wins/${b.dataset.qw}/programacoes/${b.dataset.estado||b.dataset.executar}`;await api(base+(b.dataset.estado?'/estado':'/executar'),{metodo:'POST',corpo:b.dataset.estado?{ativa:b.dataset.ativa==='1'}:{}});toast(b.dataset.executar?'Execução colocada na fila. Você pode fechar o navegador.':b.dataset.ativa==='1'?'Agendamento ativado.':'Agendamento pausado. Uma execução já iniciada pode terminar.');await recarregar();}catch(e){toast(e.message,7000);}});});$('rotina-atualizar')?.addEventListener('click',recarregar);}
+async function opcoesParaAgendar(){
+  const {quickWins=[]}=await api('/api/quick-wins').catch(()=>({}));
+  const det=(await Promise.all(quickWins.map(x=>api(`/api/quick-wins/${x.id}`).catch(()=>null)))).filter(x=>x&&x.podeEditar&&estadoQw(x).id!=='arquivado');
+  return {prontos:det.filter(x=>x.v2&&x.versao&&estadoQw(x).id==='publicado'),antigos:det.filter(x=>!x.v2),semPublicar:det.filter(x=>x.v2&&!(x.versao&&estadoQw(x).id==='publicado'))};
+}
+// Agendar vale para Quick Wins publicados no formato atual, por quem os gerencia. A tela diz qual é o caso e leva direto à ação.
+function vazioGeral({prontos,antigos,semPublicar}){
+  const lista=(itens,rotulo,href)=>`<ul class="qw-agendar-opcoes">${itens.map(x=>`<li><a class="link-sutil" href="${href(x)}">${esc(rotulo)} ${esc(x.nome)}</a></li>`).join('')}</ul>`;
+  const [texto,acoes]=prontos.length?['Escolha um Quick Win publicado para agendar.',lista(prontos,'Agendar',x=>`#/qw/${x.id}/programar`)]
+    :antigos.length?['Seus Quick Wins usam o formato anterior, que não tem agendamento. Atualize e publique um deles para agendar.',lista(antigos,'Atualizar',x=>`#/qw/${x.id}/atualizar`)]
+    :semPublicar.length?['Só Quick Wins publicados podem ser agendados. Publique um destes para agendar.',lista(semPublicar,'Publicar',x=>`#/qw/${x.id}/publicar`)]
+    :E.podeCriarQw?['Só Quick Wins publicados podem ser agendados.','<a class="btn btn-verde" href="#/qw/nova">Criar Quick Win</a>']
+    :['Quem gerencia um Quick Win pode agendá-lo. Seus agendamentos aparecem aqui.','<a class="btn btn-linha" href="#/quick-wins">Voltar aos Quick Wins</a>'];
+  return `<div class="vazio"><h2>Nenhum Quick Win agendado</h2><p>${texto}</p>${acoes}</div>`;
+}
+export async function listaProgramadas(qid=null){
+  const rota=location.hash,vez=++versaoLista;
+  clearTimeout(atualizacaoProgramadas);atualizacaoProgramadas=null;
+  const dados=await api(qid?`/api/quick-wins/${qid}/programacoes`:'/api/quick-wins-programados');
+  const q=qid?await api(`/api/quick-wins/${qid}`):null;
+  // Sem agendamentos na lista geral: quais Quick Wins já podem ser agendados e quais precisam de um passo antes.
+  const opcoes=!qid&&!dados.programacoes.length?await opcoesParaAgendar():null;
+  if(vez!==versaoLista||location.hash!==rota)return;
+  const principal=$('principal');
+  const abertos=[...principal.querySelectorAll('details[data-historico][open]')].map(e=>e.dataset.historico);
+  const ativo=document.activeElement;
+  const foco=principal.contains(ativo)?{id:ativo.id,rotina:ativo.closest('[data-programacao]')?.dataset.programacao,acao:ativo.matches('summary')?'summary':ativo.dataset.estado?'estado':ativo.dataset.executar?'executar':null}:null;
+  const temAgendamentos=dados.programacoes.length>0;
+  const podeAgendar=qid&&dados.podeEditar&&q?.versao&&estadoQw(q).id==='publicado';
+  const antigoGere=q&&!q.v2&&q.podeEditar, publicarGere=q&&q.v2&&q.podeEditar&&estadoQw(q).id!=='publicado'&&estadoQw(q).id!=='arquivado';
+  const vazio=q?`<div class="vazio"><h2>Este Quick Win ainda não tem agendamento</h2><p>${podeAgendar?'Escolha o dia, o horário e o material para a IA executar automaticamente.':(!q.v2?'Ele usa o formato anterior, que não tem agendamento. '+(q.podeEditar?'Atualize e publique para poder agendar.':'Quem gerencia pode atualizá-lo para o formato novo.'):estadoQw(q).id!=='publicado'?(q.podeEditar?'Publique este Quick Win para poder agendar.':'Quem gerencia este Quick Win pode agendar depois de publicá-lo.'):'Quem gerencia este Quick Win pode preparar o agendamento.')}</p>${podeAgendar?`<a class="btn btn-verde" href="#/qw/${qid}/programar">Agendar este Quick Win</a>`:antigoGere?`<a class="btn btn-verde" href="#/qw/${qid}/atualizar">Atualizar formato</a>`:publicarGere?`<a class="btn btn-verde" href="#/qw/${qid}/teste">Testar e publicar</a>`:`<a class="btn btn-linha" href="#/qw/${qid}">Voltar ao Quick Win</a>`}</div>`:(opcoes?vazioGeral(opcoes):'');
+  $('principal').innerHTML=`${cabecalho(q?'Agendamentos':'Quick Wins agendados')}<div class="pagina"><div class="pg">${cabecalhoPg({trilha:[['Quick Wins','#/quick-wins'],...(q?[[q.nome,`#/qw/${qid}`]]:[]),[q?'Agendamentos':'Agendados']],titulo:q?`Agendamentos de ${q.nome}`:'Quick Wins agendados',descricao:'A IA executa no horário escolhido. Consulte aqui o andamento e o resultado.',lado:temAgendamentos?`<button id="rotina-atualizar" class="btn btn-linha">Atualizar status</button>${podeAgendar?`<a class="btn btn-verde" href="#/qw/${qid}/programar">Criar outro agendamento</a>`:''}`:''})}
+    <p id="rotina-status-atualizacao" class="dica" role="status" hidden></p><div class="qw-rotinas">${temAgendamentos?dados.programacoes.map(s=>`${!qid?`<a class="link-sutil" href="#/qw/${s.quick_win_id}">${esc(s.quick_win)}</a>`:''}${card(s,qid||s.quick_win_id)}`).join(''):vazio}</div>
+    </div></div>`;
+  ligarCabecalho();ligar(()=>atualizarLista(qid,rota));document.querySelectorAll('[data-ler-politica]').forEach(b=>b.onclick=()=>document.getElementById('ver-politica')?.click());
+  for(const id of abertos)principal.querySelector(`details[data-historico="${CSS.escape(id)}"]`)?.setAttribute('open','');
+  if(foco){const destino=foco.id?document.getElementById(foco.id):foco.rotina&&foco.acao?principal.querySelector(`[data-programacao="${CSS.escape(foco.rotina)}"] ${foco.acao==='summary'?'summary':`[data-${foco.acao}]`}`):null;destino?.focus({preventScroll:true});}
+  const processando=dados.programacoes.some(s=>s.execucoes.some(emAndamento));
+  clearTimeout(atualizacaoProgramadas);
+  if(processando||dados.programacoes.some(s=>s.ativa))atualizacaoProgramadas=setTimeout(()=>{if(location.hash===rota&&document.getElementById('rotina-atualizar'))atualizarLista(qid,rota);},processando?5000:30000);
+}
+export async function formularioProgramacao(qid,id=null){
+  const [q,d,s]=await Promise.all([api(`/api/quick-wins/${qid}`),api(`/api/quick-wins/${qid}/programacoes`),id?api(`/api/quick-wins/${qid}/programacoes/${id}/configuracao`):null]);
+  // Quando ainda não dá para agendar, a tela diz o motivo e oferece a ação que resolve (em vez de uma tela de erro).
+  const impedimento=!q.v2?['Este Quick Win usa o formato anterior, que não tem agendamento.',q.podeEditar?'Atualize para o formato novo e publique; depois disso, o agendamento fica disponível.':'Quem gerencia pode atualizá-lo para o formato novo.',q.podeEditar?`<a class="btn btn-verde btn-pequeno" href="#/qw/${qid}/atualizar">Atualizar formato</a>`:'']
+    :!q.versao?['Este Quick Win ainda não foi publicado.',q.podeEditar?'Teste e publique para poder agendar.':'Quem gerencia pode agendar depois de publicá-lo.',q.podeEditar?`<a class="btn btn-verde btn-pequeno" href="#/qw/${qid}/teste">Testar e publicar</a>`:'']
+    :!d.podeEditar?['Só quem gerencia este Quick Win pode agendá-lo.','Peça o agendamento ao responsável pelo trabalho.','']:null;
+  if(impedimento){
+    $('principal').innerHTML=`${cabecalho('Agendar Quick Win')}<div class="pagina"><div class="pg">${cabecalhoPg({trilha:[['Quick Wins','#/quick-wins'],[q.nome,`#/qw/${qid}`],['Agendar']],titulo:'Agendar Quick Win'})}${aviso(`<b>${esc(impedimento[0])}</b> ${esc(impedimento[1])}`,'info',impedimento[2]||`<a class="btn btn-texto btn-pequeno" href="#/qw/${qid}">Voltar ao Quick Win</a>`)}</div></div>`;
+    ligarCabecalho();return;
+  }
+  const c=d.contexto||{},a=s?.agenda||{frequencia:'semanal',hora:'08:00',fuso:'America/Sao_Paulo',dia:1};
+  const preparado=!!(c.fontes?.length||c.consultas?.length);
+  const entradaPreparada='Execute o trabalho da versão publicada usando apenas os materiais salvos e as consultas autorizadas já configuradas neste Quick Win. Se faltar material obrigatório, informe o que falta e não invente dados.';
+  const modoInicial=s?.entrada===entradaPreparada?'preparado':'texto';
+  const requisicao=crypto.randomUUID();let salvaId=null,criadaId=null,previa=null;
+  const materiais=`${c.fontes?.length?`<p><b>Materiais salvos:</b> ${c.fontes.map(esc).join(', ')}. Estes conteúdos não se atualizam sozinhos.</p>`:''}${c.consultas?.length?`<p><b>Consultas configuradas:</b> ${c.consultas.map(n=>`${esc(n.sistema)}: ${esc(n.acao)}`).join('; ')}. Serão reavaliadas pelas regras de acesso em cada execução.</p>`:''}`;
+  $('principal').innerHTML=`${cabecalho(id?'Ajustar agendamento':'Agendar Quick Win')}<div class="pagina"><div class="pg">${cabecalhoPg({trilha:[['Quick Wins','#/quick-wins'],[q.nome,`#/qw/${qid}`],[id?'Ajustar agendamento':'Agendar']],titulo:id?'Ajustar agendamento':'Agendar Quick Win',descricao:`<b>${esc(c.nome||q.nome)}</b> · versão publicada ${esc(c.versao||q.versao)}. Escolha quando executar e o material.`})}
+    <details class="qw-tarefa-resumo"><summary>Ver o que será executado</summary><p>${esc(c.tarefa||q.para_que_serve||q.nome)}</p>${c.entregas?.length?`<p><b>Resultado esperado:</b> ${c.entregas.map(esc).join(', ')}.</p>`:''}</details>
+    <form id="rotina-form" class="grupo-form qw-rotina-form"><div id="rotina-campos">
+    <section><h3>Quando executar?</h3><div class="duas-col"><div class="campo"><label for="rotina-frequencia">Repetir</label><select id="rotina-frequencia" class="entrada">${[['diaria','Todos os dias'],['semanal','Toda semana'],['mensal','Todo mês']].map(([v,n])=>`<option value="${v}" ${a.frequencia===v?'selected':''}>${n}</option>`).join('')}</select></div><div class="campo"><label for="rotina-hora">Horário</label><input class="entrada" id="rotina-hora" type="time" required value="${esc(a.hora||'08:00')}"></div></div><div class="campo" id="rotina-dia-campo"><label for="rotina-dia">Dia</label><select class="entrada" id="rotina-dia"></select></div><p class="dica" id="rotina-fuso-resumo">Horário de ${esc(nomeFuso(a.fuso))}. Pode alterar em Opções adicionais.</p><p class="dica" id="rotina-mes-aviso" hidden>Todo mês usa dias de 1 a 28, que existem em todos os meses.</p></section>
+    <section><h3>Qual material deve usar?</h3>${materiais}${preparado?`<fieldset class="rotina-material-opcoes"><legend>Escolha o material deste agendamento</legend><label><input type="radio" name="rotina-material" value="texto" ${modoInicial==='texto'?'checked':''}> Repetir o texto que vou informar</label><label><input type="radio" name="rotina-material" value="preparado" ${modoInicial==='preparado'?'checked':''}> Usar os materiais e consultas já preparados neste trabalho</label></fieldset>`:''}<div class="campo" id="rotina-texto-campo"><label for="rotina-entrada">Texto para usar em todas as execuções</label><textarea class="entrada" id="rotina-entrada" rows="3" maxlength="6000" required aria-describedby="rotina-material-ajuda" placeholder="Cole aqui o conteúdo que este trabalho deve analisar.">${esc(modoInicial==='texto'?s?.entrada||'':'')}</textarea><span class="ajuda" id="rotina-material-ajuda">O mesmo texto em todas as execuções; as instruções do Quick Win já estão definidas.</span></div><p id="rotina-preparado-aviso" class="dica" hidden>O trabalho usará somente o que já foi configurado e autorizado. Se faltar informação, a execução será interrompida para você completar.</p>${c.entradas?.length?`<details><summary>Ver o material que este trabalho pede</summary><ul>${c.entradas.map(e=>`<li>${esc(e.rotulo)}${e.quantidade>1?` (${e.quantidade})`:''} · ${e.obrigatoria?'necessário':'opcional'}</li>`).join('')}</ul></details>`:''}<a class="link-sutil" href="#/qw/${qid}/ajustar">Adicionar ou conferir os materiais do Quick Win</a></section>
+    <details id="rotina-opcoes"><summary>Opções adicionais</summary><div class="campo"><label for="rotina-nome">Nome do agendamento</label><input class="entrada" id="rotina-nome" maxlength="80" required value="${esc(s?.nome||q.nome)}"></div>
+    <div class="campo"><label for="rotina-fuso">Fuso horário</label><select class="entrada" id="rotina-fuso">${[['America/Sao_Paulo','Brasília'],['America/Manaus','Manaus'],['America/Rio_Branco','Rio Branco'],['Europe/Lisbon','Lisboa'],['UTC','UTC']].map(([v,n])=>`<option value="${v}" ${a.fuso===v?'selected':''}>${n}</option>`).join('')}</select></div>
+    <div class="campo"><label for="rotina-tipo">Como iniciar</label><select class="entrada" id="rotina-tipo" ${id?'disabled':''}><option value="horario">Em um horário</option><option value="evento" ${s?.tipo==='evento'?'selected':''} ${!d.eventos.length?'disabled':''}>Quando chegar um evento autorizado</option></select><span class="ajuda">Eventos são preparados por quem administra as integrações.</span></div><div id="rotina-evento" class="campo"><label for="rotina-webhook">Evento disponível</label><select class="entrada" id="rotina-webhook">${d.eventos.map(e=>`<option value="${esc(e.id)}" ${s?.webhook_id===e.id?'selected':''}>${esc(e.evento)}</option>`).join('')}</select></div>
+    <div class="duas-col"><div class="campo"><label for="rotina-creditos">Limite de créditos por mês</label><input class="entrada" id="rotina-creditos" type="number" min="1" max="100000" required value="${s?.limite_creditos||100}"></div><div class="campo"><label for="rotina-max">Máximo de execuções por dia</label><input class="entrada" id="rotina-max" type="number" min="1" max="24" required value="${s?.max_dia||1}"></div></div><p class="dica">Os limites do plano e as aprovações continuam valendo. Uma execução já iniciada pode ultrapassar o limite deste agendamento.</p></details>
+    <div class="linha-botoes qw-rotina-barra"><button id="rotina-salvar" class="btn btn-verde">Conferir agendamento</button><a class="btn btn-texto" href="#/qw/${qid}/programacoes">Voltar</a></div></div>
+    <section id="rotina-revisao" hidden><h3>Confira seu agendamento</h3><p id="rotina-resumo"></p><p id="rotina-proxima"></p><p><b>Material</b></p><p id="rotina-material"></p><p id="rotina-limites"></p><p>O resultado ficará em <b>Agendados → ${esc(q.nome)}</b>, na sua conversa privada. Você pode fechar o computador.</p><p class="dica">Usaremos a versão publicada ${esc(c.versao||q.versao)}. Se faltar informação, a execução para. Quando uma nova versão for publicada, este agendamento precisará de revisão.</p><div class="linha-botoes"><button type="button" class="btn btn-verde" id="rotina-ativar">Ativar agendamento</button><button type="button" class="btn btn-linha" id="rotina-voltar">Ajustar</button></div></section>
+    <p id="rotina-erro" class="msg-erro oculto" role="alert" tabindex="-1"></p></form></div></div>`;
+  ligarCabecalho();
+  const dia=()=>{const f=$('rotina-frequencia').value;$('rotina-dia-campo').hidden=f==='diaria';$('rotina-mes-aviso').hidden=f!=='mensal';$('rotina-dia').innerHTML=f==='semanal'?DIAS.map((n,i)=>`<option value="${i}" ${a.dia===i?'selected':''}>${n}</option>`).join(''):Array.from({length:28},(_,i)=>`<option value="${i+1}" ${a.dia===i+1?'selected':''}>Dia ${i+1}</option>`).join('');};
+  const tipo=()=>{$('rotina-frequencia').closest('section').hidden=$('rotina-tipo').value!=='horario';$('rotina-evento').hidden=$('rotina-tipo').value!=='evento';};
+  const modo=()=>document.querySelector('input[name="rotina-material"]:checked')?.value||'texto';
+  const material=()=>{$('rotina-texto-campo').hidden=modo()==='preparado';$('rotina-entrada').required=modo()==='texto';$('rotina-preparado-aviso').hidden=modo()!=='preparado';};
+  dia();tipo();material();$('rotina-frequencia').onchange=dia;$('rotina-tipo').onchange=tipo;
+  document.querySelectorAll('[name="rotina-material"]').forEach(i=>i.onchange=material);
+  $('rotina-fuso').onchange=()=>{$('rotina-fuso-resumo').textContent=`Horário de ${$('rotina-fuso').selectedOptions[0].textContent}. Pode alterar em Opções adicionais.`;};
+  const corpo=()=>({requisicao_id:requisicao,nome:$('rotina-nome').value,tipo:$('rotina-tipo').value,agenda:{frequencia:$('rotina-frequencia').value,hora:$('rotina-hora').value,fuso:$('rotina-fuso').value,dia:Number($('rotina-dia').value)},webhook_id:$('rotina-webhook').value,entrada:modo()==='preparado'?entradaPreparada:$('rotina-entrada').value,limite_creditos:Number($('rotina-creditos').value),max_dia:Number($('rotina-max').value)});
+  const falha=e=>{$('rotina-erro').textContent=e.message;$('rotina-erro').classList.remove('oculto');$('rotina-erro').focus();};
+  $('rotina-form').onsubmit=ev=>{ev.preventDefault();if(!$('rotina-form').reportValidity())return;ocupado($('rotina-salvar'),async()=>{try{
+    const valor=corpo();$('rotina-erro').classList.add('oculto');
+    previa=valor.tipo==='horario'?await api(`/api/quick-wins/${qid}/programacoes/previa`,{metodo:'POST',corpo:{agenda:valor.agenda}}):null;
+    $('rotina-resumo').textContent=`${valor.nome}: ${quando(valor)}.`;$('rotina-proxima').textContent=previa?`Próxima execução: ${data(previa.proxima_em,valor.agenda.fuso)}.`:'A execução começa quando chegar o evento autorizado.';
+    $('rotina-material').textContent=modo()==='preparado'?'Materiais e consultas já preparados neste Quick Win. Materiais salvos não se atualizam sozinhos.':`Mesmo texto em todas as execuções: ${valor.entrada}`;
+    $('rotina-limites').textContent=`Até ${valor.max_dia} ${valor.max_dia===1?'execução':'execuções'} por dia e ${valor.limite_creditos} créditos no mês. Responsável: ${E.eu.nome||'você'}. Uma execução iniciada pode ultrapassar o limite.`;
+    $('rotina-campos').hidden=true;$('rotina-revisao').hidden=false;$('rotina-ativar').focus();
+  }catch(e){falha(e);}});};
+  $('rotina-voltar').onclick=()=>{salvaId=null;$('rotina-campos').hidden=false;$('rotina-revisao').hidden=true;$('rotina-salvar').focus();};
+  $('rotina-ativar').onclick=()=>ocupado($('rotina-ativar'),async()=>{try{
+    $('rotina-erro').classList.add('oculto');
+    if(!salvaId){const salva=await api(`/api/quick-wins/${qid}/programacoes${(id||criadaId)?'/'+(id||criadaId):''}`,{metodo:(id||criadaId)?'PATCH':'POST',corpo:corpo()});salvaId=salva.id;criadaId=salva.id;}
+    await api(`/api/quick-wins/${qid}/programacoes/${salvaId}/estado`,{metodo:'POST',corpo:{ativa:true}});
+    toast('Agendamento ativado. Confira a próxima execução e acompanhe o resultado em Agendados.');location.hash=`#/qw/${qid}/programacoes`;
+  }catch(e){falha({message:(salvaId?'O agendamento foi salvo, mas ainda está pausado. Tente ativar novamente. ':'Não foi possível concluir a ativação. Seus dados foram mantidos. ')+e.message});}});
+}

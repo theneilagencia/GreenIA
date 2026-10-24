@@ -1,0 +1,345 @@
+{
+  "resultados": [
+    {
+      "escopo": "app",
+      "rota": "nova",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 141,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 3,
+      "semNomeQuantidade": 5,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 30,
+          "largura": 217
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 22,
+          "largura": 182
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/marca",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 236,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 2,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 21,
+          "largura": 272
+        },
+        {
+          "altura": 21,
+          "largura": 272
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/landing",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 223,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 6,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 53,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 21,
+          "largura": 272
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_27e4840a5e034bbcbafa",
+      "width": 1280,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 150,
+        "altura": 26,
+        "linha": 26
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 17,
+          "largura": 313
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "nova",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 47,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 5,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 20,
+          "largura": 34
+        },
+        {
+          "altura": 22,
+          "largura": 182
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/marca",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 70,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 2,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/landing",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 85,
+        "altura": 70,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 5,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 53,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_27e4840a5e034bbcbafa",
+      "width": 390,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 2,
+        "altura": 351,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 17,
+          "largura": 313
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "nova",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 281,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 2,
+      "semNomeQuantidade": 5,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 20,
+          "largura": 34
+        },
+        {
+          "altura": 22,
+          "largura": 182
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/marca",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 444,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 0,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 2,
+      "alvosPequenosMedidas": []
+    },
+    {
+      "escopo": "app",
+      "rota": "empresa/landing",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 15,
+        "altura": 468,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 5,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 53,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        },
+        {
+          "altura": 20,
+          "largura": 36
+        }
+      ]
+    },
+    {
+      "escopo": "app",
+      "rota": "integracoes/c/con_27e4840a5e034bbcbafa",
+      "width": 320,
+      "redePendente": false,
+      "tituloMedidas": {
+        "largura": 0,
+        "altura": 351,
+        "linha": 23.4
+      },
+      "overflow": 0,
+      "erroTela": false,
+      "foraQuantidade": 0,
+      "pequenosQuantidade": 1,
+      "semNomeQuantidade": 0,
+      "semRotuloQuantidade": 0,
+      "alvosPequenosMedidas": [
+        {
+          "altura": 17,
+          "largura": 313
+        }
+      ]
+    }
+  ],
+  "errosQuantidade": 0,
+  "pedidosQuantidade": 0,
+  "publicacao": "Somente rotas e medições. Textos de tela, URLs de execução, valores e identidades omitidos."
+}

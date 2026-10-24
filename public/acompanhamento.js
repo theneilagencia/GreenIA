@@ -1,0 +1,23 @@
+import { api,esc,ICONE } from '/comum.js';
+import { cabecalho,ligarCabecalho,pode } from '/app.js';
+import { ligarVisao } from '/preferencias.js';
+const tipos={conhecimento:'Conhecimento',acessos:'Acessos',quickwin:'Quick Wins',integracao:'Integrações',aprovacao:'Aprovações',problema:'Relatos',governanca:'Governança'};
+const pagina=(titulo,html)=>{document.getElementById('principal').innerHTML=`${cabecalho(titulo)}<div class="pagina"><div class="pagina-dentro acompanhamento">${html}</div></div>`;ligarCabecalho();};
+export async function vistaAcompanhamento() {
+ const d=await api('/api/acompanhamento');
+ const podePreparar=['company.manage','usage.read','models.manage','user.read','policy.manage','settings.manage','integrations.manage','integrations.approve'].some(pode);
+ // Pendências (caminho claro): uma linha de propósito, a primeira pendência como ação principal, busca só com lista e
+ // os filtros atrás de "Filtrar". A troca para "Preparar o ambiente" só aparece quando há outra visão para escolher.
+ const vazia=!d.pendencias.length;
+ const trocar=`<nav class="segmentos conhecimento-vistas" aria-label="Acompanhamento"><a class="segmento" href="#/pendencias" aria-current="page">Pendências</a><a class="segmento" href="#/visao-geral?passos=1">Preparar o ambiente</a></nav>`;
+ pagina('Pendências',`<div class="caminho-topo"><p class="caminho-proposito">O que pede a sua atenção agora, dentro das suas permissões.</p></div>${podePreparar?trocar:''}<div class="pend-ferramentas"${vazia?' hidden':''}><div class="caminho-busca"><label class="caminho-busca-campo">${ICONE.busca}<span class="sr">Encontrar pendência</span><input class="entrada" type="search" id="pend-busca" placeholder="Buscar por documento ou tarefa" autocomplete="off"></label><button type="button" class="btn btn-linha" id="pend-filtrar" aria-expanded="false" aria-controls="pend-filtros">Filtrar<span class="caminho-contador" id="pend-filtros-ativos"></span></button></div><div class="filtros-biblioteca caminho-filtros" id="pend-filtros" hidden><div class="campo"><label for="pend-tipo">Assunto</label><select class="entrada" id="pend-tipo"><option value="">Todos</option>${Object.entries(tipos).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div><div id="pend-visoes"></div></div><div class="conhecimento-resultados"><p class="dica" id="pend-contagem" role="status"></p><button class="btn-texto" type="button" id="pend-atualizar">Atualizar</button></div></div><ul class="acomp-lista" id="pend-lista"></ul>${d.avisos?.length ? `<details class="bloco-extra"><summary>Registros recentes para consultar (${d.avisos.length})</summary>${d.avisos.map(a=>`<p>${esc(a.texto)} <a href="${esc(a.href)}">Consultar atividade</a></p>`).join('')}</details>` : ''}<p class="dica">Atualizado em ${new Date(d.atualizado_em).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}.</p>`);
+ const $=id=>document.getElementById(id),normal=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();let limite=20;
+ const desenhar=()=>{const filtro=d.pendencias.filter(p=>(!$('pend-tipo').value||p.tipo===$('pend-tipo').value)&&normal(p.titulo+' '+p.texto).includes(normal($('pend-busca').value)));
+ $('pend-contagem').textContent=vazia?'':`${filtro.length} ${filtro.length===1?'pendência':'pendências'} nesta consulta`;
+ $('pend-filtros-ativos').textContent=$('pend-tipo').value?' (1)':'';
+ $('pend-lista').innerHTML=vazia?'<li><div><h2>Nenhuma pendência no momento</h2><p>Quando algo pedir sua atenção, aparece aqui.</p></div><a class="btn btn-linha" href="#/nova">Ir para Nova conversa</a></li>':filtro.length?filtro.slice(0,limite).map((p,i)=>`<li><div><span class="dica">${esc(tipos[p.tipo]||p.tipo)}</span><h2>${esc(p.titulo)}</h2><p>${esc(p.texto)}</p></div><a class="btn ${i?'btn-linha':'btn-verde'}" href="${esc(p.href)}">Ver e resolver</a></li>`).join('')+(filtro.length>limite?'<li><button class="btn btn-linha" id="pend-mais">Mostrar mais</button></li>':''):'<li><div><h2>Nenhuma pendência nesta consulta</h2><p>Confira outro assunto ou atualize depois de uma mudança.</p></div></li>';
+ if($('pend-mais'))$('pend-mais').onclick=()=>{limite+=20;desenhar();};};
+ $('pend-busca').oninput=$('pend-tipo').onchange=()=>{limite=20;desenhar();};$('pend-atualizar').onclick=()=>vistaAcompanhamento();
+ $('pend-filtrar').onclick=()=>{const abrir=$('pend-filtros').hidden;$('pend-filtros').hidden=!abrir;$('pend-filtrar').setAttribute('aria-expanded',String(abrir));};
+ if(!vazia)ligarVisao('pendencias',$('pend-visoes'),()=>({busca:$('pend-busca').value,tipo:$('pend-tipo').value}),v=>{$('pend-busca').value=String(v.busca||'');$('pend-tipo').value=String(v.tipo||'');desenhar();});desenhar();
+}

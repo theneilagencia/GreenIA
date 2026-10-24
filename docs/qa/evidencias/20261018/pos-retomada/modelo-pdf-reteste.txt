@@ -1,0 +1,10 @@
+✔ rede de segurança: resposta em roteiro "Slide 1, 2, 3" numa conversa com PDF de apresentação vira o arquivo no layout do PDF (1789.226822ms)
+✔ correção pedida no chat edita a última versão da apresentação; "não aplicou o meu pedido" reaplica o pedido anterior (1528.906765ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3682.720643

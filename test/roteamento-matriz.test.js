@@ -87,11 +87,11 @@ test('7. a preferência muda a decisão quando há alternativas equivalentes, e 
   const escolha = (id, p) => rodarCaso(caso(id), { preferencia: p }).rota;
   // Economia: o mais barato que atende. Equilíbrio: o padrão curado da classe, se custa até ~2x.
   assert.equal(escolha('C', 'economia').modelo.id, 'x/avancado-curto');
-  assert.equal(escolha('C', 'equilibrio').modelo.id, 'x/avancado-curto');
-  assert.equal(escolha('C', 'equilibrio').motivoEscolha, 'menor_custo');
+  assert.equal(escolha('C', 'equilibrio').modelo.id, 'anthropic/claude-sonnet-5');
+  assert.equal(escolha('C', 'equilibrio').motivoEscolha, 'padrao_da_classe');
   // Qualidade: uma classe de margem em tarefa que não é simples.
   assert.equal(escolha('O', 'equilibrio').modelo.perfil, 'equilibrado');
-  assert.equal(escolha('O', 'qualidade').modelo.perfil, 'equilibrado');
+  assert.equal(escolha('O', 'qualidade').modelo.perfil, 'avancado');
   assert.ok(escolha('O', 'qualidade').calibracao);
   // Sem justificativa técnica, as três preferências dão o mesmo resultado (não compra margem para traduzir).
   for (const id of ['A', 'B', 'H']) assert.equal(new Set(PREFS.map(p => escolha(id, p).modelo.id)).size, 1, id);
@@ -147,7 +147,7 @@ test('10. mudança de configuração da empresa altera o conjunto de candidatos 
   // Trocar o padrão da classe muda o desempate do Equilíbrio.
   exec(db, "update modelos set liberado = 1 where id = 'anthropic/claude-sonnet-5'");
   salvarConfig(db, { padroes: { ...lerConfig(db).padroes, avancado: 'x/avancado-curto' } });
-  assert.equal(rodarCaso(caso('C'), { db }).rota.modelo.id, 'anthropic/claude-sonnet-5', 'padrão não compra capacidade equivalente mais cara');
+  assert.equal(rodarCaso(caso('C'), { db }).rota.modelo.id, 'x/avancado-curto', 'o padrão configurado participa da utilidade; o custo continua ponderado');
 });
 
 test('11. o motivo exibido corresponde à decisão real', () => {

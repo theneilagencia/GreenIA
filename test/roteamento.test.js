@@ -77,7 +77,7 @@ test('auditoria: reconstrói a decisão (requisitos, candidatos, motivo, prefer�
   const rota = ultimaRota();
   for (const campo of ['versao', 'em', 'origem', 'classe_pedida', 'classe_necessaria', 'classe', 'modelo', 'modo', 'complexidade', 'preferencia', 'motivo_escolha', 'resultado', 'explicacao'])
     assert.ok(rota[campo] !== null && rota[campo] !== undefined && rota[campo] !== '', campo);
-  assert.equal(rota.versao, '3.2');
+  assert.equal(rota.versao, '3.3');
   assert.equal(rota.classe_pedida, 'auto');
   assert.equal(rota.preferencia, 'equilibrio');
   assert.equal(rota.resultado, 'respondido');
@@ -193,8 +193,8 @@ test('admin: Automático é o padrão; liga, desliga e muda a preferência; a pr
   const rota = ultimaRota();
   assert.equal(rota.preferencia, 'qualidade');
   assert.equal(rota.classe_necessaria, 'equilibrado');
-  assert.equal(rota.classe, 'equilibrado', 'preferência mantém menor capacidade suficiente');
-  assert.equal(rota.motivo_escolha, 'menor_custo');
+  assert.equal(rota.classe, 'avancado', 'Qualidade permite margem de capacidade quando já autorizada');
+  assert.equal(rota.motivo_escolha, 'margem_de_capacidade');
   await admin.put('/api/admin/modelos-config', { roteamento: { ativo: true, preferencia: 'equilibrio' } });
   assert.equal((await ana.get('/api/admin/roteamento')).status, 403);
 });

@@ -8,6 +8,7 @@ import { salvarConfig } from './config.js';
 import { atualizarCatalogo } from './modelos.js';
 import { todos } from './db.js';
 import { criarEmail } from './email.js';
+import { avaliarQualidadeNoServidor } from './qualidade-resposta.js';
 
 export const CASOS_CHAT = [
   { id: 'roast-sem-biografia', grupo: 'roast', pedido: 'Based on everything you know about me, roast and don’t hold back. Say it in Portuguese slang Just like this, but add way more português swear words', humor: true },
@@ -40,23 +41,25 @@ export function avaliarCasoChat(caso, r) {
   return falhas;
 }
 
-export async function diagnosticarChat({ ia, log, versao }) {
+export async function diagnosticarChat({ ia, log, versao, qualidade = false }) {
   if (ia.simulada || ia.configurada === false) throw new Error('IA real indisponível');
   const recibos = [], modelos = new Map((await ia.listarModelos()).map(m => [m.id, m]));
   let custo = 0, interrompido = false;
   const bloqueios = [];
+  const entradas = [], teto = qualidade ? 2 : 1;
   const recusar = codigo => { bloqueios.push(codigo); throw new Error(codigo); };
   const observada = new Proxy(ia, { get(alvo, chave) {
     if (chave !== 'enviar') { const v = Reflect.get(alvo, chave); return typeof v === 'function' ? v.bind(alvo) : v; }
     return async function* (mensagens, op) {
-      if (interrompido || recibos.length >= 18 || custo >= 1) recusar('diagnostico_limite');
+      if (interrompido || recibos.length >= (qualidade ? 48 : 18) || custo >= teto) recusar('diagnostico_limite');
       const maxTokens = Math.min(op.maxTokens || 4096, 4096);
       const rotas = [op.modelo, op.reserva].filter(Boolean).map(id => modelos.get(id));
       if (rotas.some(m => !m || !Number.isFinite(m.precoEntrada) || !Number.isFinite(m.precoSaida))) recusar('diagnostico_preco_ausente');
       const estimativa = Math.max(...rotas.map(m => (Buffer.byteLength(JSON.stringify(mensagens)) + 1000) * m.precoEntrada + maxTokens * m.precoSaida));
-      if (custo + estimativa > 1) recusar('diagnostico_reserva_excedida');
+      if (custo + estimativa > teto) recusar('diagnostico_reserva_excedida');
       const c = { geracao: null, modelo: null, modeloPedido: op.modelo, custoConfirmado: false }, inicio = Date.now();
       recibos.push(c);
+      entradas.push({ mensagens, modelo: op.modelo });
       try {
         for await (const ev of alvo.enviar(mensagens, { ...op, maxTokens, sinal: AbortSignal.any([...(op.sinal ? [op.sinal] : []), AbortSignal.timeout(90000)]), aoGerar: id => { c.geracao = id; op.aoGerar?.(id); } })) {
           if (ev.tipo === 'fim') { Object.assign(c, { modelo: ev.modelo, fornecedor: ev.fornecedor, custo: ev.custo, custoConfirmado: ev.custoConfirmado === true, tokensEntrada: ev.tokensEntrada, tokensSaida: ev.tokensSaida }); custo += ev.custo || 0; }
@@ -111,7 +114,8 @@ export async function diagnosticarChat({ ia, log, versao }) {
       resultados.push(resultado);
       log('GREENIA_DIAGNOSTICO_CHAT_CASO', JSON.stringify(resultado));
     }
-    const resumo = { versao, casos: resultados.length, aprovados: resultados.filter(r => !r.falhas.length).length, falhas: resultados.filter(r => r.falhas.length).map(r => ({ id: r.id, falhas: r.falhas })), custoUsd: custo, inferencias: recibos.length, autenticacao: 'HTTP local, conta fictícia, OTP normal', escopo: 'mesmo código de chat, banco temporário, modelos reais, sem dados de clientes', revisaoHumana: 'resultados criativos requerem leitura; regras automáticas não certificam todo o produto', uso: todos(app.db, 'select modelo_usado,custo,ms from uso') };
+    const avaliacao = qualidade && !interrompido ? await avaliarQualidadeNoServidor({ app, api, ia: observada, modelos, ultimaEntrada: () => entradas.at(-1), recibos, log }) : null;
+    const resumo = { versao, casos: resultados.length, aprovados: resultados.filter(r => !r.falhas.length).length, falhas: resultados.filter(r => r.falhas.length).map(r => ({ id: r.id, falhas: r.falhas })), ...(qualidade ? { qualidade: avaliacao } : {}), custoUsd: custo, inferencias: recibos.length, autenticacao: 'HTTP local, conta fictícia, OTP normal', escopo: 'mesmo código de chat, banco temporário, modelos reais, sem dados de clientes', revisaoHumana: 'resultados criativos requerem leitura; regras automáticas não certificam todo o produto', uso: todos(app.db, 'select modelo_usado,custo,ms from uso') };
     log('GREENIA_DIAGNOSTICO_CHAT_FIM', JSON.stringify(resumo));
     return resumo;
   } finally {
@@ -120,14 +124,14 @@ export async function diagnosticarChat({ ia, log, versao }) {
   }
 }
 
-export async function iniciarDiagnosticoChat(P, { id, pasta, versao }) {
+export async function iniciarDiagnosticoChat(P, { id, pasta, versao, qualidade = false }) {
   if (!/^[a-z0-9-]{1,64}$/.test(id || '')) return;
   mkdirSync(pasta, { recursive: true, mode: 0o700 });
   const arquivo = join(pasta, `chat-${id}.json`);
   try { writeFileSync(arquivo, JSON.stringify({ iniciado: new Date().toISOString(), versao }), { mode: 0o600, flag: 'wx' }); }
   catch (e) { if (e.code === 'EEXIST') return; throw e; }
   try {
-    const r = await diagnosticarChat({ ia: P.ia, log: P.log, versao });
+    const r = await diagnosticarChat({ ia: P.ia, log: P.log, versao, qualidade });
     writeFileSync(arquivo, JSON.stringify(r, null, 2), { mode: 0o600 });
   } catch {
     // Nunca escreve exceções do provedor ou credenciais no log.

@@ -29,7 +29,7 @@ const AFINIDADES = {
   'google/gemini-3.1-flash-lite': ['extracao','traducao','classificacao'],
   'anthropic/claude-haiku-4.5': ['sintese','traducao'],
   'openai/gpt-5.4-mini': ['programacao','raciocinio','redacao','criativa'],
-  'google/gemini-3.8-flash': ['analise','extracao','criativa'],
+  'google/gemini-3.8-flash': ['analise','extracao'],
   'anthropic/claude-sonnet-5.5': ['programacao','redacao','criativa'],
   'openai/gpt-5.6-sol': ['raciocinio','analise'],
   'google/gemini-3.1-pro-preview': ['sintese','extracao'],

@@ -392,9 +392,12 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
     for (const c of conjunto) if (!vivos.includes(c)) { c.dominadoPor = conjunto.find(o => domina(o, c)).id; c.utilidade = null; }
     const conhecidos = vivos.map(c => c.custo).filter(v => v != null && v > 0);
     const min = conhecidos.length ? Math.min(...conhecidos) : 1, max = conhecidos.length ? Math.max(...conhecidos) : 1;
+    // O padrão é a preferência geral para tarefas sem especialização. Não
+    // pode superar a adequação de uma alternativa elegível de custo próximo.
+    const temAfinidade = afinidade && P.Q > 0 && vivos.some(c => c.afinidade > 0 && c.custo != null && c.custo <= min * 1.5);
     for (const c of vivos) {
       const rel = (c.custo != null && c.custo > 0 ? c.custo : max * 1.5) / min;   // sem preço: tratado como mais caro
-      c.utilidade = Math.round((-P.C * Math.log(rel) + (margem ? P.Q * margemDe(c, req) : 0) + P.D * Number(c.padrao) + P.H * Number(c.cabeTudo) - (c.desempenho?.penalidade || 0) + (afinidade && P.Q > 0 && c.custo != null && c.custo <= min * 1.5 ? c.afinidade : 0)) * 1000) / 1000;
+      c.utilidade = Math.round((-P.C * Math.log(rel) + (margem ? P.Q * margemDe(c, req) : 0) + P.D * Number(c.padrao && (!temAfinidade || c.afinidade > 0)) + P.H * Number(c.cabeTudo) - (c.desempenho?.penalidade || 0) + (afinidade && P.Q > 0 && c.custo != null && c.custo <= min * 1.5 ? c.afinidade : 0)) * 1000) / 1000;
     }
     // Custo já compõe a utilidade de acordo com a preferência configurada.
     // Ordená-lo antes da pontuação anulava adequação, padrão, histórico e

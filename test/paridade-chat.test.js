@@ -41,12 +41,12 @@ const nova = async () => (await ana.post('/api/conversas', {})).dados.conversa;
 const abrirZip = b => { const out = {}; let i = 0; while (b.readUInt32LE(i) === 0x04034b50) { const comp = b.readUInt32LE(i + 18), n = b.readUInt16LE(i + 26), ex = b.readUInt16LE(i + 28); const nome = b.toString('utf8', i + 30, i + 30 + n); const d = b.subarray(i + 30 + n + ex, i + 30 + n + ex + comp); out[nome] = (b.readUInt16LE(i + 8) === 8 ? inflateRawSync(d) : d).toString('utf8'); i += 30 + n + ex + comp; } return out; };
 const imagens = () => OR.chamadas.filter(b => b.modalities?.includes('image'));
 
-test('a resposta confirma o entendimento no início e explica o trabalho no fim; números pedidos e anexo novo valem', async () => {
+test('a conversa entrega diretamente; números pedidos e anexo novo valem', async () => {
   const conv = await nova();
   await enviarMensagem(ana, conv.id, { texto: 'Faça um resumo deste assunto.' });
   const sis = texto(OR.chamadas.at(-1).messages[0].content);
-  assert.match(sis, /comece com uma ou duas frases dizendo o que você entendeu/);
-  assert.match(sis, /## O que foi feito/);
+  assert.match(sis, /não as use como formato obrigatório/);
+  assert.match(sis, /Entregue diretamente o que foi pedido/);
   assert.match(sis, /Cumpra exatamente os números/);
   assert.match(sis, /esse arquivo é a base do trabalho/);
   assert.match(sis, /Hoje é .+ \(horário de Brasília\)\. .*não pergunte a data/, 'a data de hoje vai junto (sem ela a execução programada perguntava a data)');

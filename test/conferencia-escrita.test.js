@@ -43,20 +43,15 @@ before(async () => {
 });
 after(async () => { await S.fechar(); await OR.fechar(); });
 
-test('conversa: a versão final sem vícios substitui a mostrada ao vivo e é a que fica guardada', async () => {
+test('conversa livre preserva a saída do modelo sem reescrita editorial posterior', async () => {
   const conv = (await ana.post('/api/conversas', {})).dados.conversa;
+  const inicio = OR.chamadas.length;
   const r = await enviarMensagem(ana, conv.id, { texto: 'Quanto tempo leva o fechamento hoje e qual a meta?' });
   assert.equal(r.status, 200, JSON.stringify(r.erro));
-  const sub = r.eventos.find(e => e.t === 'substituir');
-  assert.ok(sub, 'evento de substituição enviado');
-  assert.equal(sub.v, 'O fechamento leva 18 dias. Com o painel, a meta é o 5º dia útil e o ganho é concreto.');
-  assert.deepEqual(viciosDeEscrita(sub.v), []);
+  assert.ok(!r.eventos.some(e => e.t === 'substituir'));
   const guardada = um(S.app.db, "select texto from mensagens where conversa_id = ? and papel = 'assistant' order by id desc limit 1", conv.id);
-  assert.equal(guardada.texto, sub.v);
-  const rev = OR.chamadas.find(b => JSON.stringify(b.messages[0]).includes(REVISA));
-  const exec = OR.chamadas.find(b => !JSON.stringify(b.messages[0]).includes(REVISA));
-  assert.deepEqual(rev.provider, exec.provider, 'mesma rota de privacidade da resposta');
-  assert.match(rev.messages[0].content, /Corrija SOMENTE os trechos com estes vícios: "não é apenas X, é Y"/);
+  assert.equal(guardada.texto, r.texto);
+  assert.equal(OR.chamadas.length - inicio, 1, 'sem chamada adicional de revisão');
 });
 
 test('email redigido com "Fico à disposição" antes da assinatura não é vício; revisão que troca o texto não vale', async () => {

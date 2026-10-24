@@ -44,6 +44,7 @@ import { rotasEncerramentoEmpresa, migrarCanceladas, paginaDevolucao, entregarDe
 import { migrarContatosAntigos, registrarFormulario } from './contatos.js';
 import { randomUUID } from 'node:crypto';
 import { validarPublicacao, empresaNaPublicacao } from '../publicacao-controlada.js';
+import { rotasCompraStripe } from './stripe-compra.js';
 import { configurarStripe, rotasStripe, receberWebhookStripe } from './stripe-pagamentos.js';
 import { situacaoDireitosStripe } from './stripe-direitos.js';
 import { vigente, aplicarPlanoAgendado } from './faturamento.js';
@@ -51,7 +52,7 @@ import { vigente, aplicarPlanoAgendado } from './faturamento.js';
 const RAIZ = fileURLToPath(new URL('../..', import.meta.url));
 const PUBLICO = join(RAIZ, 'public');
 const PAGINAS_EMPRESA = { '/': 'index.html', '/entrar': 'entrar.html', '/app': 'app.html', '/politica': 'politica.html', '/encerramento': 'encerramento.html' };
-const PAGINAS_EMPRESA_ARQUIVOS = new Set(Object.values(PAGINAS_EMPRESA));
+const PAGINAS_EMPRESA_ARQUIVOS = new Set([...Object.values(PAGINAS_EMPRESA), 'planos.html']);
 const DOCUMENTOS_LEGAIS = { '/termos': '/termos', '/termos.html': '/termos', '/privacidade': '/privacidade', '/privacidade.html': '/privacidade' };
 const ICONE_PADRAO = '/assets/ia-neutro.svg';   // empresa sem ícone próprio: ícone neutro (white label)
 
@@ -151,6 +152,7 @@ export function criarPlataforma(op = {}) {
   rotasPublicoEmpresa(P, rEmp);
   rotasEncerramentoEmpresa(P, rEmp);
   rotasEmpresa(P, rEmp);
+  rotasCompraStripe(P, rEmp);
   P.servidor = createServer((req, res) => tratar(P, rPlat, rEmp, req, res));
   return P;
 }

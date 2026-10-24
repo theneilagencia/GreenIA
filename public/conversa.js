@@ -1,3 +1,4 @@
+import { conferirCapacidade, recuperarPedido } from '/creditos-redirecionamento.js';
 import { painelAdvancedChat } from '/advanced.js';
 import { eventosDaResposta } from '/fluxo-resposta.js';
 import { dialogo, ligarAcoesConversas } from '/historico-conversas.js';
@@ -48,6 +49,9 @@ export async function vistaConversa({ id = null, qw = null, teste = false, envia
   }
   await carregarModelos();
   if (C !== estado) return;
+  const recuperado=await recuperarPedido();
+  if (C !== estado) return;
+  if(recuperado){C.textoRetomado=recuperado.texto;C.anexos=recuperado.anexos || [];}
   if (materialEmRevisao?.conversa === id && materialEmRevisao.pessoa === E.eu?.email) {
     C.anexos = materialEmRevisao.anexos;
     C.textoRetomado = materialEmRevisao.texto;
@@ -715,6 +719,7 @@ async function enviar(reenvio = null, { executar = false } = {}) {
   if (r.ok && $('resultado-vinculo')) $('resultado-vinculo').value='nao_classificado';
   if (!r.ok) {
     const d = await r.json().catch(() => ({}));
+    if(d.erro==='plano_esgotado') await conferirCapacidade({rascunho:{texto,anexos}});
     C.pensando = false;
     if (r.status === 428) {
       // A política mudou: registra ciência e reenvia.
@@ -780,6 +785,7 @@ async function receberResposta(r, { manterErro = false } = {}) {
   // pedido, como se estivesse travada).
   if (resposta.erro && $('coluna')) { C.mensagens.push({ ...resposta, id: 'er' + Date.now() }); desenharMensagens(); }
   recarregarLateral();
+  await conferirCapacidade();
 }
 
 // "Gerar de novo" (QA UX M13): o servidor refaz a última resposta pelo mesmo caminho do envio (mesmas regras,

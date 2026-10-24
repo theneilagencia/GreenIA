@@ -453,3 +453,99 @@ test('endpoint HTTP de produção processa evento live assinado e rejeita evento
     assert.equal(um(s.P.db,'select count(*) n from stripe_pendencias').n,1);
   }finally{await s.fechar();}
 });
+
+async function comprador(s,email='ana@empresa-a.com') {
+  const n=s.navegador();await n.get('/empresa-a');
+  assert.equal((await n.entrarEmpresa(email)).status,200);
+  return n;
+}
+test('autosserviço exige sessão, CSRF e permissão financeira; visita e cotação não chamam Stripe',async()=>{
+  const s=await ambiente();try{
+    const anon=s.navegador();await anon.get('/empresa-a');
+    assert.equal((await anon.get('/api/contratacao')).status,401);
+    const n=await comprador(s),antes=s.falso.chamadas.length;
+    const contexto=await n.get('/api/contratacao');assert.equal(contexto.dados.permitido,true);
+    assert.equal((await n.post('/api/contratacao/cotacao',{produto:'starter',moeda:'usd'},{'x-csrf':'errado'})).status,403);
+    const q=await n.post('/api/contratacao/cotacao',{produto:'starter',moeda:'brl',total:1,empresa:'outra'});
+    assert.equal(q.status,200,JSON.stringify(q.dados));assert.equal(q.dados.total,99500);
+    assert.equal(s.falso.chamadas.length,antes);
+    assert.equal((await n.post('/api/contratacao/checkout',{pedido:q.dados.pedido})).status,400);
+    const role=um(s.P.db,"select id from roles where key='member'");
+    exec(s.P.db,'update company_users set role_id=? where company_id=?',role.id,s.A.id);
+    assert.equal((await n.get('/api/contratacao')).dados.permitido,false);
+    assert.equal((await n.post('/api/contratacao/cotacao',{produto:'starter',moeda:'usd'})).status,403);
+    assert.equal((await n.post('/api/contratacao/checkout',{pedido:q.dados.pedido,confirmar:true})).status,403);
+    assert.equal(s.falso.chamadas.length,antes);
+  }finally{await s.fechar();}
+});
+test('autosserviço fixa cotação BRL, usa retorno da página e repete Checkout sem duplicar',async()=>{
+  const s=await ambiente();try{
+    const n=await comprador(s),q=(await n.post('/api/contratacao/cotacao',{produto:'team',moeda:'brl'})).dados;
+    const antes=um(s.P.db,'select plan_id from companies where id=?',s.A.id).plan_id;
+    const corpo={pedido:q.pedido,confirmar:true,empresa:'outra',total:1,retorno:'https://malicioso.test'};
+    const r=await n.post('/api/contratacao/checkout',corpo);assert.equal(r.status,200,JSON.stringify(r.dados));
+    assert.equal(r.dados.snapshot.total,199500);assert.equal(um(s.P.db,'select plan_id from companies where id=?',s.A.id).plan_id,antes);
+    const sessao=s.falso.chamadas.find(c=>c.path==='/v1/checkout/sessions');
+    assert.match(sessao.dados.success_url,/\/planos\.html\?pedido=web_/);assert.doesNotMatch(sessao.dados.success_url,/malicioso/);
+    assert.equal(sessao.dados.mode,'payment');
+    const repetido=await n.post('/api/contratacao/checkout',corpo);assert.equal(repetido.dados.url,r.dados.url);
+    assert.equal(s.falso.chamadas.filter(c=>c.path==='/v1/checkout/sessions').length,1);
+    assert.equal(todos(s.P.db,'select * from stripe_pagamentos').length,0);
+  }finally{await s.fechar();}
+});
+test('autosserviço recusa proposta de outra empresa, expirada e catálogo divergente',async()=>{
+  const s=await ambiente();try{
+    const n=await comprador(s),q=(await n.post('/api/contratacao/cotacao',{produto:'starter',moeda:'usd'})).dados;
+    const B=await s.criar('Empresa B','empresa-b');
+    const b=s.navegador();await b.get('/empresa-b');await b.entrarEmpresa('ana@empresa-b.com');
+    assert.equal((await b.post('/api/contratacao/checkout',{pedido:q.pedido,confirmar:true})).status,404);
+    exec(s.P.db,"update stripe_propostas set expira='2020-01-01' where id=?",q.pedido);
+    assert.equal((await n.post('/api/contratacao/checkout',{pedido:q.pedido,confirmar:true})).dados.erro,'cotacao_expirada');
+    exec(s.P.db,"update plans set price_usd=1 where name='GreenIA Team'");
+    assert.equal((await n.post('/api/contratacao/cotacao',{produto:'team',moeda:'usd'})).dados.erro,'stripe_catalogo');
+    assert.equal(s.falso.chamadas.length,0);
+  }finally{await s.fechar();}
+});
+test('autosserviço exige consentimento para habilitar Stripe em contrato externo e preserva obrigações',async()=>{
+  const s=await ambiente();try{
+    await s.ops.put(`/api/plataforma/empresas/${s.A.id}/faturamento`,{forma:'externa'});
+    const n=await comprador(s),q=(await n.post('/api/contratacao/cotacao',{produto:'starter',moeda:'usd'})).dados;
+    assert.equal((await n.get('/api/contratacao')).dados.forma,'externa');
+    assert.equal((await n.post('/api/contratacao/checkout',{pedido:q.pedido})).status,400);
+    assert.equal((await n.get('/api/contratacao')).dados.forma,'externa');
+    assert.equal((await n.post('/api/contratacao/checkout',{pedido:q.pedido,confirmar:true})).status,200);
+    assert.equal((await n.get('/api/contratacao')).dados.forma,'stripe');
+    const q2=(await n.post('/api/contratacao/cotacao',{produto:'team',moeda:'usd'})).dados;
+    assert.equal((await n.post('/api/contratacao/checkout',{pedido:q2.pedido,confirmar:true})).dados.erro,'stripe_existente');
+    assert.equal(s.falso.chamadas.filter(c=>c.path==='/v1/checkout/sessions').length,1);
+  }finally{await s.fechar();}
+});
+test('novo plano só é atribuído após pagamento canônico e replay não duplica franquia',async()=>{
+  const s=await ambiente();try{
+    const n=await comprador(s),q=(await n.post('/api/contratacao/cotacao',{produto:'team',moeda:'brl'})).dados;
+    await n.post('/api/contratacao/checkout',{pedido:q.pedido,confirmar:true});
+    const p=um(s.P.db,'select * from stripe_pedidos where id=?',q.pedido);
+    assert.equal(um(s.P.db,'select name from plans where id=(select plan_id from companies where id=?)',s.A.id).name,'GreenIA Starter');
+    pagarCheckout(s,p.remoto);const e=evento('planoweb','checkout.session.completed',p.remoto);
+    await processarEventoStripe(s.P,e);await processarEventoStripe(s.P,e);
+    assert.equal(um(s.P.db,'select name from plans where id=(select plan_id from companies where id=?)',s.A.id).name,'GreenIA Team');
+    assert.equal(todos(s.P.tenant(s.A.id).db,'select * from stripe_periodos').length,1);
+    assert.equal((await n.get('/api/contratacao')).dados.pedidos[0].estado,'pago');
+  }finally{await s.fechar();}
+});
+test('autosserviço não sobrepõe assinatura USD a período BRL pago e continua permitindo pacote',async()=>{
+  const s=await ambiente();try{
+    const n=await comprador(s),q=(await n.post('/api/contratacao/cotacao',{produto:'starter',moeda:'brl'})).dados;
+    await n.post('/api/contratacao/checkout',{pedido:q.pedido,confirmar:true});
+    const p=um(s.P.db,'select * from stripe_pedidos where id=?',q.pedido);pagarCheckout(s,p.remoto);
+    await processarEventoStripe(s.P,evento('brlweb','checkout.session.completed',p.remoto));
+    assert.equal((await n.post('/api/contratacao/cotacao',{produto:'starter',moeda:'usd'})).dados.erro,'plano_vigente');
+    assert.equal((await n.post('/api/contratacao/cotacao',{produto:'team',moeda:'brl'})).dados.erro,'plano_vigente');
+    assert.equal((await n.post('/api/contratacao/cotacao',{produto:'capacity_pack',moeda:'brl'})).status,200);
+    assert.ok((await n.post('/api/contratacao/cotacao',{produto:'starter',moeda:'brl'})).dados.inicio);
+    const antes=s.falso.chamadas.length;s.P.stripe.env.STRIPE_EMISSOES='0';
+    assert.equal((await n.get('/api/contratacao')).dados.disponivel,false);
+    assert.equal((await n.post('/api/contratacao/cotacao',{produto:'starter',moeda:'brl'})).status,503);
+    assert.equal(s.falso.chamadas.length,antes);
+  }finally{await s.fechar();}
+});

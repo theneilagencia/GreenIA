@@ -5,7 +5,7 @@ import { PLANOS_COMERCIAIS, CAPACITY_PACK } from '../src/plataforma/catalogo.js'
 import { subir } from './ajuda.js';
 
 // A tabela comercial não pode divergir do catálogo usado pela cobrança.
-test('página pública de planos corresponde ao catálogo comercial e mantém contratação consultiva', async () => {
+test('página pública de planos corresponde ao catálogo comercial e mantém contato comercial como alternativa', async () => {
   const s = await subir({ paginaInicial: 'vendas' });
   try {
     const resposta = await fetch(`${s.base}/planos.html`);
@@ -20,7 +20,7 @@ test('página pública de planos corresponde ao catálogo comercial e mantém co
       assert.ok(bloco.includes(`/?plano=${nome.toLowerCase()}#contato`));
     }
     assert.ok(html.includes(`${CAPACITY_PACK.creditos.toLocaleString('pt-BR')} créditos por US$ ${CAPACITY_PACK.preco_usd}`));
-    assert.doesNotMatch(html, /checkout\.stripe|buy\.stripe|R\$|mais popular|data-plano/i);
+    assert.doesNotMatch(html, /checkout\.stripe|buy\.stripe|R\$|mais popular|data-plano=/i);
     const inicio = html.split('class="pc-abertura"')[1].split('</section>')[0];
     assert.doesNotMatch(inicio, /US\$|pc-plano/);
     const principal = await (await fetch(`${s.base}/`)).text();

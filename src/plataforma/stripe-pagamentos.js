@@ -138,7 +138,8 @@ export async function criarCobrancaStripe(P, empresa, dados, ator) {
         remoto=await S.api('POST','/v1/checkout/sessions',{mode:assinatura?'subscription':'payment',customer,client_reference_id:id,metadata,
           integration_identifier:`greenia_checkout_${Array.from(createHash('sha256').update(id).digest().subarray(0,8),b=>String.fromCharCode(97+b%26)).join('')}`,
           success_url:`${baseUrl(P)}/plataforma`,cancel_url:`${baseUrl(P)}/plataforma`,
-          expires_at:Math.floor(Date.parse(p.criado_em)/1000)+1800,
+          // O prazo padrão de 24h começa quando o Stripe cria a sessão. Fixar
+          // 30 minutos a partir do pedido fica abaixo do mínimo após a latência.
           line_items:[{quantity:1,price_data:{currency:moeda,unit_amount:snapshot.total,product_data:{name:desc},...(assinatura?{recurring:{interval:'month'}}:{})}}],
           ...(assinatura?{subscription_data:{metadata}}:{invoice_creation:{enabled:true,invoice_data:{metadata}}}),
           adaptive_pricing:{enabled:false},allow_promotion_codes:false},`greenia_checkout_${hash(id)}`);

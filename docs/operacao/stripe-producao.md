@@ -40,6 +40,8 @@ O comando cria ou reutiliza somente produtos e preços USD; não cria clientes, 
 
 BRL continua sendo calculado pela PTAX de venda disponível a cada emissão, com cotação e valor registrados no pedido; reenvios conservam o valor original. A capacidade de IA não muda com a moeda. O Checkout USD de planos usa assinatura mensal; BRL usa emissão por período.
 
+As sessões de Checkout usam a expiração padrão do Stripe, 24 horas após a criação no provedor. O pedido local não antecipa esse prazo: definir exatamente 30 minutos desde o cadastro do pedido faz a latência da rede reduzir o intervalo abaixo do mínimo aceito pelo Stripe.
+
 ## Validação antes da publicação
 
 1. Confirmar banco/CNPJ, cadastro societário e segurança no Dashboard empresarial.

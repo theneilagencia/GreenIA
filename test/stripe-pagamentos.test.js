@@ -47,6 +47,22 @@ async function ambiente(op={}) {
 }
 const compra=(id,extra={})=>({pedido:id,produto:'starter',moeda:'brl',canal:'checkout',...extra});
 
+test('Checkout tolera latência entre o pedido e a criação da sessão no Stripe',async()=>{
+  const s=await ambiente();try{
+    const api=s.P.stripe.api;
+    s.P.stripe.api=async(m,path,dados,key)=>{
+      if(m==='POST' && path==='/v1/checkout/sessions'){
+        const criacaoNoProvedor=Math.floor(s.P.agora().getTime()/1000)+2;
+        if(dados.expires_at!==undefined && dados.expires_at<criacaoNoProvedor+1800) throw new Error('Stripe exige pelo menos 30 minutos desde a criação da sessão.');
+      }
+      return api(m,path,dados,key);
+    };
+    const r=await s.criarPedido(compra('pedido_checkout_latencia',{moeda:'usd'}));
+    assert.equal(r.estado,'aguardando');
+    assert.equal(new URL(r.url).hostname,'checkout.stripe.com');
+  }finally{await s.fechar();}
+});
+
 test('envio explícito de fatura é auditado, não duplica email nem concede créditos',async()=>{
   const s=await ambiente();try{
     await s.criarPedido(compra('pedido_envio01',{canal:'fatura',vencimento_dias:7}));

@@ -23,3 +23,21 @@ test('falhas e latência só pesam com amostra suficiente, são auditadas e não
 test('dados antigos, bloqueios de governança e resultados ainda incompletos não contaminam desempenho',()=>{const a=app();try{const id=lerConfig(a.db).padroes.rapido;for(const resultado of ['bloqueado','enviado'])for(let i=0;i<6;i++)observacao(a,id,resultado);observacao(a,id,'falha_na_execucao',1000,'2026-09-01T00:00:00Z');assert.equal(desempenhoRecente(a.db,agora).size,0);observacao(a,id,'respondido_pela_reserva',3000,agora.toISOString(),'openai/gpt-5-mini');const d=desempenhoRecente(a.db,agora);assert.equal(d.get(id).falhas,1);assert.equal(d.get('openai/gpt-5-mini').falhas,0);}finally{a.db.close();}});
 
 test('curadoria seleciona modelos diferentes para tarefas distintas no mesmo nível, com custo e governança mantidos',()=>{const a=app();try{ampliarPoolsRecomendados(a);const codigo=escolher(a,'classe:rapido',{analise:analisarPedido({texto:'Escreva uma função Python simples para converter uma lista de valores.'})});const triagem=escolher(a,'classe:rapido',{analise:analisarPedido({texto:'Classifique estes itens por categoria: lápis, papel e caneta.'})});assert.equal(codigo.modelo.id,'openai/gpt-5-mini');assert.notEqual(codigo.modelo.id,triagem.modelo.id);assert.equal(codigo.modelo.perfil,'rapido');assert.equal(triagem.modelo.perfil,'rapido');assert.ok(codigo.candidatos.find(c=>c.id===codigo.modelo.id).afinidade>0);}finally{a.db.close();}});
+
+test('preços diferentes não anulam adequação da tarefa; Economia continua escolhendo o equivalente barato',()=>{
+ const a=app();try{
+  ampliarPoolsRecomendados(a);
+  exec(a.db,"update modelos set preco_entrada=0.0000005,preco_saida=0.0000025 where id='google/gemini-3.8-flash'");
+  exec(a.db,"update modelos set preco_entrada=0.0000006,preco_saida=0.0000028 where id='anthropic/claude-haiku-4.5'");
+  const analise=analisarPedido({texto:'Escreva um conto com humor e ironia.'});
+  const normal=escolher(a,'classe:equilibrado',{analise});
+  assert.equal(normal.modelo.id,'anthropic/claude-haiku-4.5');
+  const usado=normal.candidatos.find(c=>c.id===normal.modelo.id),barato=normal.candidatos.find(c=>c.id==='google/gemini-3.8-flash');
+  assert.ok(usado.custo>barato.custo);assert.ok(usado.utilidade>barato.utilidade);
+  salvarConfig(a.db,{roteamento:{ativo:true,preferencia:'economia'}});
+  assert.equal(escolher(a,'classe:equilibrado',{analise}).modelo.id,'google/gemini-3.8-flash');
+  exec(a.db,"update modelos set no_catalogo=0 where id='anthropic/claude-haiku-4.5'");
+  salvarConfig(a.db,{roteamento:{ativo:true,preferencia:'qualidade'}});
+  assert.notEqual(escolher(a,'classe:equilibrado',{analise}).modelo.id,'anthropic/claude-haiku-4.5');
+ }finally{a.db.close();}
+});

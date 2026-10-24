@@ -265,7 +265,7 @@ export async function iniciarPlataforma(env = process.env) {
   // endpoint remoto nem rotina recorrente, e cada ID só pode iniciar uma vez.
   if (env.GREENIA_DIAGNOSTICO_CHAT) {
     import('./diagnostico-chat.js').then(({ iniciarDiagnosticoChat }) => iniciarDiagnosticoChat(P, {
-      id: env.GREENIA_DIAGNOSTICO_CHAT, pasta: join(dadosRaiz, 'diagnosticos'), versao: env.RENDER_GIT_COMMIT || null,
+      id: env.GREENIA_DIAGNOSTICO_CHAT, pasta: join(dadosRaiz, 'diagnosticos'), versao: env.RENDER_GIT_COMMIT || null, qualidade: env.GREENIA_DIAGNOSTICO_QUALIDADE === '1',
     })).catch(() => P.log('GREENIA_DIAGNOSTICO_CHAT_ERRO', 'Diagnóstico não iniciado.'));
   }
   const parar = () => { P.servidor.close(); for (const t of P.tenants.values()) t.db.close(); P.db.close(); process.exit(0); };

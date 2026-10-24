@@ -31,7 +31,7 @@ import { afinidadeDaTarefa } from './pools-modelos.js';
 import { exigeAltaQualidade } from '../public/qualidade-entrega.js';
 export { AUTOMATICO };
 
-export const VERSAO_ROTEADOR = '3.2';
+export const VERSAO_ROTEADOR = '3.3';
 export const NIVEL = { rapido: 1, equilibrado: 2, avancado: 3 };
 const CLASSE_DO_NIVEL = { 1: 'rapido', 2: 'equilibrado', 3: 'avancado' };
 export const NOME_CLASSE = { rapido: 'Rápido', equilibrado: 'Equilibrado', avancado: 'Avançado' };
@@ -56,7 +56,7 @@ export const TIPOS = {
   sintese: { nome: 'síntese', nivel: 1, saida: 600, re: /\b(resum|sintetiz|principais pontos|pontos principais|em (\d+|tres|cinco|dez) (pontos|topicos|linhas)|tl;?dr)/ },
   redacao: { nome: 'geração de texto', nivel: 1, saida: 900, re: /\b(escrev|redij|redigir|rascunh|crie um (texto|email|e-mail|post|comunicado)|reescrev|melhore (o|este) texto|mais curto|mais formal|outro tom)/ },
   criativa: { nome: 'redação criativa com nuances', nivel: 2, saida: 1800, re: /\b(roast|humor|satira|satire|sarcasmo|sarcasm|parodia|parody|conto|cronica|poema|poem|poesia|poetry|short story|storytelling|escrita criativa|redacao criativa)\b/ },
-  analise: { nome: 'análise', nivel: 2, saida: 1200, re: /\b(analis|compar|diferen[cç]a|confira|conferir|revis[ae]|audit|inconsist|diverg|identifique (os )?riscos|pontos fracos|encontre o (problema|erro))/ },
+  analise: { nome: 'análise', nivel: 2, saida: 1200, re: /\b(analis|compar|diferen[cç]a|confira|conferir|verifi|avali|interpret|parecer|implicac|consequenc|fontes (?:contraditorias|divergentes)|revis[ae]|audit|inconsist|diverg|identifique (os )?riscos|pontos fracos|encontre o (problema|erro))/ },
   programacao: { nome: 'programação', nivel: 1, saida: 1500, re: /(```|\b(codigo|funcao|script|sql|python|javascript|typescript|java|regex|expressao regular|api|endpoint|bug|stack ?trace|debug|refator|compil|query)\b)/ },
   // Entregável longo (apresentação, relatório, documento, planilha montada): pede estrutura e conteúdo completo.
   documento: { nome: 'produção de documento', nivel: 2, saida: 3000, re: /\b(apresenta[cç]ao|slides?|power ?point|pptx|docx|xlsx|documento (completo|word|do word)|relatorio (completo|executivo)|proposta (comercial|tecnica)|plano de (acao|projeto|negocio)|plano comercial|versao pronta|campanha|anuncios|pecas visuais|landing ?page|site (institucional|completo)|aplicacao web)\b/ },
@@ -107,6 +107,9 @@ function presente(re, t) {
 export function analisarPedido({ texto = '', anexos = [], historicoChars = 0, contextoChars = 0, sistemaChars = 0, temResposta = false, anterior = null, feedback = null, dependencias = null }) {
   const t = normal(texto);
   const tipos = Object.entries(TIPOS).filter(([, v]) => presente(v.re, t)).map(([k]) => k);
+  // Produzir texto a partir de material e várias restrições inclui compreender
+  // esse material; não é a mesma demanda que redigir uma frase isolada.
+  if (tipos.includes('redacao') && (anexos.length || texto.length > 450) && !tipos.includes('analise')) tipos.push('analise');
   const anexoChars = anexos.reduce((s, a) => s + String(a.texto || '').length, 0);
   if (!tipos.length) tipos.push(anexos.length ? 'analise' : 'consulta');
   const perguntas = (texto.match(/\?/g) || []).length;
@@ -393,7 +396,10 @@ export function rotear({ db, cfg, pessoa, qw = null, sigilosa = false, reforcada
       const rel = (c.custo != null && c.custo > 0 ? c.custo : max * 1.5) / min;   // sem preço: tratado como mais caro
       c.utilidade = Math.round((-P.C * Math.log(rel) + (margem ? P.Q * margemDe(c, req) : 0) + P.D * Number(c.padrao) + P.H * Number(c.cabeTudo) - (c.desempenho?.penalidade || 0) + (afinidade && P.Q > 0 && c.custo != null && c.custo <= min * 1.5 ? c.afinidade : 0)) * 1000) / 1000;
     }
-    return vivos.slice().sort((p, q) => (p.custo ?? Infinity) - (q.custo ?? Infinity) || q.utilidade - p.utilidade || p.id.localeCompare(q.id));
+    // Custo já compõe a utilidade de acordo com a preferência configurada.
+    // Ordená-lo antes da pontuação anulava adequação, padrão, histórico e
+    // desempenho sempre que os preços fossem diferentes.
+    return vivos.slice().sort((p, q) => q.utilidade - p.utilidade || (p.custo ?? Infinity) - (q.custo ?? Infinity) || p.id.localeCompare(q.id));
   };
 
   let escolhido = null, modo = 'automatico', motivoEscolha = null, fallback = null;

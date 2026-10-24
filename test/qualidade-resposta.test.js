@@ -81,3 +81,10 @@ test('variação de agrupamento no JSON não altera notas nem cria evidências',
   assert.equal(qualidadeSuficiente(j.A), true); assert.equal(qualidadeSuficiente(j.B), false);
   plano.A.correcao = 5; assert.equal(lerJulgamentoQualidade(JSON.stringify(plano), respostas, trechos), null);
 });
+
+test('avaliador criativo não aceita citação inventada nem teto excedido só porque o modelo aprovou', () => {
+  const roast = CASOS_QUALIDADE.find(c => c.id === 'roast-portugues-contextual');
+  assert.ok(verificarRespostaQualitativa(roast, 'Cedro: você diz “eu detesto o mundo” ao abrir cada slide.').includes('contrato_criativo:citacao_nao_fornecida'));
+  const satira = CASOS_QUALIDADE.find(c => c.id === 'satira-coerencia-e-fechamento');
+  assert.ok(verificarRespostaQualitativa(satira, 'versão '.repeat(111)).includes('contrato_criativo:limite_de_palavras'));
+});

@@ -33,6 +33,15 @@ export function trechosDaAvaliacao(respostas) {
 
 export function lerJulgamentoQualidade(texto, respostas, trechos = null) {
   let j; try { j = JSON.parse(String(texto).replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, '')); } catch { return null; }
+  // Formatos JSON semanticamente equivalentes: seis notas planas ou agrupadas,
+  // e um único ID como string ou lista. Os valores e as evidências seguem estritos.
+  if (j && typeof j === 'object') for (const k of ['A', 'B']) {
+    const x = j[k];
+    if (x && typeof x === 'object') {
+      if (!x.notas) x.notas = Object.fromEntries(DIMENSOES_RESPOSTA.map(d => [d, x[d]]));
+      if (typeof x.evidencias === 'string') x.evidencias = [x.evidencias];
+    }
+  }
   if (trechos && j && typeof j === 'object') for (const k of ['A', 'B']) {
     if (Array.isArray(j[k]?.evidencias)) j[k].evidencias = j[k].evidencias.map(id => trechos[k]?.find(t => t.id === id)?.texto ?? null);
   }

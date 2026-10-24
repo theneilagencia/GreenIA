@@ -48,10 +48,11 @@ test('padrão generalista não supera afinidade da tarefa em alternativa de cust
   salvarConfig(a.db,{padroes:{equilibrado:'anthropic/claude-haiku-4.5'},roteamento:{ativo:true,preferencia:'equilibrio'}});
   const criativa=escolher(a,'classe:equilibrado',{analise:analisarPedido({texto:'Crie um conto com humor e ironia.'})});
   const analise=escolher(a,'classe:equilibrado',{analise:analisarPedido({texto:'Compare as duas ofertas e verifique o custo total.'})});
-  assert.equal(criativa.modelo.id,'openai/gpt-5.4-mini');
+  assert.equal(criativa.modelo.id,'google/gemini-3.8-flash');
   assert.equal(analise.modelo.id,'google/gemini-3.8-flash');
   assert.equal(criativa.modelo.perfil,'equilibrado');
-  exec(a.db,"update modelos set preco_entrada=preco_entrada*3,preco_saida=preco_saida*3 where id='openai/gpt-5.4-mini'");
-  assert.notEqual(escolher(a,'classe:equilibrado',{analise:analisarPedido({texto:'Crie um conto com humor e ironia.'})}).modelo.id,'openai/gpt-5.4-mini','afinidade não remove limite de custo próximo');
+  assert.equal(escolher(a,'classe:equilibrado',{analise:analisarPedido({texto:'Escreva uma sátira sobre reuniões que nunca acabam.'})}).modelo.id,'google/gemini-3.8-flash','afinidade genérica de redação não suplanta a da tarefa criativa');
+  exec(a.db,"update modelos set preco_entrada=preco_entrada*3,preco_saida=preco_saida*3 where id='google/gemini-3.8-flash'");
+  assert.notEqual(escolher(a,'classe:equilibrado',{analise:analisarPedido({texto:'Crie um conto com humor e ironia.'})}).modelo.id,'google/gemini-3.8-flash','afinidade não remove limite de custo próximo');
  }finally{a.db.close();}
 });

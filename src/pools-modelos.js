@@ -28,12 +28,13 @@ const AFINIDADES = {
   'openai/gpt-5-mini': ['programacao','raciocinio'],
   'google/gemini-3.1-flash-lite': ['extracao','traducao','classificacao'],
   'anthropic/claude-haiku-4.5': ['sintese','traducao'],
-  'openai/gpt-5.4-mini': ['programacao','raciocinio','redacao','criativa'],
-  'google/gemini-3.8-flash': ['analise','extracao'],
+  'openai/gpt-5.4-mini': ['programacao','raciocinio','redacao'],
+  'google/gemini-3.8-flash': ['analise','extracao','criativa'],
   'anthropic/claude-sonnet-5.5': ['programacao','redacao','criativa'],
   'openai/gpt-5.6-sol': ['raciocinio','analise'],
   'google/gemini-3.1-pro-preview': ['sintese','extracao'],
 };
 // Tarefas em que o modelo se destaca na curadoria (para explicar uma sugestão em palavras simples).
 export const tarefasDoModelo = id => AFINIDADES[id] || [];
-export const afinidadeDaTarefa = (id, tipos = []) => (AFINIDADES[id] || []).some(t => tipos.includes(t)) ? 0.6 : 0;
+// Afinidade genérica de redação não comprova adequação a criação com nuances.
+export const afinidadeDaTarefa = (id, tipos = []) => (AFINIDADES[id] || []).some(t => (tipos.includes('criativa') ? ['criativa'] : tipos).includes(t)) ? 0.6 : 0;

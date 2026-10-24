@@ -4,7 +4,7 @@ Rota: `/planos.html`. Página disponível por link direto para uso comercial, co
 
 Por decisão comercial, a home e o FAQ mantêm a navegação anterior, sem links para esta página. A rota foi retirada do sitemap e recebe `noindex,follow`. O link direto pode ser enviado no fluxo comercial; isso não representa uma restrição de acesso por autenticação.
 
-Os links “Falar sobre este plano” abrem o formulário comercial existente com o nome do plano na mensagem. São aceitos somente os quatro planos e o Capacity Pack; não há envio de contato, criação de cliente ou cobrança automática ao abrir esses links.
+Os quatro cartões oferecem “Escolher este plano”. Sem sessão, a página verifica o email por código e cadastra a empresa ou reutiliza o vínculo existente. Em seguida apresenta cotação e confirmação antes do Checkout hospedado. A visita não cria empresa, cliente Stripe nem cobrança.
 
 ## Conferência comercial em 24/10/2026
 
@@ -34,5 +34,15 @@ A prévia estática serve somente para revisão visual. O envio de contatos é v
 - Uma assinatura/cobrança pendente impede outro plano; a página permite retomar o pagamento existente. Mudanças durante período pago exigem conciliação. Pacotes permanecem separados.
 - No app, a franquia esgotada abre `/planos.html?motivo=creditos` uma vez por usuário/empresa/ciclo e uma vez no esgotamento completo. A reserva continua limitada à classe Rápido. Não há redirecionamento enquanto um novo pedido está sendo escrito; a conferência ocorre ao entrar e ao concluir uma resposta.
 - Pedido recusado por falta de créditos é preservado na sessão do navegador, com texto e referências dos anexos, vinculado à empresa e ao usuário. O retorno abre a conversa e restaura o pedido sem reenviar.
-- Visitantes precisam entrar no ambiente existente; empresas ainda sem cadastro seguem pelo canal comercial. A home, FAQ e sitemap continuam sem links para a página.
+- Visitantes podem contratar na própria página, sem cadastro prévio: verificam email e cadastram uma empresa antes do pagamento. Clientes existentes reutilizam seu vínculo e sua permissão financeira. A home, FAQ e sitemap continuam sem links para a página.
 - Validação financeira de produção sem transação real: testes automatizados de autorização, isolamento, cotação, idempotência e webhook. Testes de cobrança usam dados isolados e provedor simulado; pagamentos reais dependem da conclusão do Checkout pelo cliente.
+
+## Correção da contratação pública em 24/10/2026
+
+A versão anterior limitava o Checkout a empresas previamente cadastradas e deixava visitantes nos links de contato. Essa limitação foi removida.
+
+A API `/api/adesao` existe apenas no host da plataforma e usa cookie HttpOnly/SameSite, sessão de uma hora, CSRF, verificação de origem e código de email de uso único com limites por email/IP. Ela reutiliza o serviço de email e as regras existentes de usuários/perfis. Nome, documento ou domínio não conferem acesso a uma empresa existente. Cadastros repetidos retornam a mesma empresa.
+
+O cadastro de uma empresa nova ativa o controle de direitos sem período pago: não existe franquia inicial utilizável, nem reserva liberada antes do webhook. Falha no provisionamento mantém o ambiente em implantação. O webhook continua sendo a única origem dos direitos pagos.
+
+Teste no navegador: servidor GreenIA real com bancos em memória e caixa postal local de QA; após o cadastro e a confirmação do valor, o servidor criou um cliente e uma sessão reais no sandbox Stripe, pela API oficial, e abriu o formulário hospedado em `checkout.stripe.com`. Valor BRL e metadados corresponderam à cotação. Nenhum pagamento foi concluído e nenhum dado de cartão real foi informado. O fixture de QA não faz parte do código publicado.

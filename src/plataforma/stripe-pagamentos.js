@@ -76,6 +76,7 @@ export function consultarPedidosStripe(P, empresa) {
 
 export async function criarCobrancaStripe(P, empresa, dados, ator) {
   if (!P.stripe) throw erro(503,'stripe_desligado','O serviço de pagamentos não está configurado.');
+  if (P.stripe.env.STRIPE_EMISSOES==='0') throw erro(503,'stripe_emissoes_pausadas','A emissão de novas cobranças está temporariamente pausada.');
   const S=P.stripe, c=exigirEmpresa(P,empresa);
   if (lerFaturamento(P,empresa).forma!=='stripe') throw erro(409,'stripe_nao_habilitado','Habilite explicitamente a cobrança Stripe no contrato da empresa antes de emitir.');
   if (vigente(P,empresa).vencido) throw erro(409,'vigencia_vencida','Atualize a vigência do contrato antes de emitir uma nova cobrança.');
@@ -287,7 +288,7 @@ export async function receberWebhookStripe(P,req,res) {
 
 export function rotasStripe(P,r) {
   const permitir=s=>exigir(permissoesNaPlataforma(P.db,s.userId),'platform.plans.manage');
-  r.get('/api/plataforma/empresas/:id/cobrancas',({sessao,params})=>{permitir(sessao);const pedidos=consultarPedidosStripe(P,params.id);return {pedidos,modo:P.stripe.modo,geracaoAutomatica:P.stripe.env.STRIPE_RENOVACOES==='1',renovacao:um(P.db,'select * from stripe_renovacoes where empresa=?',params.id)};});
+  r.get('/api/plataforma/empresas/:id/cobrancas',({sessao,params})=>{permitir(sessao);const pedidos=consultarPedidosStripe(P,params.id);return {pedidos,modo:P.stripe.modo,emissaoPermitida:P.stripe.env.STRIPE_EMISSOES!=='0',geracaoAutomatica:P.stripe.env.STRIPE_RENOVACOES==='1',renovacao:um(P.db,'select * from stripe_renovacoes where empresa=?',params.id)};});
   r.post('/api/plataforma/empresas/:id/cobrancas',({sessao,params,corpo})=>{permitir(sessao);return criarCobrancaStripe(P,params.id,corpo,sessao.userId);});
   r.post('/api/plataforma/empresas/:id/cobrancas/:pedido/enviar-email',({sessao,params})=>{permitir(sessao);return enviarFaturaStripe(P,params.id,params.pedido,sessao.userId);});
   r.post('/api/plataforma/empresas/:id/cobrancas/parar-renovacao',({sessao,params})=>{

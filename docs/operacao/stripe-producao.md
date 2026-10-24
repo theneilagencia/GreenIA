@@ -11,6 +11,7 @@ O código admite dois ambientes explícitos. Ativar a conta no Dashboard não co
 - `STRIPE_WEBHOOK_SECRET`: segredo do endpoint `/api/stripe/webhook` desta conta e deste modo; não reutilizar o segredo do sandbox anterior.
 - `PLATAFORMA_URL`: endereço público HTTPS do ambiente correto.
 - `STRIPE_RENOVACOES=0` na configuração inicial. `1` permite as emissões mensais BRL previamente autorizadas para cada empresa, sem confirmar pagamentos nem antecipar créditos.
+- `STRIPE_EMISSOES=0` bloqueia novas cobranças no servidor e no console, preservando a recepção de webhooks e os pagamentos existentes. Use com o ambiente configurado ao preparar o endpoint antes da abertura comercial. Ausente ou `1` permite emissões explícitas; não atribui cobrança a empresas automaticamente.
 
 Sem habilitação, pagamentos permanecem desligados. Restaurações isoladas também não fazem operações externas.
 

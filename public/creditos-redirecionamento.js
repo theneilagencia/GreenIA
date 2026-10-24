@@ -3,11 +3,13 @@ export function deveAbrirPlanos(plano) {
 }
 export async function conferirCapacidade({rascunho}={}) {
   if(!['/app','/app/'].includes(location.pathname))return;
-  // Não interromper um pedido que ainda está sendo escrito.
-  if(!rascunho && document.querySelector('textarea')?.value.trim())return;
+  // Não interromper texto, anexos ou uma resposta em andamento.
+  const ocupado=()=>!rascunho && (document.querySelector('textarea')?.value.trim() || document.querySelector('#anexos')?.children.length || document.querySelector('#enviar.interromper'));
+  if(ocupado())return;
+  const hashInicial=location.hash;
   try {
     const r=await fetch('/api/contratacao',{credentials:'same-origin'});if(!r.ok)return;
-    const c=await r.json();if(!deveAbrirPlanos(c.plano))return;
+    const c=await r.json();if(!deveAbrirPlanos(c.plano) || ocupado() || hashInicial!==location.hash)return;
     const chave=`greenia:capacidade:${c.empresa.id}:${c.usuario}:${c.plano.renova}:${c.plano.fase==='esgotado'?'fim':'franquia'}`;
     if(sessionStorage.getItem(chave))return;
     if(rascunho)sessionStorage.setItem('greenia:pedido-interrompido',JSON.stringify({empresa:c.empresa.id,usuario:c.usuario,hash:location.hash,...rascunho}));

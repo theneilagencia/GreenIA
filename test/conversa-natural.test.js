@@ -173,3 +173,21 @@ test('criação sobre arquivos não encomenda arquivo; formato explicitamente pe
   for (const p of ['Faça um roast sobre minhas apresentações.', 'Escreva uma sátira sobre final_final_v8.pptx.', 'Meu trabalho é revisar PPTX. Roast me.', 'Faça um roast, sem gerar PPTX.', 'Eu reviso apresentações e cobro a versão final em PPTX. Based on this, roast me.']) assert.equal(criacaoSemArquivo(p), true, p);
   for (const p of ['Crie um PowerPoint com um roast.', 'Escreva um poema e entregue em Word.', 'Faça um roast e gere um arquivo PPTX.', 'Gere um Excel com as despesas.']) assert.equal(criacaoSemArquivo(p), false, p);
 });
+
+test('limite de palavras e citação não fornecida são contratos verificáveis da criação', () => {
+  assert.equal(falhaCriativa('Escreva uma sátira de até 5 palavras.', 'Esta equipe está fazendo mais uma reunião.'), 'limite_de_palavras');
+  assert.equal(falhaCriativa('Faça um roast. Não invente falas minhas.', 'Você diz “eu odeio slides” todo dia.'), 'citacao_nao_fornecida');
+  assert.equal(falhaCriativa('Faça um roast. Eu digo: eu odeio slides. Não invente falas minhas.', 'Você diz “eu odeio slides” todo dia.'), null);
+});
+test('limite de criação reprovado é recuperado sem truncar a resposta e sem entrar em loop', async () => {
+  let i = 0; const textos = ['A equipe gastou a manhã inteira renomeando arquivos sem ensaiar nada.', 'O arquivo ensaiou. A equipe não.'];
+  const OR = await openRouterFalso({ responder: () => textos[Math.min(i++, 1)] }); const S = await subir({ ia: OR.ia });
+  try {
+    salvarConfig(S.app.db, { dominios: ['exemplo.com.br'] }); const c = await S.cliente().entrar('ana@exemplo.com.br');
+    const conv = (await c.post('/api/conversas', {})).dados.conversa;
+    const r = await enviarMensagem(c, conv.id, { texto: 'Escreva uma sátira de até 6 palavras sobre uma equipe que não ensaiou.' });
+    assert.ok(r.fim && !r.falha); assert.equal(OR.chamadas.length, 2);
+    assert.equal(r.eventos.find(e => e.t === 'substituir')?.v, textos[1]);
+    assert.equal(um(S.app.db, "select texto from mensagens where conversa_id = ? and papel = 'assistant'", conv.id).texto, textos[1]);
+  } finally { await S.fechar(); await OR.fechar(); }
+});

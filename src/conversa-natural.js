@@ -44,7 +44,15 @@ export function precisaCorrigirBriefing(pedido, resposta) {
 export function falhaCriativa(pedido, resposta) {
   const n = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const p = n(pedido), r = n(resposta);
-  if (!/\broast\b/.test(p) || /\b(literal|literalmente|exatamente|copie|receita)\b/.test(p)) return null;
+  if (!/\b(roast|satira|brincadeira|poema|conto|cronica)\b/.test(p) || /\b(literal|literalmente|exatamente|copie|receita)\b/.test(p)) return null;
+  const teto = /\b(?:ate|no maximo|up to|at most)\s+(\d{1,4})\s+(?:palavras|words)\b/.exec(p);
+  const palavras = String(resposta || '').replace(/(?:^|\s)[#>*_-]+(?=\s|$)/g, ' ').match(/\S+/g)?.length || 0;
+  if (teto && Number(teto[1]) > 0 && palavras > Number(teto[1])) return 'limite_de_palavras';
+  if (/nao invente (?:falas|citacoes)/.test(p)) {
+    const citacoes = [...String(resposta || '').matchAll(/[“"]([^”"\n]{5,180})[”"]/g)];
+    if (citacoes.some(m => !p.includes(n(m[1])))) return 'citacao_nao_fornecida';
+  }
+  if (!/\broast\b/.test(p)) return null;
   if (/\b(pedido de assado|pediu um assado|seu assado)\b/.test(r)) return 'traducao_literal';
   if (/\b(sindrome|transtorno|tdah|bipolaridade)\b/.test(r) && !/\b(sindrome|transtorno|tdah|bipolaridade)\b/.test(p)) return 'rotulo_psicologico';
   return null;

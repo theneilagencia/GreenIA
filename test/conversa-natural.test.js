@@ -7,7 +7,7 @@ import { um } from '../src/db.js';
 import { pecaDaConversa } from '../src/conversas.js';
 import { visualDoPedido } from '../src/quickwin-operacao.js';
 import { analisarPedido, requisitosDe } from '../src/roteador.js';
-import { orientacaoDeEstilo } from '../src/conversa-natural.js';
+import { orientacaoDeEstilo, precisaCorrigirBriefing } from '../src/conversa-natural.js';
 import { pedePesquisa } from '../src/chat-recursos.js';
 
 test('tarefas criativas têm capacidade para nuances, e restrições não pedem pesquisa', () => {
@@ -103,4 +103,41 @@ test('registro explícito em criação é reforçado, e restrição negativa pre
   assert.ok(orientacaoDeEstilo('Faça um roast com gírias e palavrões.'));
   assert.ok(orientacaoDeEstilo('Roast me in Portuguese with more swear words.'));
   for (const t of ['Reescreva a brincadeira sem palavrões.', 'Roast me without swear words.', 'Faça um roast, não use palavrões.', 'Explique o significado de palavrão.', 'Faça um roast sem palavrões, com humor.']) assert.doesNotMatch(orientacaoDeEstilo(t), /Registro solicitado nesta criação/, t);
+});
+
+test('recuperação de briefing é limitada à peça comercial e preserva textos operacionais e citações', () => {
+  assert.ok(precisaCorrigirBriefing('Escreva dois parágrafos para apresentar a empresa a um possível cliente.', 'A empresa organiza pedidos, sem prometer economia medida.'));
+  for (const p of ['Escreva uma mensagem à equipe sobre as limitações do projeto.', 'Escreva com transparência as limitações para um possível cliente.', 'Copie exatamente este texto comercial.', 'Faça um roast.']) assert.equal(precisaCorrigirBriefing(p, 'Não prometemos economia.'), false);
+});
+test('peça com comentário de briefing tem uma recuperação pela mesma rota, com custo contabilizado', async () => {
+  let i = 0;
+  const textos = ['A Horizonte organiza pedidos.\n\nO Boreal confere informações, sem prometer economia medida.', 'A Horizonte organiza pedidos entre áreas com responsáveis e evidências.\n\nO Boreal confere informações e o Farol registra aprovações.'];
+  const OR = await openRouterFalso({ responder: () => textos[Math.min(i++, 1)] });
+  const S = await subir({ ia: OR.ia });
+  try {
+    salvarConfig(S.app.db, { dominios: ['exemplo.com.br'] });
+    const c = await S.cliente().entrar('ana@exemplo.com.br');
+    const conv = (await c.post('/api/conversas', {})).dados.conversa;
+    const r = await enviarMensagem(c, conv.id, { texto: 'Escreva dois parágrafos para apresentar a empresa Horizonte a um possível cliente. Boreal confere informações e Farol registra aprovações. Não há economia medida.' });
+    assert.ok(r.fim && !r.falha); assert.equal(OR.chamadas.length, 2);
+    assert.equal(OR.chamadas[1].model, OR.chamadas[0].model);
+    assert.equal(r.eventos.find(e => e.t === 'substituir')?.v, textos[1]);
+    assert.equal(um(S.app.db, "select texto from mensagens where conversa_id = ? and papel = 'assistant'", conv.id).texto, textos[1]);
+    assert.ok(um(S.app.db, 'select custo from uso where conversa_id = ?', conv.id).custo >= 0.002, 'as duas inferências entram no uso');
+  } finally { await S.fechar(); await OR.fechar(); }
+});
+
+test('recuperação que não corrige o comentário não entra em loop', async () => {
+  const ruim = 'A Horizonte organiza pedidos, sem prometer economia medida.';
+  const OR = await openRouterFalso({ responder: () => ruim });
+  const S = await subir({ ia: OR.ia });
+  try {
+    salvarConfig(S.app.db, { dominios: ['exemplo.com.br'] });
+    const c = await S.cliente().entrar('ana@exemplo.com.br');
+    const conv = (await c.post('/api/conversas', {})).dados.conversa;
+    const r = await enviarMensagem(c, conv.id, { texto: 'Escreva um texto comercial para um possível cliente sobre a Horizonte.' });
+    assert.ok(r.fim && !r.falha); assert.equal(OR.chamadas.length, 2);
+    assert.ok(!r.eventos.some(e => e.t === 'substituir'));
+    assert.equal(um(S.app.db, "select texto from mensagens where conversa_id = ? and papel = 'assistant'", conv.id).texto, ruim);
+  } finally { await S.fechar(); await OR.fechar(); }
 });

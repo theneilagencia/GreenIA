@@ -55,6 +55,7 @@ export const TIPOS = {
   edicao: { nome: 'edição e formatação', nivel: 1, saida: 700, re: /\b(tire|remova|apague|ordene|coloque|mova|renomeie|separe|organize|agrupe|deixe (mais|menos|em)|troque|substitua|formate|converta para)\b/ },
   sintese: { nome: 'síntese', nivel: 1, saida: 600, re: /\b(resum|sintetiz|principais pontos|pontos principais|em (\d+|tres|cinco|dez) (pontos|topicos|linhas)|tl;?dr)/ },
   redacao: { nome: 'geração de texto', nivel: 1, saida: 900, re: /\b(escrev|redij|redigir|rascunh|crie um (texto|email|e-mail|post|comunicado)|reescrev|melhore (o|este) texto|mais curto|mais formal|outro tom)/ },
+  criativa: { nome: 'redação criativa com nuances', nivel: 2, saida: 1800, re: /\b(roast|humor|satira|satire|sarcasmo|sarcasm|parodia|parody|conto|cronica|poema|poem|poesia|poetry|short story|storytelling|escrita criativa|redacao criativa)\b/ },
   analise: { nome: 'análise', nivel: 2, saida: 1200, re: /\b(analis|compar|diferen[cç]a|confira|conferir|revis[ae]|audit|inconsist|diverg|identifique (os )?riscos|pontos fracos|encontre o (problema|erro))/ },
   programacao: { nome: 'programação', nivel: 1, saida: 1500, re: /(```|\b(codigo|funcao|script|sql|python|javascript|typescript|java|regex|expressao regular|api|endpoint|bug|stack ?trace|debug|refator|compil|query)\b)/ },
   // Entregável longo (apresentação, relatório, documento, planilha montada): pede estrutura e conteúdo completo.

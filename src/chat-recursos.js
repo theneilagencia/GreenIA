@@ -6,6 +6,7 @@
 //  - Pesquisa na internet: a mesma ferramenta e a mesma liberação dos Quick Wins (Configurações › Políticas), com a
 //    mensagem da pessoa como consulta. Desligada ou barrada pela governança, a resposta diz o motivo e não inventa.
 import { pedePesquisaWeb, proibePesquisaWeb } from './quickwin-operacao.js';
+import { pedidoAfirmativo } from './pedido-afirmativo.js';
 const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 const AGENTE = /\b(agente|agentes|assistente (virtual|automatico|que)|robo que|bot que)\b/;
@@ -37,7 +38,7 @@ export function quickWinSugerido(texto) {
 const PESQUISA = /\b(busque|buscar na (internet|web)|procure na (internet|web)|ultimas? noticias|novidades (recentes|da semana|do mes)|fontes oficiais|consulte a documentacao|o que (mudou|ha de novo))\b/;
 export function pedePesquisa(texto) {
   if (pedeAgente(texto) || proibePesquisaWeb(texto)) return false;
-  const t = norm(texto);
+  const t = pedidoAfirmativo(texto);
   const semDatas = t.replace(/\b(?:esta semana|nesta semana|este mes|neste mes|hoje|atualmente)\b/g, ' ');
   return pedePesquisaWeb(semDatas) || PESQUISA.test(t);
 }

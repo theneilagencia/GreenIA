@@ -22,6 +22,7 @@ import { estiloComoTexto } from './estilo-arquivo.js';
 import { REGRAS_DE_ESCRITA, revisarEscrita } from './escrita.js';
 import { REGRAS_CONVERSA } from './conversa-natural.js';
 import { pedidoAfirmativo } from './pedido-afirmativo.js';
+import { contextoPessoal } from './contexto-pessoal.js';
 import { adaptarModelo, lerModeloPdf, paginasDoPlano, planejarReestilo } from './modelo-pdf.js';
 import { pptxDeModelo } from './escritorio.js';
 import { midiaDoPptx, previaDoPptx } from './previa-pptx.js';
@@ -871,6 +872,12 @@ export function rotasConversas(app, r) {
     // O pedido anterior só ajuda a achar o assunto: com segredo, não entra (o histórico já é barrado mais adiante).
     const consulta = consultaDeSeguimento(texto, anterior && !anterior.startsWith('[') && !contemCredencial(anterior) ? anterior : '');
     const ctx = await (app.contexto?.montar(pessoa, qw, consulta) ?? { partes: [], fontes: [], sigiloso: false });
+    const pessoal = !qw && !programada ? contextoPessoal(app, pessoa, conv, texto, cfg) : null;
+    if (pessoal) {
+      ctx.partes.push(pessoal.texto);
+      ctx.pecas?.push({ origem: 'historico', texto: pessoal.texto });
+      registrar(app, 'conversation.personal_context_used', pessoa.id, { conversa: conv.id, mensagens: pessoal.quantidade, conversas: pessoal.conversas });
+    }
     if(alternativaOriginal){const t=delimitar('objetivo_original','Objetivo do trabalho completo, usado somente para contextualizar a síntese reduzida',String(alternativaOriginal.texto||''));ctx.partes.push(t);ctx.pecas?.push({origem:'contexto',texto:t});}
     // Área com política de sigilo: proteção reforçada. O conteúdo (mensagem e anexos) é avaliado com mais
     // rigor; só o que for sigiloso entra nos guardrails, o resto segue as regras gerais da empresa.

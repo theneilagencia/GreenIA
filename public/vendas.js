@@ -7,6 +7,12 @@ const $ = id => document.getElementById(id);
 const form = $('form-contato');
 let enviando = false;
 
+// Interesses vindos da página de planos: somente nomes conhecidos, sem envio automático.
+const planosDeInteresse = { starter: 'GreenIA Starter', team: 'GreenIA Team', business: 'GreenIA Business', company: 'GreenIA Company', capacity_pack: 'Capacity Pack' };
+const chaveInteresse = new URLSearchParams(location.search).get('plano');
+const interesse = Object.hasOwn(planosDeInteresse, chaveInteresse) ? planosDeInteresse[chaveInteresse] : null;
+if (interesse && !$('c-msg').value) $('c-msg').value = `Quero conversar sobre o ${interesse} e a capacidade para a minha empresa.`;
+
 form.addEventListener('submit', async ev => {
   ev.preventDefault();
   if (enviando) return;

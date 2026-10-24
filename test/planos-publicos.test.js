@@ -24,8 +24,10 @@ test('página pública de planos corresponde ao catálogo comercial e mantém co
     const inicio = html.split('class="pc-abertura"')[1].split('</section>')[0];
     assert.doesNotMatch(inicio, /US\$|pc-plano/);
     const principal = await (await fetch(`${s.base}/`)).text();
-    assert.match(principal, /href="\/planos.html">Planos e capacidade/);
-    assert.match(principal, /Entenda os planos e a capacidade de uso/);
+    assert.doesNotMatch(principal, /href="\/planos.html"/);
+    assert.match(html, /<meta name="robots" content="noindex,follow">/);
+    assert.doesNotMatch(readFileSync(new URL('../public/sitemap.xml', import.meta.url), 'utf8'), /planos.html/);
+    assert.doesNotMatch(readFileSync(new URL('../public/faq.html', import.meta.url), 'utf8'), /href="\/planos.html"/);
     assert.doesNotMatch(principal, /US\$|pc-plano/);
     const mensagem = 'Quero conversar sobre o GreenIA Team e a capacidade para a minha empresa.';
     const contato = await fetch(`${s.base}/api/contato`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nome: 'Pessoa de teste', email: 'teste@exemplo.com.br', empresa: 'Empresa de teste', mensagem }) });

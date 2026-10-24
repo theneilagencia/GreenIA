@@ -1,8 +1,8 @@
 # Página pública de planos e capacidade
 
-Rota: `/planos.html`. Candidata para revisão, sem alteração na cobrança ou na liberação de acesso.
+Rota: `/planos.html`. Página disponível por link direto para uso comercial, sem alteração na cobrança ou na liberação de acesso.
 
-A página principal mantém seus CTAs e a apresentação do produto. O link de planos fica na navegação de desktop e celular, no rodapé e no contexto de capacidade compartilhada. O FAQ também aponta para a página.
+Por decisão comercial, a home e o FAQ mantêm a navegação anterior, sem links para esta página. A rota foi retirada do sitemap e recebe `noindex,follow`. O link direto pode ser enviado no fluxo comercial; isso não representa uma restrição de acesso por autenticação.
 
 Os links “Falar sobre este plano” abrem o formulário comercial existente com o nome do plano na mensagem. São aceitos somente os quatro planos e o Capacity Pack; não há envio de contato, criação de cliente ou cobrança automática ao abrir esses links.
 
@@ -24,4 +24,4 @@ Condições tributárias, prazos de início do acesso e políticas comerciais de
 - Revisão no navegador em desktop e em viewports incorporados de 320, 390, 768 e 1024 px: sem transbordamento horizontal; planos empilhados no celular, duas colunas no tablet e quatro no desktop.
 - Salto “Comparar planos” com foco na seção; menu por teclado com Enter e Escape; CTA do Starter preenchendo a mensagem; parâmetro desconhecido ignorado.
 
-A prévia estática serve somente para revisão visual. O envio de contatos é verificado no servidor real em testes isolados, sem mensagens comerciais externas. Nenhuma publicação em produção foi realizada para esta página.
+A prévia estática serve somente para revisão visual. O envio de contatos é verificado no servidor real em testes isolados, sem mensagens comerciais externas. A publicação da página foi autorizada e realizada; sua divulgação posterior ficou restrita ao link direto e ao fluxo comercial.

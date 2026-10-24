@@ -507,8 +507,3 @@
 @media(prefers-reduced-motion:no-preference){.lv .l-resultados-demo[data-playing="true"] .m-resultados-marca{box-shadow:0 0 0 4px var(--tinta)}}
 @media(prefers-reduced-motion:reduce){.lv .l-resultados-demo .m-barra i{transition:none}}
 @media(max-width:760px){.lv .m-resultados-cenas{min-height:155px;padding:16px}.lv .m-resultados-cenas p{font-size:13px}.lv .l-resultados-demo .op-steps button{font-size:12px}}
-
-/* Entrada contextual para os planos, sem alterar os CTAs da página principal. */
-.lv .l-capacidade-link{margin:0 0 24px}
-.lv .l-capacidade-link .l-link{font-size:14px;line-height:1.5}
-@media(min-width:1000px) and (max-width:1150px){.lv .l-nav a{padding-inline:7px}.lv .l-topo .l-dentro{gap:8px}}

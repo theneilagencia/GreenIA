@@ -20,7 +20,7 @@ import { abrirPullRequest, execucoesPendentes, lerRepositorio, marcarExecucoesUs
 import { resolverIdentidade } from './visual/marca.js';
 import { estiloComoTexto } from './estilo-arquivo.js';
 import { REGRAS_DE_ESCRITA, revisarEscrita } from './escrita.js';
-import { REGRAS_CONVERSA, orientacaoDeEstilo } from './conversa-natural.js';
+import { REGRAS_CONVERSA, orientacaoDeEstilo, precisaCorrigirBriefing } from './conversa-natural.js';
 import { pedidoAfirmativo } from './pedido-afirmativo.js';
 import { contextoPessoal } from './contexto-pessoal.js';
 import { adaptarModelo, lerModeloPdf, paginasDoPlano, planejarReestilo } from './modelo-pdf.js';
@@ -1471,11 +1471,11 @@ export function rotasConversas(app, r) {
     // conferidos acima, com a defesa final de credenciais em cada uma.
     const prazoArquivo = criarPrazoArquivo();
     const chamadaAuxiliar = fn => (modeloApr || edicao || exigeAltaQualidade(texto)) ? prazoArquivo.executar(fn) : fn(undefined);
-    const chamar = msgs => chamadaAuxiliar(async sinal => {
+    const chamar = msgs => chamadaAuxiliar(async sinalAux => {
       const txt = msgs.map(x => typeof x.content === 'string' ? x.content : x.content.map(p => p.text).join('\n')).join('\n');
       if (contemCredencial(txt)) throw new ErroIA('conteúdo não enviado');
       let t = '', f = null;
-      for await (const ev of ia.enviar(msgs, { modelo: atual.id, reserva: null, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais, sinal })) {
+      for await (const ev of ia.enviar(msgs, { modelo: atual.id, reserva: null, sigilosa, fornecedor: rotaSigilo?.endpoint, semTreino: cfg.exigirSemTreino || areaReforcada || dadosPessoais, sinal: sinalAux ? AbortSignal.any([sinalAux, sinal].filter(Boolean)) : sinal })) {
         if (ev.tipo === 'texto') t += ev.texto; else f = ev;
       }
       return { texto: t, custo: f?.custo || 0, economia: f?.economia || 0 };
@@ -1501,8 +1501,20 @@ export function rotasConversas(app, r) {
       if (!resposta.trim()) return;
       // A edição automática impunha o registro corporativo a qualquer resposta,
       // removia emojis/pontuação solicitados e criava chamadas extras. Na conversa
-      // livre, o texto do modelo segue o briefing e é preservado literalmente.
-      if (!qw) return;
+      // livre, o registro é preservado; só um comentário de briefing detectado
+      // em peça comercial tem uma recuperação limitada, sem mudar a rota.
+      if (!qw) {
+        if (reservaDoPlano || modeloApr || edicao || !precisaCorrigirBriefing(texto, resposta)) return;
+        linha({ t: 'etapa', v: 'Conferindo a adequação do texto ao destinatário…' });
+        try {
+          const r = await chamar([...mensagens, { role: 'assistant', content: resposta }, { role: 'user', content: 'Entregue a mesma peça comercial corrigida, somente o texto final. Retire comentários sobre as instruções do briefing, inclusive frases começadas por sem prometer, sem afirmar, não prometemos e a identificação empresa fictícia. Isso não é uma autorização para inventar certificações ou resultados: simplesmente não os afirme. Preserve os fatos, as funções de cada produto, a estrutura e o destinatário do pedido original. Não acrescente explicações sobre a correção.' }]);
+          custoEscrita += r.custo; economiaEscrita += r.economia;
+          const aceita = !!r.texto.trim() && !precisaCorrigirBriefing(texto, r.texto);
+          registrar(app, 'ai.briefing_checked', pessoa.id, { conversa: conv.id, roteamento: rotaId, corrigido: aceita });
+          if (aceita) { resposta = r.texto; return true; }
+        } catch (e) { app.log?.('conferencia de briefing', erroParaLog(e)); }
+        return;
+      }
       const r = await revisarEscrita(resposta, { chamar, usarIA: !reservaDoPlano && !modeloApr && !edicao });
       custoEscrita += r.custo; economiaEscrita += r.economia;
       if (r.vicios.length) registrar(app, 'ai.writing_checked', pessoa.id, { conversa: conv.id, roteamento: rotaId, vicios: r.vicios, restantes: r.restantes, revisado: r.revisado });

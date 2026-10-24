@@ -25,3 +25,14 @@ export function orientacaoDeEstilo(texto) {
     || /\b(?:sem|evite|without|no|nao (?:use|usar|inclua|incluir))[^.;\n]{0,35}\b(?:palavroes|palavrao|swear words?|profanity)\b/.test(t)) return entrega;
   return entrega + '\n' + 'Registro solicitado nesta criação: a pessoa pediu expressamente gírias e palavrões. Use-os de fato no texto (por exemplo, porra, merda ou caralho), como linguagem coloquial consentida. Não basta mencionar que poderia usá-los nem oferecer outra versão. Faça humor com o pedido ou fatos fornecidos, sem inventar biografia, diagnosticar a pessoa, explorar dados sensíveis ou atacar terceiros. Preserve os limites de segurança.';
 }
+
+// Escopo conservador: peça comercial pronta, sem pedido de transparência sobre
+// limitações nem reprodução literal. Não remove fatos de mensagens operacionais.
+export function precisaCorrigirBriefing(pedido, resposta) {
+  const n = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const p = n(pedido), r = n(resposta);
+  return /\b(escrev|redij|crie|reescrev)/.test(p)
+    && /\b(possivel cliente|apresentacao comercial|texto comercial|anuncio|landing page|apresentar a empresa)\b/.test(p)
+    && !/\b(literal|exatamente|copie|transparencia|limitacoes|ressalvas|advertencia)\b/.test(p)
+    && /\b(sem prometer|sem afirmar|sem alegar|nao prometemos|nao afirmamos|empresa ficticia)\b/.test(r);
+}

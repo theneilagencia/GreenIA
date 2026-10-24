@@ -1,4 +1,5 @@
 import { sincronizarContas } from '../resultados.js';
+import { validarComercial, obrigacoesStripe } from './faturamento.js';
 // Serviços da plataforma: empresas (tenants), planos, usuários e vínculos, marca, landing page,
 // URL e concessões. Usados pelo console do operador da plataforma e pelo admin da empresa; toda regra fica aqui,
 // no servidor, e toda mudança relevante é auditada.
@@ -40,6 +41,11 @@ export const CAMPOS_MARCA = ['display_name', 'logo', 'favicon', 'primary_color',
 
 const agoraIso = P => P.agora().toISOString();
 const novoId = prefixo => `${prefixo}_${randomUUID().replace(/-/g, '').slice(0, 20)}`;
+function preservarFranquias(P,id,plano) {
+  const t=P.tenant(id);
+  t.db.exec('create table if not exists plano_franquias (mes text primary key,creditos integer not null)');
+  for (const m of todos(t.db,"select distinct substr(em,1,7) mes from uso where substr(em,1,7) < ?",agoraIso(P).slice(0,7))) exec(t.db,'insert or ignore into plano_franquias values (?,?)',m.mes,plano?.credits||0);
+}
 
 // ---------------------------------------------------------------- Planos
 // Plano sem amarras: créditos ilimitados (0), todos os recursos e nenhum limite. Criado também em
@@ -116,8 +122,12 @@ export function salvarPlano(P, dados, ator, origem, id = null, { semTrava = fals
   if (!(credits >= 0 && credits <= 10_000_000)) throw erro(400, 'credits', 'Créditos inválidos.');
   const reserve = d.reserve === undefined || d.reserve === '' ? Math.round(credits * 0.2) : Math.floor(Number(d.reserve));
   if (!(reserve >= 0 && reserve <= credits)) throw erro(400, 'reserve', 'A reserva precisa ficar entre zero e os créditos do plano.');
+  if (id&&ator!==null) for (const c of todos(P.db,'select id from companies where plan_id=?',id)) {
+    if (obrigacoesStripe(P,c.id).length) throw erro(409,'stripe_conciliar','Este plano tem empresas com cobrança Stripe vinculada. Concilie antes de alterar as condições comerciais.');
+    if ((antes.credits!==credits||antes.reserve!==reserve)&&um(P.tenant(c.id).db,'select 1 from uso where substr(em,1,7)=? limit 1',agoraIso(P).slice(0,7))) throw erro(409,'plano_em_uso','Este plano já tem consumo no mês. Crie uma variante e agende a troca para preservar os saldos.');
+  }
   const price = d.price_usd === '' || d.price_usd == null ? null : Number(d.price_usd);
-  if (price !== null && !(price >= 0)) throw erro(400, 'price_usd', 'Preço inválido.');
+  if (price !== null && (!Number.isFinite(price)||price < 0)) throw erro(400, 'price_usd', 'Preço inválido.');
   const features = Object.fromEntries(Object.keys(RECURSOS).map(k => [k, !!(d.features || {})[k]]));
   const limits = Object.fromEntries(Object.keys(LIMITES).map(k => { const bruto = (d.limits || {})[k]; const v = Math.floor(Number(bruto === undefined ? LIMITES_PADRAO[k] : bruto || 0)); if (!(v >= 0 && v <= 1_000_000)) throw erro(400, k, `Limite inválido: ${LIMITES[k]}.`); return [k, v]; }));
   const rules = { reserve_fast_only: (d.rules || {}).reserve_fast_only !== false, ...((d.rules || {}).pack_name ? { pack_name: texto(d.rules.pack_name, 40, 'pack_name') } : {}),
@@ -125,9 +135,16 @@ export function salvarPlano(P, dados, ator, origem, id = null, { semTrava = fals
   // Margem total no pior caso abaixo do piso: o plano (ou o pacote dele) não é salvo.
   // A migração do catálogo grava os valores definidos pela formação de preço; ela confere a margem nos testes.
   if (!semTrava) exigirMargem({ credits, reserve, price_usd: price, rules }, { infra: infraPorEmpresa(P), premissas: lerPremissas(P) });
-  const settings = typeof d.settings === 'object' && d.settings ? d.settings : {};
+  const settings = typeof d.settings === 'object' && d.settings && !Array.isArray(d.settings) ? { ...d.settings } : {};
+  if (settings.comercial) {
+    settings.comercial=validarComercial(settings.comercial);
+    if (settings.comercial.condicao==='gratuito' && price) throw erro(400,'preco','Um plano gratuito não pode ter preço em dólares.');
+    if (settings.comercial.moeda==='brl' && price!==null) throw erro(400,'moeda','Preço em reais deve ficar no campo comercial; deixe a referência USD vazia.');
+    if (settings.comercial.condicao==='pago'&&settings.comercial.moeda==='usd'&&settings.comercial.preco!==price) throw erro(400,'preco','O preço comercial USD deve corresponder ao preço em dólares do plano.');
+  }
   if (JSON.stringify(settings).length > 5000) throw erro(400, 'settings', 'Configurações específicas grandes demais.');
   const status = d.status === 'inativo' ? 'inativo' : 'ativo';
+  if (id&&antes.credits!==credits) for (const c of todos(P.db,'select id from companies where plan_id=?',id)) preservarFranquias(P,c.id,antes);
   const planoId = id || novoId('plan');
   const valores = [name, texto(d.description, 300, 'description'), status, price, credits, reserve, JSON.stringify(limits), JSON.stringify(features), JSON.stringify(rules), JSON.stringify(settings), agoraIso(P)];
   if (id) exec(P.db, 'update plans set name = ?, description = ?, status = ?, price_usd = ?, credits = ?, reserve = ?, limits = ?, features = ?, rules = ?, settings = ?, updated_at = ? where id = ?', ...valores, id);
@@ -199,6 +216,7 @@ export function criarEmpresa(P, dados, ator, origem) {
     exec(P.db, 'insert into companies (id, name, slug, status, plan_id, banco, legal_name, document, contact_email, notes, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       id, name, slug, dados.status && STATUS_EMPRESA[dados.status] ? dados.status : 'em_implantacao', plano?.id ?? null, banco,
       texto(dados.legal_name, 160, 'legal_name'), texto(dados.document, 40, 'document'), dados.contact_email ? validarEmail(dados.contact_email) : '', texto(dados.notes, 1000, 'notes'), t, t);
+    exec(P.db,'update companies set faturamento=? where id=?',JSON.stringify({forma:plano?.settings?.comercial?.condicao==='gratuito'?'sem_cobranca':'externa',renovacao:plano?.settings?.comercial?.renovacao||'mensal',inicio:t,fim:null}),id);
     const textos = marcaPadrao(name);
     exec(P.db, 'insert into branding (company_id, display_name, login_title, login_text, privacy_note, updated_at) values (?, ?, ?, ?, ?, ?)', id, name, textos.login_title, textos.login_text, textos.privacy_note, t);
     exec(P.db, "insert into landing_pages (company_id, content, seo, status, updated_at) values (?, ?, ?, 'publicada', ?)", id, JSON.stringify(landingPadrao(name)), JSON.stringify(seoPadrao(name)), t);
@@ -241,9 +259,15 @@ export function mudarStatus(P, id, status, ator, origem) {
 
 export function mudarPlano(P, id, planId, ator, origem) {
   const antes = exigirEmpresa(P, id);
+  if (ator!==null && antes.plan_id!==planId && obrigacoesStripe(P,id).length) throw erro(409,'stripe_conciliar','Há cobrança ou assinatura Stripe vinculada. Concilie antes de mudar o plano.');
   const plano = planId ? lerPlanoPorId(P, planId) : null;
   if (planId && !plano) throw erro(400, 'plan_id', 'Plano inválido.');
   if (plano && plano.status !== 'ativo' && antes.plan_id !== planId) throw erro(400, 'plan_id', 'Este plano está inativo.');
+  if (antes.plan_id!==planId) {
+    const t=P.tenant(id),antigo=lerPlanoPorId(P,antes.plan_id);
+    if (ator!==null&&((antigo?.credits||0)!==(plano?.credits||0)||(antigo?.reserve||0)!==(plano?.reserve||0))&&um(t.db,'select 1 from uso where substr(em,1,7)=? limit 1',agoraIso(P).slice(0,7))) throw erro(409,'plano_em_uso','Há consumo neste mês. Agende a mudança para o próximo ciclo para preservar a franquia e os pacotes.');
+    preservarFranquias(P,id,antigo);
+  }
   exec(P.db, 'update companies set plan_id = ?, updated_at = ? where id = ?', plano?.id ?? null, agoraIso(P), id);
   auditar(P, { usuario: ator, empresa: id, acao: 'company.plan_changed', entidade: 'company', id, antes: { plan_id: antes.plan_id }, depois: { plan_id: plano?.id ?? null, plano: plano?.name }, origem });
   P.aplicarAoTenant(id);
@@ -503,13 +527,20 @@ export function listarMembros(P, companyId) {
 
 const ehRoleAdmin = (P, roleId) => permissoesDaRole(P.db, roleId).includes('company.manage');
 function adminsAtivos(P, companyId, excetoUserId) {
-  return todos(P.db, "select role_id from company_users where company_id = ? and status = 'ativo' and user_id != ?", companyId, excetoUserId).filter(v => ehRoleAdmin(P, v.role_id)).length;
+  return todos(P.db, "select cu.role_id from company_users cu join users u on u.id=cu.user_id where cu.company_id = ? and cu.status = 'ativo' and u.status='ativo' and cu.user_id != ?", companyId, excetoUserId).filter(v => ehRoleAdmin(P, v.role_id)).length;
+}
+
+export function protegerBloqueioGlobal(P,userId) {
+  for (const v of todos(P.db,"select company_id,role_id from company_users where user_id=? and status='ativo'",userId)) {
+    if (ehRoleAdmin(P,v.role_id)&&!adminsAtivos(P,v.company_id,userId)) throw erro(409,'ultimo_admin','O bloqueio deixaria uma empresa sem administrador ativo. Cadastre um substituto antes.');
+  }
 }
 
 export function criarMembro(P, companyId, { email, name, role_id, role_key, status }, ator, origem, { convidar = true } = {}) {
   const c = exigirEmpresa(P, companyId);
   const e = validarEmail(email);
   const role = role_id ? acharRoleDaEmpresa(P.db, companyId, role_id) : roleDeSistema(P.db, role_key || 'member');
+  if (!role) throw erro(400,'role','Perfil inválido.');
   const limite = lerPlanoPorId(P, c.plan_id)?.limits?.max_users || 0;
   if (limite && um(P.db, "select count(*) as n from company_users where company_id = ? and status != 'inativo'", companyId).n >= limite) throw erro(409, 'limite_usuarios', `O plano desta empresa permite até ${limite} usuários. Fale com o operador da plataforma para ampliar.`);
   const u = garantirUsuario(P, e, texto(name, 120, 'name'));
@@ -534,15 +565,23 @@ export function atualizarMembro(P, companyId, userId, { role_id, status, name },
   if (!v) throw erro(404, 'usuario', 'Usuário não encontrado nesta empresa.');
   const role = role_id ? acharRoleDaEmpresa(P.db, companyId, role_id) : { id: v.role_id };
   const st = status === undefined ? v.status : ['ativo', 'inativo', 'convidado'].includes(status) ? status : v.status;
+  if (status!==undefined&&!['ativo','inativo','convidado'].includes(status)) throw erro(400,'status','Situação inválida.');
+  if (name!==undefined) name=texto(name,120,'name',{obrigatorio:true});
+  const usuarioAntes=um(P.db,'select name from users where id=?',userId);
+  if (v.status==='inativo'&&st!=='inativo') {
+    const limite=lerPlanoPorId(P,exigirEmpresa(P,companyId).plan_id)?.limits?.max_users||0;
+    if (limite&&um(P.db,"select count(*) n from company_users where company_id=? and status!='inativo'",companyId).n>=limite) throw erro(409,'limite_usuarios','O limite de usuários do plano foi atingido.');
+  }
   const perdeAdmin = ehRoleAdmin(P, v.role_id) && v.status === 'ativo' && (!ehRoleAdmin(P, role.id) || st !== 'ativo');
   if (perdeAdmin && !adminsAtivos(P, companyId, userId)) throw erro(409, 'ultimo_admin', 'A empresa precisa de pelo menos um administrador ativo.');
   exec(P.db, 'update company_users set role_id = ?, status = ?, updated_at = ? where company_id = ? and user_id = ?', role.id, st, agoraIso(P), companyId, userId);
   if (name !== undefined) exec(P.db, 'update users set name = ? where id = ?', texto(name, 120, 'name', { obrigatorio: true }), userId);
   if (st === 'inativo') { encerrarAcessosAbertos(P, { companyId, userId }, 'pessoa_desativada'); exec(P.db, 'delete from sessions where user_id = ? and company_id = ?', userId, companyId); }
   P.sincronizarPessoa(companyId, userId);
+  if (name!==undefined) for (const c of todos(P.db,'select company_id from company_users where user_id=? and company_id!=?',userId,companyId)) P.sincronizarPessoa(c.company_id,userId);
   sincronizarContas(P.tenant(companyId));
   const acao = role.id !== v.role_id ? 'user.role_changed' : st !== v.status ? (st === 'inativo' ? 'user.deactivated' : 'user.activated') : 'user.updated';
-  auditar(P, { usuario: ator, empresa: companyId, acao, entidade: 'company_user', id: userId, antes: { role_id: v.role_id, status: v.status }, depois: { role_id: role.id, status: st, name }, origem });
+  auditar(P, { usuario: ator, empresa: companyId, acao, entidade: 'company_user', id: userId, antes: { role_id: v.role_id, status: v.status, name:usuarioAntes.name }, depois: { role_id: role.id, status: st, name }, origem });
   return listarMembros(P, companyId).find(m => m.id === userId);
 }
 

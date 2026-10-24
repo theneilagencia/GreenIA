@@ -44,6 +44,9 @@ import { rotasEncerramentoEmpresa, migrarCanceladas, paginaDevolucao, entregarDe
 import { migrarContatosAntigos, registrarFormulario } from './contatos.js';
 import { randomUUID } from 'node:crypto';
 import { validarPublicacao, empresaNaPublicacao } from '../publicacao-controlada.js';
+import { configurarStripe, rotasStripe, receberWebhookStripe } from './stripe-pagamentos.js';
+import { situacaoDireitosStripe } from './stripe-direitos.js';
+import { vigente, aplicarPlanoAgendado } from './faturamento.js';
 
 const RAIZ = fileURLToPath(new URL('../..', import.meta.url));
 const PUBLICO = join(RAIZ, 'public');
@@ -76,6 +79,7 @@ export function criarPlataforma(op = {}) {
   // mesmo com chave salva no console, email só em memória (inclusive o SMTP próprio das empresas), sem provedor de
   // domínios. As tarefas periódicas (programações, backups, retenção, avisos) só existem em src/iniciar.js.
   P.isolado = op.isolado === true;
+  configurarStripe(P, op.stripe);
   if (P.isolado) { P.ia = iaTrocavel(criarSimulada(), {}); P.iaPadrao = P.ia; P.provedorDominios = null; P.dns = op.dns || { resolveCname: async () => [], resolve4: async () => [] }; }
   P.criarIA = P.isolado ? (() => criarSimulada()) : op.criarIA ?? (chave => criarOpenRouter({ chave }));
   P.chaveVariavel = op.chaveVariavel || null;   // só a máscara da chave da variável de ambiente
@@ -142,6 +146,7 @@ export function criarPlataforma(op = {}) {
 
   const rPlat = criarRoteador(), rEmp = criarRoteador();
   rotasPlataforma(P, rPlat);
+  rotasStripe(P, rPlat);
   rotasAuthEmpresa(P, rEmp);
   rotasPublicoEmpresa(P, rEmp);
   rotasEncerramentoEmpresa(P, rEmp);
@@ -215,6 +220,12 @@ function abrirTenant(P, id) {
   });
   t.checarRecurso = (metodo, caminho) => checarRecurso(P, id, t, metodo, caminho);
   P.tenants.set(id, t);
+  t.contrato = () => {aplicarPlanoAgendado(P,id,E.mudarPlano);return vigente(P,id);};
+  t.cobranca = () => {
+    const pago=situacaoDireitosStripe(t);
+    if (pago) return pago;
+    return null; // Empresas manuais só migram o controle de créditos no primeiro pagamento.
+  };
   aplicarAoTenant(P, id);
   return t;
 }
@@ -335,6 +346,8 @@ async function tratar(P, rPlat, rEmp, req, res) {
   try {
     const cookies = lerCookies(req);
     const porHost = resolverPorHost(P, hostDe(req));
+    // Endpoint público com corpo bruto e assinatura própria. Sem exceções para as demais rotas/CSRF.
+    if (!porHost && caminho === '/api/stripe/webhook' && req.method === 'POST') return await receberWebhookStripe(P, req, res);
     if (porHost?.redirecionar) { res.writeHead(301, { location: porHost.redirecionar + caminho }); return res.end(); }
     if (porHost?.inexistente) return paginaAmbienteNaoEncontrado(res);
 

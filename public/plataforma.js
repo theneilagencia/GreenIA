@@ -2,6 +2,7 @@
 // Separado do admin de cada empresa: outra página, outra sessão, outra cor de navegação.
 import { carregandoHtml, esc, marcaHtml, ocupado, toast, transicao, vazioHtml, ICONE, rodapePlataformaHtml } from '/comum.js';
 import { iniciarPaleta, abrirPaleta, teclaPaleta } from '/comando.js';
+import { filtrosUsuarios, ligarUsuarios, editarFaturamento } from '/admin-geral.js';
 import { contaHtml, itemMenu, ligarConta, separadorMenu, temaMenuHtml } from '/menu-conta.js';
 import { campoData, lerData } from '/data-br.js';
 import { renderMarca, ligarMarca, renderLanding, ligarLanding, acoesLanding, estadoLanding, mostrarErroLanding, renderUrl, ligarUrl, mostrarErro, ROTULOS_MARCA } from '/editores.js';
@@ -355,10 +356,13 @@ const acoesAba = html => { $('acoes-aba').innerHTML = html; };
 const erroForm = (id, e) => { mostrarErro(id, e); if (!document.activeElement?.classList.contains('invalida')) $(id)?.scrollIntoView({ block: 'center' }); };
 
 // Créditos e preço de um plano, para mostrar o que muda antes de trocar.
-const resumoPlano = id => {
+const resumoPlano = (id, renovacao) => {
   const p = C.planos.find(x => x.id === id);
   if (!p) return 'sem cota de créditos';
-  return `${p.credits ? `${num(p.credits)} créditos + ${num(p.reserve)} de reserva por mês` : 'Créditos ilimitados'} · ${p.price_usd ? `${usd(p.price_usd)} por mês` : 'sem preço'}`;
+  const comercial = p.settings?.comercial;
+  const ciclo = (renovacao || comercial?.renovacao) === 'nenhuma' ? ' · franquia única' : ' por mês';
+  const preco = comercial?.condicao === 'gratuito' ? 'Sem cobrança' : comercial?.moeda === 'brl' ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(comercial.preco) : p.price_usd ? usd(p.price_usd) : 'sem preço';
+  return `${p.credits ? `${num(p.credits)} créditos + ${num(p.reserve)} de reserva${ciclo}` : 'Créditos ilimitados'} · ${preco}`;
 };
 const STATUS_FAIXA = {
   em_implantacao: ['atencao', 'Em implantação: só administradores da empresa entram, e a página de apresentação pública ainda não aparece.'],
@@ -376,6 +380,8 @@ async function abaResumo(d, id) {
   acoesAba(`${menuMais([
     ...(!entrarPrincipal && e.status !== 'cancelada' ? [{ acao: 'entrar', rotulo: 'Entrar no ambiente…' }] : []),
     { acao: 'plano', rotulo: 'Alterar plano…' },
+    { acao: 'faturamento', rotulo: 'Forma de cobrança e vigência…' },
+    ...(C.eu?.stripeModo ? [{ acao: 'cobrancas', rotulo: C.eu.stripeModo === 'producao' ? 'Cobranças Stripe…' : 'Cobranças Stripe (teste)…' }] : []),
     ...(u.plano ? [{ acao: 'pacote', rotulo: 'Liberar Capacity Pack…' }] : []),
     { acao: 'dados', rotulo: 'Editar dados cadastrais…' },
     { acao: 'exportar', rotulo: 'Exportar dados…' },
@@ -387,8 +393,9 @@ async function abaResumo(d, id) {
     ${faixa ? `<div class="faixa-aviso ${faixa[0]}">${faixa[1]}</div>` : ''}
     <div id="encerramento-empresa"></div>
     <div class="secao-titulo" style="margin-top:0"><h2 class="h-secao">Plano e consumo</h2></div>
-    <div class="indicadores"><div class="indicador"><span>Plano</span><b class="valor-texto">${esc(e.plano?.name || 'Sem plano')}</b><small>${esc(resumoPlano(e.plano?.id))}</small></div>
-      ${u.plano ? `<div class="indicador"><span>Créditos usados no mês</span><b>${num(Math.round(u.plano.usados))}</b><small>${u.plano.ilimitado ? 'plano ilimitado' : `${num(u.plano.percentual)}% de ${num(u.plano.creditos)}`}</small></div>
+    <p class="dica">${esc(({sem_cobranca:'Sem cobrança',externa:'Cobrança externa',stripe:'Cobrança pelo Stripe'})[e.faturamento?.forma]||'Cobrança externa')} · ${e.faturamento?.fim?`Vigência até ${esc(e.faturamento.fim.split('-').reverse().join('/'))}${e.faturamento.vencido?' · vencida':''}`:'Sem prazo determinado'} · ${e.faturamento?.renovacao==='nenhuma'?'Franquia única':'Renovação mensal'}${e.faturamento?.plano_pendente?` · Troca de plano agendada para ${esc(data(e.faturamento.plano_pendente.em))}`:''}</p>
+    <div class="indicadores"><div class="indicador"><span>Plano</span><b class="valor-texto">${esc(e.plano?.name || 'Sem plano')}</b><small>${esc(resumoPlano(e.plano?.id, e.faturamento?.renovacao))}</small></div>
+      ${u.plano ? `<div class="indicador"><span>${e.faturamento?.renovacao === 'nenhuma' ? 'Créditos usados na vigência' : 'Créditos usados no mês'}</span><b>${num(Math.round(u.plano.usados))}</b><small>${u.plano.ilimitado ? 'plano ilimitado' : `${num(u.plano.percentual)}% de ${num(u.plano.creditos)}`}</small></div>
       <div class="indicador" id="ind-pacote"><span>Capacity Pack disponível</span><b>${num(Math.round(u.plano.pacoteDisponivel))}</b><small>usado depois da franquia</small></div>` : ''}
       <div class="indicador"><span>Custo de IA no mês</span><b>${usd(u.custoUsd)}</b>${u.plano ? '' : '<small>sem cota: a empresa vê o custo em dólar</small>'}</div>
       <div class="indicador"><span>Pessoas ativas no mês</span><b>${num(u.pessoasAtivas)}</b><small>${num(u.pessoas)} ${u.pessoas === 1 ? 'cadastrada' : 'cadastradas'}</small></div></div>
@@ -425,7 +432,9 @@ async function abaResumo(d, id) {
   $('entrar-amb')?.addEventListener('click', entrar);
   Object.assign(C.mais, {
     entrar, suspender: () => mudarStatus('suspensa'), reabrir: () => mudarStatus('em_implantacao'),
+    cobrancas: () => import('/stripe-console.js').then(m => m.abrirCobrancasStripe({ empresa:e, api, modal, esc })),
     plano: () => alterarPlano(e, id), pacote: () => liberarPacote(e, id), dados: () => editarDados(e, id),
+    faturamento: () => editarFaturamento({empresa:e,api,modal,esc,atualizar:()=>vistaEmpresa(id,'resumo'),erro:mostrarErro}),
     exportar: () => pedirMotivo({ titulo: `Exportar os dados da ${e.name}`, botao: 'Exportar', tipos: FINALIDADES_EXPORTACAO, rotuloTipo: 'Finalidade',
       explica: 'A exportação é uma cópia completa do banco da empresa, conversas incluídas, e só vale por pedido do cliente, incidente de segurança ou obrigação legal. A cópia fica no servidor e é eliminada 7 dias depois de encerrada a necessidade, salvo bloqueio legal. O registro aparece para a empresa, e os admins dela recebem um aviso por email.',
       async enviar(motivo) {
@@ -446,7 +455,8 @@ function alterarPlano(e, id) {
     <h2 id="pl-t" tabindex="-1">Alterar o plano da ${esc(e.name)}</h2>
     <form id="f-plano-empresa" novalidate>
       <div class="campo"><label for="s-plano">Plano</label><select class="entrada" id="s-plano" aria-describedby="s-plano-info"><option value="">Sem plano</option>${C.planos.map(p => `<option value="${p.id}" ${p.id === e.plano?.id ? 'selected' : ''} ${p.status !== 'ativo' && p.id !== e.plano?.id ? 'disabled' : ''}>${esc(p.name)}${p.status !== 'ativo' ? ' (inativo)' : ''}</option>`).join('')}</select>
-        <span class="ajuda" id="s-plano-info" aria-live="polite">${esc(resumoPlano(e.plano?.id))}</span></div>
+        <span class="ajuda" id="s-plano-info" aria-live="polite">${esc(resumoPlano(e.plano?.id, e.faturamento?.renovacao))}</span></div>
+      <div class="campo"><label for="s-vigencia">Quando aplicar</label><select class="entrada" id="s-vigencia"><option value="agora">Agora, se não houver consumo ou cobrança conflitante</option><option value="proximo_ciclo">No início do próximo mês</option></select><span class="ajuda">Uso registrado não é zerado. Os pacotes adquiridos e o histórico são preservados. A atribuição não emite cobrança.</span></div>
       <p class="msg-erro oculto" id="s-plano-erro" role="alert"></p>
       <div class="linha-botoes" style="margin-top:14px"><button class="btn btn-verde">Continuar</button></div></form>`, fechar => {
     $('fechar').onclick = fechar; $('pl-t').focus();
@@ -454,10 +464,11 @@ function alterarPlano(e, id) {
     $('f-plano-empresa').onsubmit = ev => {
       ev.preventDefault();
       const novo = $('s-plano').value || null, nome = x => C.planos.find(p => p.id === x)?.name || 'Sem plano';
+      const vigencia=$('s-vigencia').value;
       if (novo === (e.plano?.id || null)) return mostrarErro('s-plano-erro', new Error('Esse já é o plano da empresa.'));
       confirmarStatus({ rotulo: 'Plano', titulo: `Trocar o plano da ${e.name}?`, botao: `Trocar para ${nome(novo)}`,
-        texto: `De ${nome(e.plano?.id)} (${resumoPlano(e.plano?.id)}) para ${nome(novo)} (${resumoPlano(novo)}). A troca vale a partir de agora.`,
-        async aplicar() { await api(`/api/plataforma/empresas/${id}/plano`, { metodo: 'POST', corpo: { plan_id: novo } }); toast('Plano alterado. Vale a partir de agora.'); vistaEmpresa(id, 'resumo'); } });
+        texto: `De ${nome(e.plano?.id)} (${resumoPlano(e.plano?.id, e.faturamento?.renovacao)}) para ${nome(novo)} (${resumoPlano(novo)}). ${vigencia==='proximo_ciclo'?'A troca será aplicada no início do próximo mês.':'A troca vale a partir de agora.'} Nenhuma cobrança será emitida.`,
+        async aplicar() { await api(`/api/plataforma/empresas/${id}/plano`, { metodo: 'POST', corpo: { plan_id: novo,vigencia } }); toast(vigencia==='proximo_ciclo'?'Troca de plano agendada.':'Plano alterado.'); vistaEmpresa(id, 'resumo'); } });
     };
   });
 }
@@ -755,7 +766,9 @@ async function abaAuditoriaEmpresa(d, id) {
 // ---------------------------------------------------------------- Usuários
 async function vistaUsuarios() {
   carregando('Usuários');
-  const [{ usuarios }, cfg] = await Promise.all([api('/api/plataforma/usuarios'), api('/api/plataforma/configuracoes')]);
+  const q=new URLSearchParams(location.hash.split('?')[1]||'');
+  const [dados, cfg] = await Promise.all([api(`/api/plataforma/usuarios?${q}`), api('/api/plataforma/configuracoes')]);
+  const {usuarios}=dados;
   tela('Usuários', `${proposito('Todas as pessoas da plataforma, com as empresas de que fazem parte.', { titulo: 'Usuários da plataforma', textos: [
     'Administradores da plataforma entram neste console. Os acessos deles às empresas continuam separados.',
     'Bloquear um usuário encerra o acesso dele em todas as empresas e as sessões abertas. Dá para desbloquear depois.',
@@ -763,12 +776,13 @@ async function vistaUsuarios() {
   ] })}
     <div class="secao-titulo" style="margin-top:0"><h2 class="h-secao">Administradores da plataforma</h2></div>
     ${tabela(['Administrador', ''], cfg.admins.map(a => `<tr><td data-r="Administrador">${esc(a.email)}</td><td data-r="">${a.id === C.eu.usuario.id ? '<span class="dica">você</span>' : `<button class="btn-texto link-perigo" data-rmadm="${a.id}" data-email="${esc(a.email)}">Remover</button>`}</td></tr>`), '')}
-    <div class="secao-titulo"><h2 class="h-secao">Todas as pessoas</h2></div>
+    <div class="secao-titulo"><h2 class="h-secao">Todas as pessoas</h2></div>${filtrosUsuarios(dados,q,esc)}
     ${tabela(['Pessoa', 'Empresas (perfil e acesso)', 'Conta', ''], usuarios.map(u => `<tr><td data-r="Pessoa"><b>${esc(u.name || u.email)}</b><br><span class="dica">${esc(u.email)}</span>${u.adminPlataforma ? ' <span class="selo-escopo" style="margin:0 0 0 6px">Plataforma</span>' : ''}</td>
-      <td data-r="Empresas">${u.empresas.map(e => `<span class="valor-bloco"><a href="#/empresas/${e.id}/usuarios">${esc(e.name)}</a> <span class="dica">${esc(e.role)} · acesso ${esc((ACESSO[e.status] || e.status).toLowerCase())}</span></span>`).join('') || '<span class="dica">Nenhuma empresa</span>'}</td>
+      <td data-r="Empresas">${u.empresas.map(e => `<span class="valor-bloco"><a href="#/empresas/${e.id}/usuarios">${esc(e.name)}</a> <span class="dica">${esc(e.role)} · acesso ${esc((ACESSO[e.status] || e.status).toLowerCase())} · ${esc(e.plano||'Sem plano')}</span> <button class="btn-texto" data-gu-vinculo="${u.id}" data-empresa="${e.id}">Editar acesso</button></span>`).join('') || '<span class="dica">Nenhuma empresa</span>'}</td>
       <td data-r="Conta">${u.status === 'ativo' ? '<span class="selo selo-verde">Ativa</span>' : '<span class="selo selo-vermelho">Bloqueada</span>'}</td>
-      <td data-r="">${u.id === C.eu.usuario.id ? '' : `<button class="btn-texto${u.status === 'ativo' ? ' link-perigo' : ''}" data-bloq="${u.id}" data-email="${esc(u.email)}" data-st="${u.status === 'ativo' ? 'bloqueado' : 'ativo'}">${u.status === 'ativo' ? 'Bloquear' : 'Desbloquear'}</button>`}</td></tr>`), 'Nenhum usuário.')}`,
+      <td data-r=""><button class="btn-texto" data-gu-editar="${u.id}">Editar cadastro</button> ${u.id === C.eu.usuario.id ? '' : `<button class="btn-texto${u.status === 'ativo' ? ' link-perigo' : ''}" data-bloq="${u.id}" data-email="${esc(u.email)}" data-st="${u.status === 'ativo' ? 'bloqueado' : 'ativo'}">${u.status === 'ativo' ? 'Bloquear' : 'Desbloquear'}</button>`}</td></tr>`), 'Nenhum usuário.')}`,
   '<button class="btn btn-verde btn-pequeno" id="add-admin">Adicionar administrador</button>');
+  ligarUsuarios({dados,q,api,modal,esc,atualizar:vistaUsuarios,erro:(id,x)=>id?mostrarErro(id,x):falhar(x)});
   $('add-admin').onclick = () => modal(`<div class="modal-topo"><div class="rotulo">Administradores da plataforma</div><button class="icone-btn" id="fechar" aria-label="Fechar">${ICONE.fechar}</button></div>
     <h2 id="adm-t" tabindex="-1">Adicionar administrador da plataforma</h2>
     <form id="f-admin" novalidate><div class="campo"><label for="a-email">Email do novo administrador</label><input class="entrada" id="a-email" type="email" autocomplete="off"><span class="ajuda">A pessoa passa a entrar neste console, com código enviado ao email.</span></div>
@@ -810,7 +824,7 @@ async function vistaPlanos() {
   ] })}
     ${tabela(['Plano', 'Status', '#Créditos + reserva', '#Preço', '#Margem total', '#Preço mínimo (piso)', '#Empresas'], C.planos.map(p => `<tr><td data-r="Plano"><a href="#/planos/${p.id}"><b>${esc(p.name)}</b></a><br><span class="dica">${esc(p.description)}</span></td>
       <td data-r="Status">${p.status === 'ativo' ? '<span class="selo selo-verde">Ativo</span>' : '<span class="selo selo-cinza">Inativo</span>'}</td>
-      <td class="num" data-r="Créditos + reserva">${p.credits ? `${num(p.credits)} + ${num(p.reserve)}` : 'Ilimitado'}</td><td class="num" data-r="Preço">${usd(p.price_usd)}</td>
+      <td class="num" data-r="Créditos + reserva">${p.credits ? `${num(p.credits)} + ${num(p.reserve)}` : 'Ilimitado'}</td><td class="num" data-r="Preço">${p.settings?.comercial?.condicao==='gratuito'?'Sem cobrança':p.settings?.comercial?.moeda==='brl'?esc(new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(p.settings.comercial.preco)):usd(p.price_usd)}</td>
       <td class="num" data-r="Margem total">${margemPlano(p.economia)}</td><td class="num" data-r="Preço mínimo">${p.economia?.precoMinimo ? usd(p.economia.precoMinimo) : '–'}</td><td class="num" data-r="Empresas">${num(p.empresas)}</td></tr>`), 'Nenhum plano.')}
     ${pk ? `<p class="dica"><b>${esc(pk.nome || 'Capacity Pack')}</b>: +${num(pk.creditos)} créditos por ${usd(pk.preco)} · margem total ${pctM(pk.margem)} ${seloMargem(pk.status)}</p>` : ''}
     <div class="secao-titulo"><h2 class="h-secao">Premissas econômicas</h2>${revelar('f-premissas', 'Ver e alterar')}</div>
@@ -849,6 +863,7 @@ async function vistaPlano(id) {
   if (!C.planos.length) C.planos = (await api('/api/plataforma/planos')).planos;
   const p = id === 'novo' ? { name: '', description: '', status: 'ativo', credits: 2000, reserve: 400, price_usd: '', limits: { max_users: 0, messages_per_minute: 12, max_quick_wins: 0 }, features: Object.fromEntries(Object.keys(C.catalogo.recursos).map(k => [k, true])), rules: { reserve_fast_only: true, pack_name: 'Capacity Pack', pack_credits: 2000, pack_price_usd: 229 }, settings: {} } : C.planos.find(x => x.id === id);
   if (!p) return tela('Plano', '<p>Plano não encontrado.</p>', '', '#/planos');
+  const comercial=p.settings?.comercial||{condicao:p.price_usd?'pago':'gratuito',moeda:'usd',preco:p.price_usd||0,renovacao:'mensal'};
   C.contaAberta = false;
   const ajuda = { titulo: 'Plano', textos: [
     'Créditos por mês: 0 deixa o plano ilimitado (sem teto de créditos, sem reserva e sem avisos de consumo).',
@@ -862,9 +877,10 @@ async function vistaPlano(id) {
     <div class="grade-2"><div class="campo"><label for="pl-nome">Nome</label><input class="entrada" id="pl-nome" value="${esc(p.name)}" maxlength="60"></div>
       <div class="campo"><label for="pl-status">Status</label><select class="entrada" id="pl-status"><option value="ativo" ${p.status === 'ativo' ? 'selected' : ''}>Ativo</option><option value="inativo" ${p.status !== 'ativo' ? 'selected' : ''}>Inativo (não aparece para novas empresas)</option></select></div></div>
     <div class="campo"><label for="pl-desc">Descrição</label><input class="entrada" id="pl-desc" value="${esc(p.description)}" maxlength="300"></div>
+    <div class="grade-2"><div class="campo"><label for="pl-condicao">Condição comercial</label><select class="entrada" id="pl-condicao"><option value="gratuito" ${comercial.condicao==='gratuito'?'selected':''}>Gratuito, demonstração ou cortesia</option><option value="pago" ${comercial.condicao==='pago'?'selected':''}>Plano pago</option></select></div><div class="campo"><label for="pl-moeda">Moeda do preço</label><select class="entrada" id="pl-moeda"><option value="usd" ${comercial.moeda==='usd'?'selected':''}>Dólares</option><option value="brl" ${comercial.moeda==='brl'?'selected':''}>Reais</option></select></div><div class="campo"><label for="pl-renovacao">Renovação padrão para novas empresas</label><select class="entrada" id="pl-renovacao"><option value="mensal" ${comercial.renovacao==='mensal'?'selected':''}>Mensal</option><option value="nenhuma" ${comercial.renovacao==='nenhuma'?'selected':''}>Franquia única, sem renovação</option></select></div></div><p class="dica">O plano não depende do Stripe. A forma de cobrança e a data de término são configuradas em cada empresa. Alterar estes padrões não modifica contratos existentes.</p>
     <div class="grade-2"><div class="campo"><label for="pl-cred">Créditos por mês</label><input class="entrada" id="pl-cred" type="number" min="0" value="${p.credits}"><span class="ajuda">0 = ilimitado.</span></div>
       <div class="campo"><label for="pl-res">Reserva de continuidade</label><input class="entrada" id="pl-res" type="number" min="0" value="${p.reserve}"><span class="ajuda">Só no nível Rápido. Padrão: 20% da franquia.</span></div>
-      <div class="campo"><label for="pl-preco">Preço mensal (US$)</label><input class="entrada" id="pl-preco" type="number" min="0" step="0.01" value="${p.price_usd ?? ''}"><span class="ajuda">A empresa nunca vê valores em dólar.</span></div></div>
+      <div class="campo"><label for="pl-preco">Preço do plano</label><input class="entrada" id="pl-preco" type="number" min="0" step="0.01" value="${comercial.preco}"><span class="ajuda">Preço na moeda selecionada. Sem cobrança: zero. A margem em reais exige conciliação econômica; não é calculada como USD.</span></div></div>
     <h2 class="h-secao">Economia no pior caso</h2><div id="pl-previa" aria-live="polite">${previaHtml(p.economia)}</div>
     <h2 class="h-secao">Limites</h2><div class="grade-2">${Object.entries(C.catalogo.limites).map(([k, n]) => `<div class="campo"><label for="pl-l-${k}">${esc(n)}</label><input class="entrada" id="pl-l-${k}" type="number" min="0" value="${p.limits[k] ?? 0}"></div>`).join('')}</div>
     <h2 class="h-secao">Recursos</h2><div class="checagens">${Object.entries(C.catalogo.recursos).map(([k, n]) => `<label><input type="checkbox" data-f="${k}" ${p.features[k] ? 'checked' : ''}> ${esc(n)}</label>`).join('')}</div>
@@ -880,17 +896,20 @@ async function vistaPlano(id) {
   // Prévia ao digitar (sem gravar): mesma conta e mesma trava do servidor.
   let tPrevia;
   const atualizarPrevia = () => { clearTimeout(tPrevia); tPrevia = setTimeout(async () => {
-    try { const r = await api('/api/plataforma/planos/previa', { metodo: 'POST', corpo: { credits: Number($('pl-cred').value), reserve: Number($('pl-res').value), price_usd: $('pl-preco').value, rules: { pack_credits: Number($('pl-pc').value), pack_price_usd: Number($('pl-pp').value) } } });
+    try { const r = await api('/api/plataforma/planos/previa', { metodo: 'POST', corpo: { credits: Number($('pl-cred').value), reserve: Number($('pl-res').value), price_usd: $('pl-condicao').value==='pago'&&$('pl-moeda').value==='usd'?$('pl-preco').value:null, rules: { pack_credits: Number($('pl-pc').value), pack_price_usd: Number($('pl-pp').value) } } });
       $('pl-previa').innerHTML = previaHtml(r.economia); } catch { /* a prévia é só informativa */ }
   }, 250); };
   ['pl-cred', 'pl-res', 'pl-preco', 'pl-pc', 'pl-pp'].forEach(x => $(x).addEventListener('input', atualizarPrevia));
+  const condicao=()=>{if($('pl-condicao').value==='gratuito')$('pl-preco').value='0';$('pl-preco').disabled=$('pl-condicao').value==='gratuito';atualizarPrevia();};
+  $('pl-condicao').onchange=condicao;$('pl-moeda').onchange=atualizarPrevia;condicao();
   if (id === 'novo') atualizarPrevia();
   $('f-plano').onsubmit = async ev => {
     ev.preventDefault();
     try {
       let settings = {};
       try { settings = JSON.parse($('pl-set').value || '{}'); } catch { $('pl-avancado').hidden = false; throw new Error('As configurações específicas precisam ser um JSON válido.'); }
-      const corpo = { name: $('pl-nome').value, status: $('pl-status').value, description: $('pl-desc').value, credits: Number($('pl-cred').value), reserve: Number($('pl-res').value), price_usd: $('pl-preco').value,
+      settings.comercial={condicao:$('pl-condicao').value,moeda:$('pl-moeda').value,preco:Number($('pl-preco').value),renovacao:$('pl-renovacao').value};
+      const corpo = { name: $('pl-nome').value, status: $('pl-status').value, description: $('pl-desc').value, credits: Number($('pl-cred').value), reserve: Number($('pl-res').value), price_usd: settings.comercial.condicao==='pago'&&settings.comercial.moeda==='usd'?$('pl-preco').value:null,
         limits: Object.fromEntries(Object.keys(C.catalogo.limites).map(k => [k, Number($(`pl-l-${k}`).value)])), features: Object.fromEntries([...document.querySelectorAll('[data-f]')].map(x => [x.dataset.f, x.checked])),
         rules: { reserve_fast_only: $('pl-rr').checked, pack_name: p.rules.pack_name || 'Capacity Pack', pack_credits: Number($('pl-pc').value), pack_price_usd: Number($('pl-pp').value) }, settings };
       await api(id === 'novo' ? '/api/plataforma/planos' : `/api/plataforma/planos/${id}`, { metodo: id === 'novo' ? 'POST' : 'PUT', corpo });

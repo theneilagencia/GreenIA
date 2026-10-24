@@ -117,6 +117,7 @@ export function abrirPlataforma(arquivo = ':memory:') {
   // Colunas acrescentadas depois da primeira versão (bancos da plataforma que já existiam).
   const colunas = t => db.prepare(`pragma table_info(${t})`).all().map(c => c.name);
   const faltam = colunas('companies');
+  if (!faltam.includes('faturamento')) db.exec("alter table companies add column faturamento text not null default '{}'");
   for (const [c, def] of [['domain_status', "text not null default ''"], ['domain_checked_at', 'text'], ['domain_message', "text not null default ''"]]) {
     if (!faltam.includes(c)) db.exec(`alter table companies add column ${c} ${def}`);
   }

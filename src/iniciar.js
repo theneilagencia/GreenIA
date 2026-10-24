@@ -261,6 +261,13 @@ export async function iniciarPlataforma(env = process.env) {
   if (P.backup.hora || producao) tarefa(() => avisarBackups(P), 3600e3);
   const porta = Number(env.PORTA || env.PORT || 8080);
   P.servidor.listen(porta, env.HOST || '0.0.0.0', () => P.log(`GreenIA multiempresa em http://localhost:${porta} (console em /plataforma)`));
+  // Diagnóstico pontual autorizado pelo operador. Desligado por padrão; não é
+  // endpoint remoto nem rotina recorrente, e cada ID só pode iniciar uma vez.
+  if (env.GREENIA_DIAGNOSTICO_CHAT) {
+    import('./diagnostico-chat.js').then(({ iniciarDiagnosticoChat }) => iniciarDiagnosticoChat(P, {
+      id: env.GREENIA_DIAGNOSTICO_CHAT, pasta: join(dadosRaiz, 'diagnosticos'), versao: env.RENDER_GIT_COMMIT || null,
+    })).catch(() => P.log('GREENIA_DIAGNOSTICO_CHAT_ERRO', 'Diagnóstico não iniciado.'));
+  }
   const parar = () => { P.servidor.close(); for (const t of P.tenants.values()) t.db.close(); P.db.close(); process.exit(0); };
   process.on('SIGTERM', parar);
   process.on('SIGINT', parar);

@@ -17,7 +17,7 @@ test('as regras vão na conversa e na adaptação de modelo, com o briefing acim
   assert.match(m[0].content, /O briefing da pessoa .* manda/);
 });
 
-test('persona da conversa inclui as regras de escrita', async () => {
+test('persona da conversa usa estilo adaptável, sem impor o editor de documentos', async () => {
   const { subir } = await import('./ajuda.js');
   const { openRouterFalso, enviarMensagem } = await import('./openrouter-falso.js');
   const { salvarConfig } = await import('../src/config.js');
@@ -26,6 +26,8 @@ test('persona da conversa inclui as regras de escrita', async () => {
   const c = await S.cliente().entrar('ana@exemplo.com.br');
   const conv = (await c.post('/api/conversas', {})).dados.conversa;
   await enviarMensagem(c, conv.id, { texto: 'Resuma o projeto.' });
-  assert.ok(JSON.stringify(OR.chamadas.at(-1).messages[0].content).includes('Proibido (vícios de texto de IA)'));
+  const sistema = JSON.stringify(OR.chamadas.at(-1).messages[0].content);
+  assert.ok(sistema.includes('Adapte idioma, tom, registro'));
+  assert.ok(!sistema.includes('Proibido (vícios de texto de IA)'));
   await S.fechar(); await OR.fechar();
 });

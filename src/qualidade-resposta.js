@@ -44,7 +44,7 @@ export function lerJulgamentoQualidade(texto, respostas, trechos = null) {
     const x = j[k];
     if (x && typeof x === 'object') {
       if (!x.notas) x.notas = Object.fromEntries(DIMENSOES_RESPOSTA.map(d => [d, x[d]]));
-      if (typeof x.evidencias === 'string') x.evidencias = [x.evidencias];
+      if (typeof x.evidencias === 'string') x.evidencias = trechos && /^[AB]\d+(?:\s*,\s*[AB]\d+)*$/.test(x.evidencias.trim()) ? x.evidencias.trim().split(/\s*,\s*/) : [x.evidencias];
     }
   }
   if (trechos && j && typeof j === 'object') for (const k of ['A', 'B']) {

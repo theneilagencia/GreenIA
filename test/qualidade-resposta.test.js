@@ -88,3 +88,13 @@ test('avaliador criativo não aceita citação inventada nem teto excedido só p
   const satira = CASOS_QUALIDADE.find(c => c.id === 'satira-coerencia-e-fechamento');
   assert.ok(verificarRespostaQualitativa(satira, 'versão '.repeat(111)).includes('contrato_criativo:limite_de_palavras'));
 });
+
+test('lista textual de IDs mantém verificação por resposta e não inventa campos faltantes', () => {
+  const respostas = { A: 'Primeiro trecho verificável.\nSegundo trecho verificável.', B: 'Outra resposta verificável.' }, trechos = trechosDaAvaliacao(respostas);
+  const j = { A: { ...julgar(respostas.A), evidencias: 'A1, A2' }, B: { ...julgar(respostas.B), evidencias: 'B1' } };
+  assert.equal(lerJulgamentoQualidade(JSON.stringify(j), respostas, trechos).A.evidencias.length, 2);
+  j.A.evidencias = 'A1, B1'; assert.equal(lerJulgamentoQualidade(JSON.stringify(j), respostas, trechos), null);
+  j.A.evidencias = 'A1, A999'; assert.equal(lerJulgamentoQualidade(JSON.stringify(j), respostas, trechos), null);
+  j.A.evidencias = 'A1'; delete j.B.evidencias; j.B.evidences = 'B1';
+  assert.equal(lerJulgamentoQualidade(JSON.stringify(j), respostas, trechos), null, 'campo esperado ausente não é criado para aprovar');
+});

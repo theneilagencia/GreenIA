@@ -4,6 +4,34 @@ import { subir } from './ajuda.js';
 import { openRouterFalso, enviarMensagem } from './openrouter-falso.js';
 import { salvarConfig } from '../src/config.js';
 import { um } from '../src/db.js';
+import { pecaDaConversa } from '../src/conversas.js';
+import { visualDoPedido } from '../src/quickwin-operacao.js';
+
+test('restrições não encomendam peças visuais nem chamadas extras de design', async () => {
+  for (const pedido of ['Gere um Word sem capa.', 'Gere um Excel sem gráficos, capa, imagens ou tabela visual.', 'Crie um documento. Não inclua capa nem cartaz.', 'Gere um Word, evite capa.']) {
+    assert.equal(visualDoPedido(pedido), null, pedido);
+    assert.equal(pecaDaConversa(pedido), null, pedido);
+  }
+  assert.equal(visualDoPedido('Crie uma apresentação de 4 slides sem capa.').tipo, 'presentation');
+  assert.equal(visualDoPedido('Sem capa, mas crie um cartaz.').tipo, 'poster');
+  assert.equal(visualDoPedido('Não apenas uma capa, mas um cartaz.').tipo, 'poster');
+  const OR = await openRouterFalso({ responder: () => '# Aviso interno\n\nA reunião da equipe será na terça-feira às 10h.' });
+  const S = await subir({ ia: OR.ia });
+  try {
+    salvarConfig(S.app.db, { dominios: ['exemplo.com.br'] });
+    const c = await S.cliente().entrar('ana@exemplo.com.br');
+    const conv = (await c.post('/api/conversas', {})).dados.conversa;
+    const r = await enviarMensagem(c, conv.id, { texto: 'Gere um arquivo Word DOCX com título Aviso interno e um parágrafo. Sem capa, sem logotipo e sem texto adicional.' });
+    assert.ok(r.fim && !r.falha);
+    assert.equal(OR.chamadas.length, 1, 'Word sem capa não gera nem revisa um design de capa');
+    assert.ok(!r.eventos.some(e => e.t === 'etapa' && e.v === 'Montando o visual…'));
+    const a = r.fim.arquivos.find(a => a.nome.endsWith('.docx'));
+    assert.ok(a);
+    const d = await c.bin(`/api/conversas/${conv.id}/arquivos/${a.id}`);
+    assert.equal(d.status, 200);
+    assert.equal(d.dados.subarray(0, 2).toString(), 'PK');
+  } finally { await S.fechar(); await OR.fechar(); }
+});
 
 test('chat preserva o estilo recebido, sem revisão oculta nem chamadas extras', async () => {
   const respostas = [

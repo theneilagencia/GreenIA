@@ -3,6 +3,7 @@
 // liberado pela empresa, nada sigiloso, nada que a política manda proteger, fora da reserva do plano) e entrega o
 // arquivo na própria resposta, com prévia e download. Edição usa a imagem anexada ou a última gerada na conversa.
 import { um } from './db.js';
+import { pedidoAfirmativo } from './pedido-afirmativo.js';
 
 const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 // Peças compostas (texto + layout) seguem pela produção visual, não por aqui.
@@ -13,7 +14,6 @@ const EDITAR = /\b(troque|trocar|substitua|substituir|mude|mudar|altere|alterar|
 const ASSUNTO_IMG = /\b(roupa|cabelo|rosto|fundo|iluminacao|luz|cores?|cena|composicao|pessoa|personagem|expressao|enquadramento|proporcao|quadrad\w*|horizontal|vertical|fotorrealist\w*|estilo|cenario|1:1|16:9|4:5|9:16)\b/;
 // Restrições não são pedidos de geração: "gere uma planilha, sem gráficos ou imagens".
 // Preserva a próxima instrução afirmativa, inclusive "sem texto e gere uma imagem".
-const RESTRICAO = /\b(?:sem\b|(?:nao|nunca)\s+(?!(?:apenas|somente|so)\b)(?:gere|gerar|crie|criar|inclua|incluir|adicione|adicionar|produza|produzir|faca|fazer|quero|preciso|use|usar)\b|evite\b)[^.;\n]*?(?=[.;\n]|\b(?:mas|porem|gere|crie|produza|desenhe|ilustre|monte|edite|troque|substitua|transforme|ajuste)\b|$)/g;
 
 export function proporcaoDoPedido(texto) {
   const t = norm(texto);
@@ -48,7 +48,7 @@ export function ultimaImagemDaConversa(app, conversaId) {
  * brutos: base64 dos anexos desta mensagem; ultima: a última imagem gerada na conversa (ou null).
  */
 export function pedidoDeImagem(texto, { brutos = [], ultima = null, ultimaFoiImagem = false } = {}) {
-  const t = norm(texto).replace(RESTRICAO, ' ');
+  const t = pedidoAfirmativo(texto);
   if (!t.trim() || /\?\s*$/.test(t) && !CRIAR.test(t)) return null;
   const anexada = brutos.map(b => ({ b, mime: tipoImagem(b) })).find(x => x.mime);
   const proporcao = proporcaoDoPedido(texto);

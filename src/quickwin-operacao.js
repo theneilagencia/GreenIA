@@ -7,6 +7,7 @@
 // uma propriedade do entregável. A operação nunca amplia governança: a ferramenta só roda se a empresa liberou e
 // o conteúdo permite (conversas.js decide), e nada aqui executa ação externa.
 import { REGRAS_DE_ESCRITA } from './escrita.js';
+import { pedidoAfirmativo } from './pedido-afirmativo.js';
 import { createHash } from 'node:crypto';
 import { detectar, detectarReforcado } from './filtro.js';
 import { limparVisual, TIPOS as TIPOS_VISUAIS, FORMATOS as FORMATOS_VISUAIS } from './visual/contrato.js';
@@ -396,7 +397,7 @@ const PEDE_VISUAL = [
   [/\b(algo|pecas?|materia(l|is)|versao|resumo|pagina) (bem )?visua(l|is)\b|\bvisualmente\b/, 'one_page', ['resumo', 'relatorio']],
 ];
 export function visualDoPedido(texto) {
-  const t = norm(texto);
+  const t = pedidoAfirmativo(texto);
   const achado = PEDE_VISUAL.find(([re]) => re.test(t));
   if (!achado) return null;
   const n = /\b(\d{1,2})\s*(slides?|paginas?|telas|cards|laminas|quadros)\b/.exec(t);

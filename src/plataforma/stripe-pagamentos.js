@@ -74,7 +74,7 @@ export function consultarPedidosStripe(P, empresa) {
     .map(p=>({...p,snapshot:json(p.snapshot,{})}));
 }
 
-export async function criarCobrancaStripe(P, empresa, dados, ator) {
+export async function criarCobrancaStripe(P, empresa, dados, ator, op = {}) {
   if (!P.stripe) throw erro(503,'stripe_desligado','O serviço de pagamentos não está configurado.');
   if (P.stripe.env.STRIPE_EMISSOES==='0') throw erro(503,'stripe_emissoes_pausadas','A emissão de novas cobranças está temporariamente pausada.');
   const S=P.stripe, c=exigirEmpresa(P,empresa);
@@ -86,7 +86,7 @@ export async function criarCobrancaStripe(P, empresa, dados, ator) {
   const qtd=dados.quantidade ?? 1;
   if (!item || !['usd','brl'].includes(moeda) || !['checkout','fatura'].includes(canal) || !Number.isSafeInteger(qtd) || qtd<1 || qtd>50 || item.recorrente && qtd!==1) throw erro(400,'stripe_compra','Produto, moeda, canal ou quantidade inválidos.');
   if (c.status!=='ativa') throw erro(409,'stripe_empresa','Ative o ambiente antes de iniciar a cobrança.');
-  const plano=lerPlanoPorId(P,c.plan_id);
+  const plano=lerPlanoPorId(P,op.planId || c.plan_id);
   if (!plano || (item.recorrente && (plano.name!==item.nome || plano.credits!==item.creditos || plano.reserve!==item.reserva || Math.round(plano.price_usd*100)!==item.usd))) throw erro(409,'stripe_plano','Vincule o plano comercial correspondente antes de cobrar.');
   if (!item.recorrente && (plano.rules?.pack_credits!==item.creditos || Math.round(plano.rules?.pack_price_usd*100)!==item.usd)) throw erro(409,'stripe_pacote','O Capacity Pack do plano diverge do catálogo.');
   if (!item.recorrente && situacaoPlano(P.tenant(empresa))?.cobrancaPendente) throw erro(409,'stripe_periodo','Renove o período pago antes de comprar Capacity Packs.');
@@ -113,7 +113,7 @@ export async function criarCobrancaStripe(P, empresa, dados, ator) {
       const inicio=item.recorrente && ultimoFim && ultimoFim>momento ? ultimoFim : momento;
       const fx=moeda==='brl' ? await cotarCobrancaBrl(P.db,{pedido:id,empresa,produto:item.chave,usd_centavos:item.usd,quantidade:qtd},{...S.cambio,agora:P.agora()}) : null;
       const snapshot={total:fx?.total_brl_centavos ?? item.usd*qtd,usd_centavos:item.usd*qtd,creditos:item.creditos,reserva:item.reserva,
-        inicio,fim:proximoMesStripe(inicio),cotacao:fx?.cotacao || null,plan_id:c.plan_id,renovar,vencimento_dias:canal==='fatura'?vencimento:null};
+        inicio,fim:proximoMesStripe(inicio),cotacao:fx?.cotacao || null,plan_id:plano.id,renovar,vencimento_dias:canal==='fatura'?vencimento:null};
       exec(P.db,'insert into stripe_pedidos (id,empresa,produto,moeda,quantidade,canal,snapshot,criado_em) values (?,?,?,?,?,?,?,?)',id,empresa,item.chave,moeda,qtd,canal,JSON.stringify(snapshot),momento);
       p=um(P.db,'select * from stripe_pedidos where id=?',id);
     }
@@ -138,7 +138,7 @@ export async function criarCobrancaStripe(P, empresa, dados, ator) {
         const assinatura=item.recorrente && moeda==='usd';
         remoto=await S.api('POST','/v1/checkout/sessions',{mode:assinatura?'subscription':'payment',customer,client_reference_id:id,metadata,
           integration_identifier:`greenia_checkout_${Array.from(createHash('sha256').update(id).digest().subarray(0,8),b=>String.fromCharCode(97+b%26)).join('')}`,
-          success_url:`${baseUrl(P)}/plataforma`,cancel_url:`${baseUrl(P)}/plataforma`,
+          success_url:op.retorno ? `${op.retorno}?pedido=${encodeURIComponent(id)}&pagamento=retorno` : `${baseUrl(P)}/plataforma`,cancel_url:op.retorno ? `${op.retorno}?pedido=${encodeURIComponent(id)}&pagamento=cancelado` : `${baseUrl(P)}/plataforma`,
           // O prazo padrão de 24h começa quando o Stripe cria a sessão. Fixar
           // 30 minutos a partir do pedido fica abaixo do mínimo após a latência.
           line_items:[{quantity:1,price_data:{currency:moeda,unit_amount:snapshot.total,product_data:{name:desc},...(assinatura?{recurring:{interval:'month'}}:{})}}],

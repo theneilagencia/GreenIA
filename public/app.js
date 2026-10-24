@@ -4,6 +4,7 @@
 //   #/quick-wins, #/qw/:id...        quick wins
 //   #/conhecimento                   o que a IA pode usar
 //   #/uso #/pessoas #/modelos #/politicas #/atividade #/configuracoes   gestão (admin)
+import { conferirCapacidade } from '/creditos-redirecionamento.js';
 import { api, aplicarMarca, definirCsrf, definirMarcaPropria, definirUnidade, esc, ICONE, logoEmpresa, MARCA, marcaHtml, rodapePlataformaHtml, toast, transicao, vazioHtml } from '/comum.js';
 import { ligarAcoesConversas, grupoData } from '/historico-conversas.js';
 import { vistaConversa, lembreteAoSair } from '/conversa.js';
@@ -528,6 +529,8 @@ async function iniciar() {
     .map(c => ({ grupo: 'Conversas', nome: c.titulo, dica: c.quick_win || '', icone: 'conversa', href: `#/c/${c.id}` })) });
   await rota();
   await pedirCiencia();
+  if(sessionStorage.getItem('greenia:contratar')) {sessionStorage.removeItem('greenia:contratar');location.assign('/planos.html');return;}
+  await conferirCapacidade();
 }
 
 // Primeiro acesso e cada nova versão da política: a pessoa registra ciência.

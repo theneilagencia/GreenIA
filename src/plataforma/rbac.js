@@ -14,6 +14,7 @@ export const PERMISSOES = {
   // Empresa
   'company.read': ['Ver os dados da empresa', 'company'],
   'company.manage': ['Administração completa da empresa', 'company'],
+  'billing.manage': ['Contratar planos e capacidade para a empresa', 'company'],
   'company.update': ['Editar os dados da empresa', 'company'],
   'user.read': ['Ver pessoas', 'company'],
   'user.create': ['Convidar e cadastrar pessoas', 'company'],

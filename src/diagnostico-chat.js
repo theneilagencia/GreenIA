@@ -53,14 +53,15 @@ export async function diagnosticarChat({ ia, log, versao }) {
       if (rotas.some(m => !m || !Number.isFinite(m.precoEntrada) || !Number.isFinite(m.precoSaida))) recusar('diagnostico_preco_ausente');
       const estimativa = Math.max(...rotas.map(m => (Buffer.byteLength(JSON.stringify(mensagens)) + 1000) * m.precoEntrada + maxTokens * m.precoSaida));
       if (custo + estimativa > 1) recusar('diagnostico_reserva_excedida');
-      const c = { geracao: null, modelo: null, custoConfirmado: false }, inicio = Date.now();
+      const c = { geracao: null, modelo: null, modeloPedido: op.modelo, custoConfirmado: false }, inicio = Date.now();
       recibos.push(c);
       try {
         for await (const ev of alvo.enviar(mensagens, { ...op, maxTokens, sinal: AbortSignal.any([...(op.sinal ? [op.sinal] : []), AbortSignal.timeout(90000)]), aoGerar: id => { c.geracao = id; op.aoGerar?.(id); } })) {
           if (ev.tipo === 'fim') { Object.assign(c, { modelo: ev.modelo, fornecedor: ev.fornecedor, custo: ev.custo, custoConfirmado: ev.custoConfirmado === true, tokensEntrada: ev.tokensEntrada, tokensSaida: ev.tokensSaida }); custo += ev.custo || 0; }
           yield ev;
         }
-      } finally { c.ms = Date.now() - inicio; if (!c.custoConfirmado) interrompido = true; }
+      } catch (e) { c.falhou = true; c.status = Number.isInteger(e.status) ? e.status : null; throw e; }
+      finally { c.ms = Date.now() - inicio; if (!c.custoConfirmado) interrompido = true; }
     };
   } });
   const email = criarEmail({ lerSmtp: () => ({}), log: () => {} });

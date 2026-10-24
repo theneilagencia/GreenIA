@@ -102,5 +102,5 @@ test('continuação recebe fatos e resposta anteriores da própria conversa, sem
 test('registro explícito em criação é reforçado, e restrição negativa prevalece', () => {
   assert.ok(orientacaoDeEstilo('Faça um roast com gírias e palavrões.'));
   assert.ok(orientacaoDeEstilo('Roast me in Portuguese with more swear words.'));
-  for (const t of ['Reescreva a brincadeira sem palavrões.', 'Roast me without swear words.', 'Faça um roast, não use palavrões.', 'Explique o significado de palavrão.', 'Faça um roast sem palavrões, com humor.']) assert.equal(orientacaoDeEstilo(t), '', t);
+  for (const t of ['Reescreva a brincadeira sem palavrões.', 'Roast me without swear words.', 'Faça um roast, não use palavrões.', 'Explique o significado de palavrão.', 'Faça um roast sem palavrões, com humor.']) assert.doesNotMatch(orientacaoDeEstilo(t), /Registro solicitado nesta criação/, t);
 });

@@ -70,3 +70,11 @@ test('IDs resolvem somente citações reais da resposta correspondente, sem tole
   j.A.evidencias = ['B1']; assert.equal(lerJulgamentoQualidade(JSON.stringify(j), respostas, trechos), null);
   j.A.evidencias = ['A999']; assert.equal(lerJulgamentoQualidade(JSON.stringify(j), respostas, trechos), null);
 });
+
+test('variação de agrupamento no JSON não altera notas nem cria evidências', () => {
+  const respostas = { A: 'Dado verificável da resposta A.', B: 'Dado verificável da resposta B.' }, trechos = trechosDaAvaliacao(respostas);
+  const plano = { A: { ...julgar(respostas.A).notas, justificativa: 'Justificativa específica do resultado A.', evidencias: 'A1' }, B: { ...julgar(respostas.B, 1).notas, justificativa: 'Justificativa específica do resultado B.', evidencias: 'B1' } };
+  const j = lerJulgamentoQualidade(JSON.stringify(plano), respostas, trechos);
+  assert.equal(qualidadeSuficiente(j.A), true); assert.equal(qualidadeSuficiente(j.B), false);
+  plano.A.correcao = 5; assert.equal(lerJulgamentoQualidade(JSON.stringify(plano), respostas, trechos), null);
+});

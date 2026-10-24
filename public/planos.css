@@ -1,0 +1,69 @@
+/* Planos: composição editorial do site público, sem hierarquia promocional entre ofertas. */
+.lv.pc main{padding-bottom:80px}
+.lv.pc main>section{padding-top:72px}
+.lv.pc .pc-abertura{padding-top:56px;padding-bottom:8px}
+.pc .pc-trilha{margin:0 0 28px;font-size:13px;color:var(--muted)}
+.pc .pc-trilha a{color:inherit;text-underline-offset:4px}
+.pc h1{font:400 clamp(40px,5.8vw,64px)/1.06 var(--serif);letter-spacing:-.03em;max-width:23ch;margin:0 0 24px}
+.pc .pc-abertura .l-lead{max-width:57ch;margin-bottom:28px}
+.pc .pc-acoes{display:flex;align-items:center;flex-wrap:wrap;gap:14px 24px}
+.pc .pc-acoes .l-link{font-size:14px;min-height:44px}
+.pc .pc-principio{font:400 clamp(28px,3.3vw,40px)/1.14 var(--serif);letter-spacing:-.02em;max-width:32ch;margin:0 0 32px}
+.pc .pc-beneficios{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:32px}
+.pc .pc-beneficios article{border-top:1px solid var(--line-strong);padding-top:16px}
+.pc .pc-beneficios h3{font:500 16px/1.4 var(--sans);margin:0 0 8px}
+.pc .pc-beneficios p{font-size:14.5px;line-height:1.65;color:var(--muted);margin:0;max-width:36ch}
+.pc .pc-comparacao .l-cab{margin-bottom:28px}
+.pc .pc-comparacao .l-h2{max-width:26ch;font-size:clamp(32px,4vw,44px)}
+.pc .pc-igual{margin:0 0 24px;font-size:16px;line-height:1.6;color:var(--ink-2)}
+.pc .pc-grade{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line-strong);border-radius:var(--r-lg);overflow:hidden;background:var(--paper)}
+.pc .pc-plano{display:flex;flex-direction:column;padding:28px 24px;min-width:0}
+.pc .pc-plano+.pc-plano{border-left:1px solid var(--line)}
+.pc .pc-plano h3{font:400 28px/1.2 var(--serif);letter-spacing:-.02em;margin:0 0 10px}
+.pc .pc-perfil{font-size:14px;line-height:1.5;color:var(--muted);min-height:42px;margin:0 0 24px}
+.pc .pc-plano dl{margin:0 0 24px}
+.pc .pc-plano dl>div+div{margin-top:22px}
+.pc .pc-plano dt{font-size:12.5px;line-height:1.5;color:var(--muted);margin-bottom:6px}
+.pc .pc-plano dd{margin:0;font-variant-numeric:tabular-nums}
+.pc .pc-creditos{font:400 34px/1.15 var(--serif);letter-spacing:-.02em}
+.pc .pc-preco{font:500 23px/1.4 var(--sans);letter-spacing:-.04em;white-space:nowrap}
+.pc .pc-preco span{font:400 13px/1.5 var(--sans);letter-spacing:0;color:var(--muted)}
+.pc .pc-plano .btn{width:100%;margin-top:auto;font-size:13px;padding:0 10px;text-align:center}
+.pc .pc-nota{font-size:13px;line-height:1.65;color:var(--muted);max-width:90ch;margin:18px 0 0}
+.pc .pc-creditos-texto{max-width:74ch;padding:32px 0 0}
+.pc .pc-creditos-texto h3{font:400 26px/1.25 var(--serif);margin:0 0 14px}
+.pc .pc-creditos-texto p{font-size:15px;line-height:1.75;color:var(--ink-2);margin:0 0 12px}
+.pc .pc-creditos-texto a,.pc .pc-faq a{color:var(--ink);text-underline-offset:4px}
+.pc .pc-escolha{display:grid;grid-template-columns:1fr 1.2fr;gap:60px}
+.pc .pc-escolha .l-h2{max-width:16ch;font-size:clamp(32px,4vw,44px)}
+.pc .pc-rotinas{margin:0}
+.pc .pc-rotinas>div{display:grid;grid-template-columns:100px 1fr;gap:20px;padding:16px 0;border-top:1px solid var(--line)}
+.pc .pc-rotinas dt{font-weight:500;font-size:14px}
+.pc .pc-rotinas dd{margin:0;font-size:14.5px;line-height:1.6;color:var(--muted)}
+.pc .pc-adicional{display:grid;grid-template-columns:1fr 1fr;gap:40px;padding:32px;border-radius:var(--r-lg);background:var(--bg-2)}
+.pc .pc-adicional h2{font:400 30px/1.15 var(--serif);letter-spacing:-.02em;margin:0 0 14px}
+.pc .pc-adicional p{font-size:15px;line-height:1.7;color:var(--ink-2);margin:0 0 16px}
+.pc .pc-adicional strong{font-weight:500}
+.pc .pc-faq details,.pc .pc-adicional details{border-top:1px solid var(--line-strong)}
+.pc main summary{position:relative;cursor:pointer;list-style:none;padding:20px 30px 20px 0;font:500 15px/1.5 var(--sans)}
+.pc main summary::-webkit-details-marker{display:none}
+.pc main summary::after{content:'+';position:absolute;right:2px;top:19px;font:400 22px/1 var(--sans);color:var(--muted)}
+.pc main details[open]>summary::after{content:'−'}
+.pc details p{font-size:15px;line-height:1.7;color:var(--ink-2);margin:0 0 20px;max-width:76ch}
+.pc .pc-escopo{max-width:78ch}
+.pc .pc-escopo .l-h2{max-width:26ch;font-size:clamp(30px,3.6vw,40px)}
+.pc .pc-escopo p{font-size:16px;line-height:1.75;color:var(--ink-2);margin:0}
+.pc .pc-faq{max-width:880px}
+.pc .pc-faq .l-h2{font-size:clamp(32px,4vw,44px);margin-bottom:28px}
+.pc .pc-fecho{display:flex;align-items:center;justify-content:space-between;gap:40px;border-top:1px solid var(--line-strong);padding-top:36px}
+.pc .pc-fecho h2{font:400 clamp(30px,3.5vw,40px)/1.15 var(--serif);max-width:23ch;margin:0}
+.pc a:focus-visible,.pc summary:focus-visible{outline:2px solid var(--ink);outline-offset:5px;border-radius:4px}
+.pc .pc-pular{position:fixed;top:8px;left:12px;z-index:50;transform:translateY(-180%);background:var(--paper);color:var(--ink);padding:12px 18px;border:1px solid var(--line-strong);border-radius:8px}
+.pc .pc-pular:focus{transform:none}
+.pc [id]{scroll-margin-top:88px}
+@media(min-width:1000px) and (max-width:1150px){.pc .l-nav a{padding-inline:7px}.pc .l-topo .l-dentro{gap:8px}}
+@media(max-width:999px){.pc .pc-grade{grid-template-columns:repeat(2,minmax(0,1fr))}.pc .pc-plano:nth-child(3){border-left:0}.pc .pc-plano:nth-child(n+3){border-top:1px solid var(--line)}.pc .pc-perfil{min-height:0}.pc .pc-escolha{gap:32px}.pc .pc-fecho{align-items:flex-start;flex-direction:column;gap:24px}}
+@media(max-width:599px){.lv.pc main>section{padding-top:48px}.lv.pc .pc-abertura{padding-top:28px}.pc .pc-beneficios,.pc .pc-grade,.pc .pc-escolha,.pc .pc-adicional{grid-template-columns:1fr}.pc .pc-beneficios{gap:20px}.pc .pc-beneficios p{max-width:none}.pc .pc-principio{font-size:30px}.pc .pc-plano+.pc-plano{border-left:0;border-top:1px solid var(--line)}.pc .pc-plano{padding:24px}.pc .pc-plano dl{display:grid;grid-template-columns:1fr 1fr;gap:16px}.pc .pc-plano dl>div+div{margin-top:0}.pc .pc-preco{font-size:21px}.pc .pc-creditos{font-size:30px}.pc .pc-adicional{padding:24px;gap:24px}.pc .pc-rotinas>div{grid-template-columns:1fr;gap:6px}.pc .pc-acoes{gap:12px}.pc .pc-abertura .pc-acoes{align-items:flex-start;flex-direction:column}.pc .pc-fecho .pc-acoes{align-items:flex-start;flex-direction:column}.pc .l-rodape .l-dentro{gap:16px}}
+@media(prefers-reduced-motion:no-preference){.pc .pc-abertura>div{animation:l-sobe .45s var(--ease) both}}
+
+@media(max-width:400px){.pc .pc-preco span{display:block}.pc .pc-preco{white-space:normal}}

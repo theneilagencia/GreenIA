@@ -549,3 +549,83 @@ test('autosserviço não sobrepõe assinatura USD a período BRL pago e continua
     assert.equal(s.falso.chamadas.length,antes);
   }finally{await s.fechar();}
 });
+
+async function adesao(s,email='novo@cliente.example') {
+  const n=s.navegador(),r=await n.get('/api/adesao');assert.equal(r.status,200,JSON.stringify(r.dados));n.csrf=r.dados.csrf;
+  assert.equal((await n.post('/api/adesao/codigo',{email})).status,200);
+  const verificar=await n.post('/api/adesao/verificar',{codigo:n.ultimoCodigo(email)});assert.equal(verificar.status,200,JSON.stringify(verificar.dados));
+  return {n,empresas:verificar.dados.empresas};
+}
+test('visitante contrata sem empresa prévia: email, cadastro, cotação e Checkout; IA só após webhook',async()=>{
+  const s=await ambiente();try{
+    const antes=todos(s.P.db,'select id from companies').length;
+    const {n}=await adesao(s);
+    assert.equal(todos(s.P.db,'select id from companies').length,antes);
+    assert.equal(s.falso.chamadas.length,0);
+    const corpo={nome:'Responsável Teste',nome_empresa:'Cliente Público',produto:'team',confirmar_cadastro:true};
+    const cadastro=await n.post('/api/adesao/empresa',corpo);assert.equal(cadastro.status,200,JSON.stringify(cadastro.dados));n.csrf=cadastro.dados.csrf;
+    const id=cadastro.dados.empresa.id,t=s.P.tenant(id);
+    assert.equal(todos(s.P.db,'select id from companies').length,antes+1);
+    assert.equal(situacaoPlano(t).cobrancaPendente,true);
+    assert.throws(()=>checarPlano(t),e=>e.codigo==='pagamento_pendente');
+    // Repetir cadastro usa a mesma empresa (CSRF próprio da adesão, separado da sessão tenant).
+    const sessao=(await n.get('/api/adesao')).dados;const csrfTenant=n.csrf;n.csrf=sessao.csrf;
+    const repetir=await n.post('/api/adesao/empresa',corpo);assert.equal(repetir.dados.empresa.id,id);n.csrf=repetir.dados.csrf;
+    assert.equal(todos(s.P.db,'select id from companies').length,antes+1);
+    const q=(await n.post('/api/contratacao/cotacao',{produto:'team',moeda:'brl'})).dados;
+    const checkout=await n.post('/api/contratacao/checkout',{pedido:q.pedido,confirmar:true});assert.equal(checkout.status,200,JSON.stringify(checkout.dados));
+    const p=um(s.P.db,'select * from stripe_pedidos where id=?',q.pedido);
+    assert.match(checkout.dados.url,/^https:\/\/checkout.stripe.com\//);assert.equal(situacaoPlano(t).cobrancaPendente,true);
+    pagarCheckout(s,p.remoto);const e=evento('adesaopaga','checkout.session.completed',p.remoto);await processarEventoStripe(s.P,e);await processarEventoStripe(s.P,e);
+    assert.equal(situacaoPlano(t).creditos,5000);assert.equal(!!situacaoPlano(t).cobrancaPendente,false);assert.doesNotThrow(()=>checarPlano(t));
+    assert.equal(todos(t.db,'select * from stripe_periodos').length,1);
+  }finally{await s.fechar();}
+});
+test('adesão exige cookie, CSRF, email verificado e consentimento; não libera empresa por CNPJ',async()=>{
+  const s=await ambiente();try{
+    const n=s.navegador();assert.equal((await n.post('/api/adesao/empresa',{})).status,401);
+    n.csrf=(await n.get('/api/adesao')).dados.csrf;
+    assert.equal((await n.post('/api/adesao/codigo',{email:'novo@cliente.example'},{'x-csrf':'errado'})).status,403);
+    assert.equal((await n.post('/api/adesao/codigo',{email:'novo@cliente.example'},{origin:'https://outro.example'})).status,403);
+    assert.equal((await n.post('/api/adesao/empresa',{empresa:s.A.id})).status,401);
+    await n.post('/api/adesao/codigo',{email:'novo@cliente.example'});
+    for(let i=0;i<5;i++)assert.equal((await n.post('/api/adesao/verificar',{codigo:'nao-e-codigo'})).status,401);
+    assert.equal((await n.post('/api/adesao/verificar',{codigo:n.ultimoCodigo('novo@cliente.example')})).status,401);
+    const {n:b}=await adesao(s,'outro@cliente.example');
+    assert.equal((await b.post('/api/adesao/empresa',{empresa:s.A.id})).status,403);
+    assert.equal((await b.post('/api/adesao/empresa',{nome:'Teste',nome_empresa:'Teste',produto:'starter'})).status,400);
+    exec(s.P.db,"update companies set document='12.345.678/0001-99' where id=?",s.A.id);
+    const r=await b.post('/api/adesao/empresa',{nome:'Teste',nome_empresa:'Teste',produto:'starter',confirmar_cadastro:true,documento:'12345678000199'});
+    assert.equal(r.status,409);assert.equal(s.falso.chamadas.length,0);
+  }finally{await s.fechar();}
+});
+test('cliente existente verifica email e reutiliza sua empresa sem duplicar; membro não vira financeiro',async()=>{
+  const s=await ambiente();try{
+    const antes=todos(s.P.db,'select id from companies').length;
+    const {n,empresas}=await adesao(s,'ana@empresa-a.com');assert.equal(empresas[0].permitido,true);
+    assert.equal((await n.post('/api/adesao/empresa',{nome:'Ana',nome_empresa:'Duplicada',produto:'starter',confirmar_cadastro:true})).status,409);
+    const retorno=await n.post('/api/adesao/empresa',{empresa:s.A.id});assert.equal(retorno.status,200);n.csrf=retorno.dados.csrf;
+    assert.equal((await n.get('/api/contratacao')).dados.empresa.id,s.A.id);
+    assert.equal(todos(s.P.db,'select id from companies').length,antes);
+    const role=um(s.P.db,"select id from roles where key='member'");exec(s.P.db,'update company_users set role_id=? where company_id=?',role.id,s.A.id);
+    const {n:b,empresas:lista}=await adesao(s,'ana@empresa-a.com');assert.equal(lista[0].permitido,false);
+    assert.equal((await b.post('/api/adesao/empresa',{empresa:s.A.id})).status,403);
+    assert.equal(todos(s.P.db,'select id from companies').length,antes);
+  }finally{await s.fechar();}
+});
+test('adesão recusa sessão vencida, acesso bloqueado e abuso de códigos por email',async()=>{
+  const s=await ambiente();try{
+    const {n}=await adesao(s,'ana@empresa-a.com');
+    exec(s.P.db,"update users set status='bloqueado' where email='ana@empresa-a.com'");
+    assert.equal((await n.post('/api/adesao/empresa',{empresa:s.A.id})).status,403);
+    exec(s.P.db,'update stripe_adesoes set expira=0');
+    assert.equal((await n.post('/api/adesao/codigo',{email:'ana@empresa-a.com'})).status,401);
+    const email='limite@cliente.example';
+    for(let i=0;i<4;i++){
+      const b=s.navegador();b.csrf=(await b.get('/api/adesao')).dados.csrf;
+      assert.equal((await b.post('/api/adesao/codigo',{email})).status,i===3?429:200);
+    }
+    const b=s.navegador();b.csrf=(await b.get('/api/adesao')).dados.csrf;s.P.stripe.env.STRIPE_EMISSOES='0';
+    assert.equal((await b.post('/api/adesao/codigo',{email:'pausa@cliente.example'})).status,503);
+  }finally{await s.fechar();}
+});

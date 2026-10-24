@@ -45,6 +45,7 @@ import { migrarContatosAntigos, registrarFormulario } from './contatos.js';
 import { randomUUID } from 'node:crypto';
 import { validarPublicacao, empresaNaPublicacao } from '../publicacao-controlada.js';
 import { rotasCompraStripe } from './stripe-compra.js';
+import { rotasAdesaoStripe } from './stripe-adesao.js';
 import { configurarStripe, rotasStripe, receberWebhookStripe } from './stripe-pagamentos.js';
 import { situacaoDireitosStripe } from './stripe-direitos.js';
 import { vigente, aplicarPlanoAgendado } from './faturamento.js';
@@ -148,6 +149,7 @@ export function criarPlataforma(op = {}) {
   const rPlat = criarRoteador(), rEmp = criarRoteador();
   rotasPlataforma(P, rPlat);
   rotasStripe(P, rPlat);
+  rotasAdesaoStripe(P, rPlat);
   rotasAuthEmpresa(P, rEmp);
   rotasPublicoEmpresa(P, rEmp);
   rotasEncerramentoEmpresa(P, rEmp);
@@ -348,6 +350,7 @@ async function tratar(P, rPlat, rEmp, req, res) {
   try {
     const cookies = lerCookies(req);
     const porHost = resolverPorHost(P, hostDe(req));
+    if (!porHost && caminho.startsWith('/api/adesao')) return await despachar(P,rPlat,req,res,url,cookies,null);
     // Endpoint público com corpo bruto e assinatura própria. Sem exceções para as demais rotas/CSRF.
     if (!porHost && caminho === '/api/stripe/webhook' && req.method === 'POST') return await receberWebhookStripe(P, req, res);
     if (porHost?.redirecionar) { res.writeHead(301, { location: porHost.redirecionar + caminho }); return res.end(); }

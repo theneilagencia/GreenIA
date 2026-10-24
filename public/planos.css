@@ -69,3 +69,5 @@
 @media(max-width:400px){.pc .pc-preco span{display:block}.pc .pc-preco{white-space:normal}}
 
 .pc-contratacao{padding-block:2rem;scroll-margin-top:6rem}.pc-contratacao select{font:inherit;padding:.6rem;border:1px solid #777;border-radius:6px}.pc-contratacao [role="status"]{margin-block:1rem}.pc-contratacao label{display:block;max-width:65ch}.pc-contratacao #compra-revisao:not(:empty){padding:1.5rem;border:1px solid #777;border-radius:12px;margin-top:1rem}.pc-contratacao .btn{white-space:normal}
+
+.pc-contratacao input:not([type="checkbox"]),.pc-contratacao select{display:block;width:min(100%,32rem);box-sizing:border-box;font:inherit;padding:.75rem;margin:.4rem 0 1rem;border:1px solid #777;border-radius:6px;background:var(--fundo,#fff);color:inherit}.pc-contratacao button{cursor:pointer}.pc-plano>button{width:100%}

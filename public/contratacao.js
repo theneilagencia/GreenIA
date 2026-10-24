@@ -1,5 +1,6 @@
 // A visita nunca cria cobrança. A confirmação explícita ocorre antes do Checkout hospedado.
 import { esc } from '/comum.js';
+import { abrirAdesao } from '/adesao.js';
 const host=document.getElementById('contratacao');
 let contexto, proposta, ocupado=false;
 const moeda=(n,m)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:m.toUpperCase()}).format(n/100);
@@ -22,6 +23,7 @@ function mostrar() {
 }
 async function escolher(produto) {
   host.scrollIntoView({behavior:'smooth',block:'start'});
+  if(!contexto) return abrirAdesao(host,produto,async escolhido=>{await iniciar();if(!new URLSearchParams(location.search).has('pedido'))await escolher(escolhido);});
   if(!contexto?.permitido || !contexto.disponivel) return;
   if(ocupado)return;ocupado=true;proposta=null;host.querySelector('#compra-revisao').replaceChildren();aviso('Consultando valor…');
   try {
@@ -38,7 +40,6 @@ async function pagar() {
 }
 async function iniciar() {
   try {contexto=await chamar('');mostrar();
-    for(const a of document.querySelectorAll('[data-compra]')) {if(!contexto.disponivel)continue;a.textContent=contexto.permitido?(a.dataset.compra==='capacity_pack'?'Contratar Capacity Pack':'Escolher este plano'):'Ver como contratar';a.setAttribute('aria-label',a.textContent+' · '+a.dataset.compra);a.addEventListener('click',e=>{e.preventDefault();escolher(a.dataset.compra);});}
     const q=new URLSearchParams(location.search),pedido=q.get('pedido');
     if(q.get('motivo')==='creditos')aviso('A franquia da empresa terminou. Confira a reserva e a capacidade adicional com seu administrador. O histórico continua disponível.');
     if(q.get('pagamento')==='cancelado')aviso('Você voltou do pagamento. Nenhuma capacidade foi liberada por este retorno.');
@@ -48,8 +49,14 @@ async function iniciar() {
       await conferir();
     }
   } catch(e) {
-    host.innerHTML='<h2>Já utiliza o GreenIA?</h2><p>Entre no ambiente da sua empresa para contratar com segurança. Se ainda não possui um ambiente, converse com a TheNeil pelos links dos planos.</p>';
-    const a=document.createElement('a');a.className='btn btn-linha';a.href=e.status===404?'/encontrar':'/entrar';a.textContent='Entrar para contratar';a.onclick=()=>{sessionStorage.setItem('greenia:contratar','1');};host.append(a);
+    contexto=null;
+    if(![401,404].includes(e.status)) {host.innerHTML='<h2>Contratação indisponível neste momento</h2><p role="status"></p>';aviso(e.message);return;}
+    host.innerHTML='<h2>Escolha o plano e contrate online</h2><p>Selecione um plano abaixo para verificar seu email, cadastrar sua empresa e seguir para o pagamento seguro no Stripe. Se você já é cliente, usaremos seu cadastro existente.</p><p role="status" aria-live="polite"></p>';
+  }
+  for(const a of document.querySelectorAll('[data-compra]')) {
+    a.textContent=contexto && !contexto.permitido?'Ver como contratar':a.dataset.compra==='capacity_pack'?'Contratar Capacity Pack':'Escolher este plano';
+    a.setAttribute('aria-label',a.textContent+' · '+a.dataset.compra);
   }
 }
+for(const a of document.querySelectorAll('[data-compra]'))a.addEventListener('click',e=>{e.preventDefault();escolher(a.dataset.compra).catch(e=>{const s=host.querySelector('[role="status"]');if(s)s.textContent=e.message;});});
 iniciar();

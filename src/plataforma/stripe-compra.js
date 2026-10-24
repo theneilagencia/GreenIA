@@ -9,6 +9,13 @@ import { criarCobrancaStripe, consultarPedidosStripe } from './stripe-pagamentos
 import { lerFaturamento, salvarFaturamento, obrigacoesStripe } from './faturamento.js';
 import { situacaoPlano } from '../plano.js';
 
+export function planoComercialStripe(P, item) {
+  const p = todos(P.db,"select id,name,credits,reserve,price_usd from plans where status='ativo'")
+    .find(p=>p.name===item.nome && p.credits===item.creditos && p.reserve===item.reserva && Math.round(p.price_usd*100)===item.usd);
+  if (!p) throw erro(409,'stripe_catalogo','Este plano precisa de revisão comercial. Converse com a TheNeil.');
+  return p;
+}
+
 export function rotasCompraStripe(P, r) {
   P.db.exec(`create table if not exists stripe_propostas (
     id text primary key, empresa text not null, usuario text not null, produto text not null,
@@ -16,12 +23,7 @@ export function rotasCompraStripe(P, r) {
   const habilitado = () => {
     if (!P.stripe || P.stripe.env.STRIPE_EMISSOES === '0') throw erro(503,'stripe_desligado','A contratação está temporariamente indisponível. Converse com a TheNeil.');
   };
-  const planoPara = item => {
-    const p = todos(P.db,"select id,name,credits,reserve,price_usd from plans where status='ativo'")
-      .find(p=>p.name===item.nome && p.credits===item.creditos && p.reserve===item.reserva && Math.round(p.price_usd*100)===item.usd);
-    if (!p) throw erro(409,'stripe_catalogo','Este plano precisa de revisão comercial. Converse com a TheNeil.');
-    return p;
-  };
+  const planoPara = item => planoComercialStripe(P,item);
   r.get('/api/contratacao', ({sessao,companyId,empresa}) => ({
     csrf:sessao.csrf, usuario:sessao.userId, empresa:{id:companyId,nome:empresa.name},
     permitido:sessao.perms.has('billing.manage'), disponivel:!!P.stripe && P.stripe.env.STRIPE_EMISSOES!=='0',

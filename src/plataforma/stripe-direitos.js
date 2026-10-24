@@ -13,6 +13,13 @@ function esquema(t) {
   if (!t.db.prepare('pragma table_info(stripe_controle)').all().some(c=>c.name==='uso_base')) t.db.exec('alter table stripe_controle add column uso_base integer not null default 0');
 }
 
+// Somente para um ambiente novo do autosserviço: nenhum direito de IA antes de pagar.
+export function iniciarDireitosStripeSemPagamento(t) {
+  esquema(t);
+  if (um(t.db,'select 1 from uso limit 1') || um(t.db,'select 1 from pacotes limit 1')) throw erro(409,'stripe_migracao','Este ambiente já possui uso ou créditos. Concilie antes de iniciar um contrato.');
+  exec(t.db,'insert or ignore into stripe_controle (id,ativada_em,saldo_inicial,pacote_base,uso_base) values (1,?,0,0,0)',t.agora().toISOString());
+}
+
 export function concederDireitoStripe(t, { comprovante, produto, inicio, fim, creditos, reserva, quantidade = 1, moeda, total }, legado) {
   esquema(t);
   return transacao(t.db, () => {
